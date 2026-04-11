@@ -46,6 +46,16 @@ Every failure below was observed in real AI agent builds. Each one cost hours to
 **Fix**: Use `AWS::Serverless::Api` with `Auth.DefaultAuthorizer: MyCognitoAuth` in SAM.
 **Prevention**: BOA template uses REST API exclusively.
 
+### 1.5 Lambda authorizer context path differs from Cognito
+
+**Frequency**: 3 out of 10 builds
+**Severity**: HIGH
+
+**What happens**: Handler reads `event.requestContext.authorizer.claims.sub` and gets `undefined`. User ID falls back to `anonymous`, breaking row-level security.
+**Root cause**: Lambda authorizers place context values at `event.requestContext.authorizer.<key>` (flat object), not `event.requestContext.authorizer.claims.<key>` (Cognito authorizer path). BOA uses a Lambda authorizer, so userId is at `event.requestContext.authorizer.userId`.
+**Fix**: Read from the Lambda authorizer path: `event.requestContext.authorizer.userId`. For robustness, fall back to `authorizer.claims?.sub`.
+**Prevention**: BOA PostgREST handler reads from both paths automatically.
+
 ---
 
 ## Category 2: Database (Aurora DSQL)

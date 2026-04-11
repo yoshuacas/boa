@@ -120,6 +120,7 @@ aws ssm put-parameter \
   exit 1
 }
 echo "  [OK] JWT secret stored at /${STACK_NAME}/jwt-secret"
+echo ""
 
 # ------------------------------------------------------------------
 # SAM build and deploy
@@ -210,7 +211,7 @@ echo "  S3 Bucket:        $BUCKET_NAME"
 echo "  DSQL Endpoint:    $DSQL_ENDPOINT"
 echo ""
 echo "Verification commands:"
-echo "  curl -s \"$API_URL/items\" -H \"apikey: $ANON_KEY\" -w '\\n%{http_code}'"
+echo "  curl -s \"$API_URL/rest/v1/<table>\" -H \"apikey: $ANON_KEY\" -w '\\n%{http_code}'"
 echo "  aws cognito-idp describe-user-pool --user-pool-id $USER_POOL_ID --region $REGION --query 'UserPool.AdminCreateUserConfig'"
 echo "  aws s3api get-public-access-block --bucket $BUCKET_NAME --region $REGION"
 echo ""

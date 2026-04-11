@@ -88,6 +88,9 @@ export async function handler(event) {
     }
 
     if (routeInfo.type === 'refresh') {
+      if (method !== 'POST') {
+        throw new PostgRESTError(405, 'PGRST000', 'Method not allowed on _refresh');
+      }
       const newSchema = await refresh(pool);
       const apiUrl =
         `https://${headers['host'] || 'localhost'}/rest/v1`;

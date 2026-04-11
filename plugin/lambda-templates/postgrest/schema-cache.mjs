@@ -61,6 +61,11 @@ async function introspect(pool) {
   return { tables };
 }
 
+export function _resetCache() {
+  cache = null;
+  lastRefreshAt = 0;
+}
+
 export async function getSchema(pool) {
   const now = Date.now();
   if (cache && (now - lastRefreshAt) < TTL) {

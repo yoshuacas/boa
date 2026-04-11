@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { _setPool } from '../db.mjs';
 import { handler } from '../handler.mjs';
+import { _resetCache } from '../schema-cache.mjs';
 
 // --- Mock data for schema introspection ---
 
@@ -115,6 +116,7 @@ function makeEvent({
   query = {},
   headers = {},
   body = null,
+  rawBody = undefined,
   userId = 'user-1',
   role = 'authenticated',
   email = '',
@@ -127,7 +129,7 @@ function makeEvent({
       'Content-Type': 'application/json',
       ...headers,
     },
-    body: body ? JSON.stringify(body) : null,
+    body: rawBody !== undefined ? rawBody : (body ? JSON.stringify(body) : null),
     requestContext: {
       authorizer: { role, userId, email },
     },
@@ -135,6 +137,11 @@ function makeEvent({
 }
 
 describe('handler integration', () => {
+  beforeEach(() => {
+    _resetCache();
+    _setPool(createMockPool());
+  });
+
   describe('CRUD operations', () => {
     it('GET /rest/v1/todos returns 200 with bare JSON array', async () => {
       const event = makeEvent({ method: 'GET', path: '/rest/v1/todos' });
@@ -283,33 +290,93 @@ describe('handler integration', () => {
 
   describe('user isolation', () => {
     it('user_id is bound in SQL WHERE for per-user filtering', async () => {
-      // Verify that queries for user A include user A's ID in the WHERE clause
-      // and queries for user B include user B's ID.
-      // Since the handler uses a mock pool, we verify by checking that
-      // different users get different results (the mock should capture
-      // the SQL params and assert user_id is bound correctly).
+      const queries = [];
+      const capturingPool = {
+        query: async (text, values) => {
+          queries.push({ text, values });
+          if (text.includes('pg_catalog') && !text.includes('contype')) {
+            return { rows: mockColumnRows };
+          }
+          if (text.includes('contype')) {
+            return { rows: mockPkRows };
+          }
+          return { rows: [
+            { id: 'abc', user_id: 'user-1', title: 'Buy milk' },
+            { id: 'def', user_id: 'user-1', title: 'Walk dog' },
+          ] };
+        },
+      };
+      _setPool(capturingPool);
+      // Need a fresh schema cache for each call
+      _resetCache();
+
       const eventA = makeEvent({
         method: 'GET',
         path: '/rest/v1/todos',
         userId: 'user-A',
       });
+      await handler(eventA);
+
+      // Find the SELECT query (not schema introspection)
+      const selectA = queries.find((q) =>
+        q.text.startsWith('SELECT') && !q.text.includes('pg_catalog'),
+      );
+      assert.ok(selectA, 'should have executed a SELECT query for user A');
+      assert.ok(selectA.values.includes('user-A'),
+        'user-A should be bound in SQL parameters');
+
+      // Reset and test user B
+      queries.length = 0;
+      _resetCache();
+      _setPool(capturingPool);
+
       const eventB = makeEvent({
         method: 'GET',
         path: '/rest/v1/todos',
         userId: 'user-B',
       });
-      const resA = await handler(eventA);
-      const resB = await handler(eventB);
-      // Both should succeed
-      assert.equal(resA.statusCode, 200,
-        'user A query should succeed');
-      assert.equal(resB.statusCode, 200,
-        'user B query should succeed');
-      // The key assertion: the handler should pass different user_id
-      // parameters to the SQL builder. Since these are integration tests
-      // with a mock, we rely on the mock pool capturing query params.
-      // When the real implementation is in place, the mock should verify
-      // that the WHERE clause includes the correct user_id.
+      await handler(eventB);
+
+      const selectB = queries.find((q) =>
+        q.text.startsWith('SELECT') && !q.text.includes('pg_catalog'),
+      );
+      assert.ok(selectB, 'should have executed a SELECT query for user B');
+      assert.ok(selectB.values.includes('user-B'),
+        'user-B should be bound in SQL parameters');
+    });
+
+    it('Lambda authorizer userId is used in SQL query', async () => {
+      const queries = [];
+      const capturingPool = {
+        query: async (text, values) => {
+          queries.push({ text, values });
+          if (text.includes('pg_catalog') && !text.includes('contype')) {
+            return { rows: mockColumnRows };
+          }
+          if (text.includes('contype')) {
+            return { rows: mockPkRows };
+          }
+          return { rows: [
+            { id: 'abc', user_id: 'user-1', title: 'Buy milk' },
+            { id: 'def', user_id: 'user-1', title: 'Walk dog' },
+          ] };
+        },
+      };
+      _setPool(capturingPool);
+
+      const event = makeEvent({
+        method: 'GET',
+        path: '/rest/v1/todos',
+        userId: 'user-1',
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 200);
+
+      const selectQ = queries.find((q) =>
+        q.text.startsWith('SELECT') && !q.text.includes('pg_catalog'),
+      );
+      assert.ok(selectQ.values.includes('user-1'),
+        'user-1 from Lambda authorizer should be bound in SQL');
     });
   });
 
@@ -359,6 +426,95 @@ describe('handler integration', () => {
         'POST should return 201');
       assert.ok(!res.body || res.body === '' || res.body === 'null',
         'body should be empty without return=representation');
+    });
+  });
+
+  describe('Content-Range for empty results', () => {
+    it('returns */* for empty results without count', async () => {
+      const event = makeEvent({
+        method: 'GET',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.nonexistent' },
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 200);
+      const cr = res.headers['Content-Range'];
+      assert.ok(cr, 'Content-Range should be present');
+      assert.ok(cr.startsWith('*/'),
+        `Content-Range for empty results should start with */: got "${cr}"`);
+    });
+  });
+
+  describe('body validation', () => {
+    it('PATCH without body returns 400 with PGRST100', async () => {
+      const event = makeEvent({
+        method: 'PATCH',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.abc' },
+      });
+      // Ensure body is null
+      event.body = null;
+      const res = await handler(event);
+      assert.equal(res.statusCode, 400,
+        'PATCH without body should return 400');
+      const body = JSON.parse(res.body);
+      assert.equal(body.code, 'PGRST100',
+        'error code should be PGRST100');
+    });
+
+    it('malformed JSON body returns 400 with PGRST100', async () => {
+      const event = makeEvent({
+        method: 'POST',
+        path: '/rest/v1/todos',
+        rawBody: 'not json{',
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 400,
+        'malformed JSON should return 400');
+      const body = JSON.parse(res.body);
+      assert.equal(body.code, 'PGRST100',
+        'error code should be PGRST100');
+    });
+  });
+
+  describe('_refresh method restriction', () => {
+    it('GET /rest/v1/_refresh returns 405', async () => {
+      const event = makeEvent({
+        method: 'GET',
+        path: '/rest/v1/_refresh',
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 405,
+        'GET on _refresh should return 405');
+    });
+  });
+
+  describe('PATCH/DELETE without Prefer', () => {
+    it('PATCH with body and no Prefer returns 204 with empty body', async () => {
+      const event = makeEvent({
+        method: 'PATCH',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.abc' },
+        body: { title: 'Updated' },
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 204,
+        'PATCH without Prefer should return 204');
+      assert.ok(!res.body || res.body === '',
+        'body should be empty');
+    });
+
+    it('DELETE with no Prefer returns 204 with empty body', async () => {
+      const event = makeEvent({
+        method: 'DELETE',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.abc' },
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 204,
+        'DELETE without Prefer should return 204');
+      assert.ok(!res.body || res.body === '',
+        'body should be empty');
     });
   });
 

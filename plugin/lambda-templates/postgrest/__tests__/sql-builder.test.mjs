@@ -259,6 +259,62 @@ describe('sql-builder', () => {
     });
   });
 
+  describe('buildInsert (upsert edge cases)', () => {
+    it('produces DO NOTHING when all columns are in on_conflict or user_id', () => {
+      const body = { id: 'abc' };
+      const parsed = {
+        select: ['*'],
+        filters: [],
+        order: [],
+        limit: null,
+        offset: 0,
+        onConflict: 'id',
+      };
+      const { text } = buildInsert('todos', body, schema, 'user1', parsed);
+      assert.ok(text.includes('ON CONFLICT'),
+        'SQL should contain ON CONFLICT');
+      assert.ok(text.includes('DO NOTHING'),
+        'SQL should fall back to DO NOTHING when SET would be empty');
+      assert.ok(!text.includes('DO UPDATE SET'),
+        'SQL should NOT contain DO UPDATE SET');
+    });
+  });
+
+  describe('is filter guard', () => {
+    it('throws PGRST100 for invalid IS value', () => {
+      const parsed = {
+        select: ['*'],
+        filters: [{ column: 'title', operator: 'is', value: 'invalid', negate: false }],
+        order: [],
+        limit: null,
+        offset: 0,
+        onConflict: null,
+      };
+      assert.throws(
+        () => buildSelect('todos', parsed, schema, 'user1'),
+        (err) => err.code === 'PGRST100',
+        'should throw PGRST100 for invalid IS value',
+      );
+    });
+
+    it('accepts valid IS values (null, true, false, unknown)', () => {
+      for (const value of ['null', 'true', 'false', 'unknown']) {
+        const parsed = {
+          select: ['*'],
+          filters: [{ column: 'title', operator: 'is', value, negate: false }],
+          order: [],
+          limit: null,
+          offset: 0,
+          onConflict: null,
+        };
+        assert.doesNotThrow(
+          () => buildSelect('todos', parsed, schema, 'user1'),
+          `should not throw for IS ${value}`,
+        );
+      }
+    });
+  });
+
   describe('buildUpdate', () => {
     it('generates UPDATE ... SET ... WHERE for filters and body', () => {
       const body = { title: 'Updated title' };

@@ -142,6 +142,28 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX idx_todos_user ON todos(user_id);
 ```
 
+## Authentication
+
+All API requests require an `apikey` header containing a BOA JWT.
+The bootstrap script generates two keys and stores them in
+`.boa/config.json`:
+
+- **anonKey** — role `anon`, for unauthenticated/public access
+- **serviceRoleKey** — role `service_role`, bypasses row-level
+  security (use server-side only, never expose to clients)
+
+For authenticated users, include an `Authorization: Bearer <token>`
+header alongside the `apikey`. The bearer token is a BOA JWT (not a
+Cognito token) containing `sub`, `role`, and `email` claims.
+
+Example request:
+
+```bash
+curl "$API_URL/rest/v1/todos" \
+  -H "apikey: $ANON_KEY" \
+  -H "Authorization: Bearer $USER_TOKEN"
+```
+
 ## Step 4: Lambda Function Code
 
 Copy the Lambda handler from the BOA templates:

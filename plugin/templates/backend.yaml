@@ -91,29 +91,7 @@ Resources:
       SourceArn: !GetAtt UserPool.Arn
 
   # -------------------------------------------------------
-  # Authorizer — Custom Lambda authorizer for BOA JWTs
-  # -------------------------------------------------------
-  AuthorizerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${ProjectName}-authorizer'
-      Handler: authorizer/index.handler
-      CodeUri: ../lambda-templates/
-      MemorySize: 128
-      Environment:
-        Variables:
-          JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
-
-  AuthorizerFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt AuthorizerFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'
-
-  # -------------------------------------------------------
-  # API — REST API Gateway with BOA authorizer
+  # API — REST API Gateway with BOA Lambda authorizer
   # -------------------------------------------------------
   Api:
     Type: AWS::Serverless::Api
@@ -137,6 +115,28 @@ Resources:
         AllowOrigin: "'*'"
         ExposeHeaders: "'Content-Range'"
         MaxAge: "'600'"
+
+  # -------------------------------------------------------
+  # Authorizer — Lambda authorizer for BOA JWTs
+  # -------------------------------------------------------
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-authorizer'
+      Handler: authorizer/index.handler
+      CodeUri: ../lambda-templates/
+      MemorySize: 128
+      Environment:
+        Variables:
+          JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
+
+  AuthorizerFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt AuthorizerFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'
 
   # -------------------------------------------------------
   # Compute — Lambda API function
