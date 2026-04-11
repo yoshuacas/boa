@@ -145,7 +145,7 @@ Create a new user account.
 | Missing email | 400 | `{"error":"validation_failed","error_description":"Email is required"}` |
 | Missing password | 400 | `{"error":"validation_failed","error_description":"Password is required"}` |
 | Invalid email format | 400 | `{"error":"validation_failed","error_description":"Invalid email format"}` |
-| Password too weak | 422 | `{"error":"weak_password","error_description":"Password must be at least 8 characters and include uppercase, lowercase, and numbers"}` |
+| Password too weak | 422 | `{"error":"weak_password","error_description":"Password must be at least 8 characters and include uppercase, lowercase, and numbers","weak_password":{"reasons":["length","characters"]}}` |
 | Email already registered | 400 | `{"error":"user_already_exists","error_description":"User already registered"}` |
 | Provider error | 500 | `{"error":"unexpected_failure","error_description":"An unexpected error occurred"}` |
 
@@ -298,6 +298,14 @@ The `prt` (provider refresh token) claim embeds the Cognito
 refresh token. When the client sends this refresh token back,
 the auth Lambda extracts `prt` and uses it to get new Cognito
 tokens.
+
+**Note:** Supabase GoTrue refresh tokens never expire and are
+single-use (rotated on each refresh). BOA refresh tokens have
+a 30-day expiry to match the Cognito refresh token default
+lifetime. BOA does not enforce single-use rotation in MVP —
+a refresh token can be reused until it expires or the
+underlying Cognito refresh token is revoked. This is a
+known simplification.
 
 #### Anon Key (10 years)
 
@@ -575,6 +583,14 @@ an explicit dependency.
 | `CodeMismatchException` | `invalid_grant` |
 | Other | `unexpected_failure` |
 
+**Note:** The Cognito UserPoolClient has
+`PreventUserExistenceErrors: ENABLED`, so during signIn,
+Cognito throws `NotAuthorizedException` instead of
+`UserNotFoundException` when the user does not exist. The
+`UserNotFoundException` mapping is retained as a defensive
+catch for other operations (e.g., `GetUserCommand`) but
+will not be triggered during normal signIn flows.
+
 The `signIn` method returns `providerTokens`:
 ```javascript
 {
@@ -659,13 +675,14 @@ export function logoutResponse() {
   return { statusCode: 204, headers: corsHeaders() };
 }
 
-export function errorResponse(statusCode, error, description) {
+export function errorResponse(statusCode, error, description, extra) {
   return {
     statusCode,
     headers: corsHeaders(),
     body: JSON.stringify({
       error,
       error_description: description,
+      ...extra,
     }),
   };
 }
@@ -835,8 +852,11 @@ function deny(methodArn) {
 an Allow policy for `<stage>/*` rather than the specific
 method ARN. This is required for API Gateway to cache the
 policy across different endpoints. The 300-second cache is
-keyed on the Authorization header value — same token, same
-policy, regardless of path.
+keyed on both the `Authorization` and `apikey` header
+values (both are listed in the SAM `Identity.Headers`
+configuration). This ensures that requests with different
+apikeys (e.g., anon vs. service_role) but no Authorization
+Bearer token produce separate cache entries.
 
 ### Key Generation Script
 
@@ -906,7 +926,7 @@ console.log(JSON.stringify({ anonKey, serviceRoleKey }));
 | File | Change |
 |------|--------|
 | `plugin/lambda-templates/index.mjs` | Add routing: `/auth/v1/*` → auth handler, keep existing routes |
-| `plugin/lambda-templates/package.json` | Add `jsonwebtoken` and `@aws-sdk/client-cognito-identity-provider` dependencies |
+| `plugin/lambda-templates/package.json` | No change — `jsonwebtoken` and `@aws-sdk/client-cognito-identity-provider` already present |
 | `plugin/templates/backend.yaml` | Replace CognitoAuthorizer with BoaAuthorizer, add AuthorizerFunction, add auth route, add env vars, update CORS |
 | `plugin/scripts/bootstrap.sh` | Add JWT secret generation, SSM storage, key generation, extended config output |
 
@@ -931,6 +951,7 @@ Auth:
       Identity:
         Headers:
           - Authorization
+          - apikey
         ReauthorizeEvery: 300
 ```
 
@@ -1049,6 +1070,8 @@ branch would route to `postgrest/handler.mjs` instead of
 - `logoutResponse` returns 204 with no body.
 - `errorResponse` returns specified status code with error
   and error_description.
+- `errorResponse` with extra `weak_password` field includes
+  it in the response body.
 - All responses include CORS headers.
 - `formatUser` includes id, email, role, aud, app_metadata,
   user_metadata, created_at.
@@ -1119,6 +1142,13 @@ branch would route to `postgrest/handler.mjs` instead of
 - Policy ARN is wildcarded for caching.
 - Context includes role, userId, email.
 
+  > Warning: The SAM Identity.Headers includes both
+  > `Authorization` and `apikey` to ensure the API Gateway
+  > cache key differentiates requests with different apikeys.
+  > Unit tests cannot verify cache behavior directly — this
+  > must be verified via integration testing or manual
+  > inspection of the SAM template output.
+
   > Warning: Tests for "valid apikey + valid Bearer" should
   > verify that the bearer token's claims override the
   > apikey's claims, not just that the result is Allow. A
@@ -1170,9 +1200,9 @@ JWT signing but mocked Cognito provider:
    standalone.
 2. Create `plugin/lambda-templates/auth/jwt.mjs` — BOA JWT
    sign/verify using jsonwebtoken. Testable standalone.
-3. Add `jsonwebtoken` and
-   `@aws-sdk/client-cognito-identity-provider` to
-   `plugin/lambda-templates/package.json`.
+3. Verify `jsonwebtoken` and
+   `@aws-sdk/client-cognito-identity-provider` are in
+   `plugin/lambda-templates/package.json` (already present).
 
 ### Phase 2: Auth Provider
 
