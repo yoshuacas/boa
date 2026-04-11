@@ -1,6 +1,6 @@
 {
   "prompt": "docs/design/prompts/auth-layer.md",
   "designs": [
-    "docs/design/supabase-compatible-auth.md"
+    "docs/design/auth-layer.md"
   ]
 }
