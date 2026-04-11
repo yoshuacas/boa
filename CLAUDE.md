@@ -65,6 +65,24 @@ boa/
 8. Amplify: no `/<*>` redirect, use regex excluding static assets
 9. DSQL: IAM auth tokens, never hardcoded credentials
 
+## Plan Execution with rring
+
+This project uses [rring](https://github.com/yoshuacas/rring) for design-driven development. rring is installed at `/home/ec2-user/rring/target/debug/rring` and initialized in this repo. The agent runtime is **Claude Code** (configured via `.rring/agent` file). Do not use Kiro.
+
+**Workflow for executing plans (e.g. `plans/*.md`):**
+1. `rring start <feature-name> "<description>"` — create a feature prompt
+2. `rring design <feature-name>` — generate a design document from the prompt
+3. `rring task <feature-name>` — break the design into implementation tasks
+4. `rring work` — execute tasks via the implementer agent loop
+5. `rring review <feature-name>` — code review the implementation
+
+**Key commands:**
+- `rring status` — show current workflow state
+- `rring prompts` / `rring designs` — list prompts and designs
+- `rring start <name> --edit` — create prompt and open in editor
+
+Plans in `plans/` should be executed through rring rather than implemented directly. This ensures design review, task decomposition, and structured code review.
+
 ## Companion Repository
 
 `../harbor-prfaq/` has prior art (DynamoDB-based skill, pricing calculators, competitive research). BOA does not mention Harbor publicly — it is a standalone open-source project.
