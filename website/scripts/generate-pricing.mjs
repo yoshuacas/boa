@@ -102,27 +102,15 @@ function fetchDSQLPricing() {
       }
       // Global free tier entries
       if (usage === 'Global-DSQL-DistributedProcessingUnits' && r.rate === 0) {
-        const match = r.description.match(/first ([\d,]+)k? DPUs/i);
-        if (match) freeTierDPUs = parseInt(match[1].replace(/,/g, ''));
+        const match = r.description.match(/first ([\d,]+)(k)? DPUs/i);
+        if (match) {
+          freeTierDPUs = parseInt(match[1].replace(/,/g, ''));
+          if (match[2]) freeTierDPUs *= 1000; // "100k" → 100000
+        }
       }
       if (usage === 'Global-DSQL-Storage-ByteHrs' && r.rate === 0) {
         const match = r.description.match(/first ([\d.]+) GB/i);
         if (match) freeTierStorageGB = parseFloat(match[1]);
-      }
-    }
-  }
-
-  // Parse free tier from descriptions if regex didn't match
-  if (freeTierDPUs === null) {
-    for (const p of products) {
-      const usage = p.product?.attributes?.usagetype || '';
-      if (usage === 'Global-DSQL-DistributedProcessingUnits') {
-        const rates = extractRates(p);
-        for (const r of rates) {
-          if (r.rate === 0 && r.description.includes('100k')) {
-            freeTierDPUs = 100000;
-          }
-        }
       }
     }
   }
