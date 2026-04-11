@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOA — Backend on AWS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><span>BOA</span> Backend on AWS</a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="#stack">Stack</a>
+      <a href="https://github.com/aws/boa" class="btn btn-ghost">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <h1>Your AI agent knows how to build a <span>backend on AWS</span></h1>
+  <p class="subtitle">
+    BOA is an open-source skill that teaches your coding agent to build production-ready,
+    serverless backends on AWS. PostgreSQL database, auth, APIs, storage — all wired up correctly.
+  </p>
+  <div class="hero-actions">
+    <a href="pricing.html" class="btn btn-primary">See what it costs</a>
+    <a href="https://github.com/aws/boa" class="btn btn-secondary">View on GitHub</a>
+  </div>
+  <div class="install-cmd" onclick="navigator.clipboard.writeText('claude plugin install boa')">
+    <span>$ claude plugin install boa</span>
+    <span class="copy-hint">click to copy</span>
+  </div>
+</section>
+
+<!-- Value Props -->
+<section class="section">
+  <h2 class="section-title">Why BOA?</h2>
+  <p class="section-subtitle">
+    AI coding agents are great at building frontends. Backends on AWS? Not so much.
+    BOA fixes that.
+  </p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="icon">&#9889;</div>
+      <h3>Your agent builds it right the first time</h3>
+      <p>
+        BOA encodes patterns from hundreds of real AI-built backends. Every common failure —
+        broken auth, misconfigured permissions, wrong API Gateway type — is already solved.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#9741;</div>
+      <h3>Serverless. Zero maintenance.</h3>
+      <p>
+        Every service in the stack scales to zero and scales up automatically.
+        No servers to patch, no capacity to plan. You pay only when your app is used.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128176;</div>
+      <h3>AWS Free Tier covers most prototypes</h3>
+      <p>
+        A productivity app with 1,000 users costs $0/month on BOA.
+        The same app on Supabase costs $25/month.
+        <a href="pricing.html">See the full comparison.</a>
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128024;</div>
+      <h3>PostgreSQL. Not a toy database.</h3>
+      <p>
+        Aurora DSQL gives you serverless PostgreSQL with multi-AZ replication,
+        strong consistency, and SQL you already know. No lock-in to a proprietary API.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128268;</div>
+      <h3>Works with your agent</h3>
+      <p>
+        BOA uses the open Agent Skills standard. Install it in Claude Code, Kiro,
+        VS Code Copilot, or Codex. One skill, every agent.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">&#128200;</div>
+      <h3>Scales from prototype to unicorn</h3>
+      <p>
+        The same architecture that runs your prototype handles millions of users.
+        No migration, no re-architecture. AWS infrastructure grows with you.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<div class="section-alt">
+  <section class="section">
+    <h2 class="section-title">How it works</h2>
+    <p class="section-subtitle">Three steps. Your agent does the heavy lifting.</p>
+    <div class="steps">
+      <div class="step">
+        <h3>Install the skill</h3>
+        <p>Add BOA to your coding agent. It takes 10 seconds and works across Claude Code, Kiro, VS Code, and Codex.</p>
+        <code>claude plugin install boa</code>
+      </div>
+      <div class="step">
+        <h3>Tell your agent what to build</h3>
+        <p>Describe your app. BOA guides your agent through the right architecture — database schema, auth, APIs, storage — and deploys it to your AWS account.</p>
+        <code>"Build a social app with user profiles, posts, and image uploads"</code>
+      </div>
+      <div class="step">
+        <h3>Manage your backend</h3>
+        <p>BOA includes a local dashboard — static HTML pages that connect to your AWS CLI — to visualize and manage your backend. No separate server needed.</p>
+        <code>open .boa/dashboard/index.html</code>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- The Stack -->
+<div class="section-dark" id="stack">
+  <section class="section">
+    <h2 class="section-title" style="color: var(--white)">The Stack</h2>
+    <p class="section-subtitle" style="color: var(--gray-400)">
+      Opinionated. Serverless. Production-ready.
+    </p>
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Database</div>
+          <div class="stack-service">Aurora DSQL</div>
+          <div class="stack-desc">Serverless PostgreSQL. Scales to zero. Multi-AZ. SQL you already know.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Auth</div>
+          <div class="stack-service">Amazon Cognito</div>
+          <div class="stack-desc">User sign-up, sign-in, MFA, social login. First 10,000 users free.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Compute</div>
+          <div class="stack-service">AWS Lambda</div>
+          <div class="stack-desc">Node.js 20.x functions. Runs your business logic. 1M free requests/month.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">API</div>
+          <div class="stack-service">API Gateway (REST)</div>
+          <div class="stack-desc">Managed REST APIs with Cognito authorization built in.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Storage</div>
+          <div class="stack-service">Amazon S3</div>
+          <div class="stack-desc">File uploads via presigned URLs. Never public. 5 GB free.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Hosting</div>
+          <div class="stack-service">AWS Amplify</div>
+          <div class="stack-desc">Deploy your frontend. CI/CD from Git. Custom domains. Free tier included.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Infrastructure</div>
+          <div class="stack-service">SAM / CloudFormation</div>
+          <div class="stack-desc">Repeatable deployments. Your agent writes the templates.</div>
+        </div>
+      </div>
+      <div class="stack-item">
+        <div>
+          <div class="stack-label">Dashboard</div>
+          <div class="stack-service">Local HTML + AWS CLI</div>
+          <div class="stack-desc">Manage your backend locally. No servers. Pure HTML reading your account.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Pricing teaser -->
+<section class="section" style="text-align: center;">
+  <h2 class="section-title">What does it cost to run a backend on AWS?</h2>
+  <p class="section-subtitle" style="margin: 0 auto 2rem;">
+    Less than you think. Most prototypes and startups run entirely within the AWS free tier.
+    See exact costs for your app type and scale.
+  </p>
+  <a href="pricing.html" class="btn btn-primary" style="font-size: 1rem; padding: 0.8rem 2rem;">
+    Open the pricing calculator
+  </a>
+</section>
+
+<footer>
+  <p>
+    BOA is an open-source project from AWS.
+    <a href="https://github.com/aws/boa">GitHub</a> &middot;
+    <a href="pricing.html">Pricing</a>
+  </p>
+  <p style="margin-top: 0.5rem; color: var(--gray-500);">
+    Pricing estimates are illustrative. Actual costs depend on usage patterns.
+    All prices US East (N. Virginia), April 2026.
+  </p>
+</footer>
+
+</body>
+</html>

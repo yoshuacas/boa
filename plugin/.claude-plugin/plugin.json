@@ -1,0 +1,11 @@
+{
+  "name": "boa",
+  "description": "Build serverless backends on AWS. Database, auth, APIs, storage — all wired up correctly by your coding agent.",
+  "version": "0.1.0",
+  "author": {
+    "name": "AWS"
+  },
+  "homepage": "https://backendonaws.com",
+  "repository": "https://github.com/aws/boa",
+  "license": "Apache-2.0"
+}

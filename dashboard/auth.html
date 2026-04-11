@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOA Dashboard — Auth (Cognito)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+      <header class="topbar"></header>
+      <main class="page-content" id="pageContent"></main>
+    </div>
+  </div>
+
+  <script src="js/dashboard-core.js"></script>
+  <script src="js/aws-cli-bridge.js"></script>
+  <script>
+    BOA.init({
+      activePage: 'auth',
+      pageTitle: 'Auth (Cognito)',
+      onConfig: renderAuth,
+    });
+
+    function renderAuth(cfg) {
+      const el = document.getElementById('pageContent');
+
+      if (!cfg) {
+        BOA.renderGettingStarted(el);
+        return;
+      }
+
+      const poolId = CLIBridge.getUserPoolId(cfg);
+      const clientId = CLIBridge.getClientId(cfg);
+      const region = BOA.getRegion();
+
+      if (!poolId) {
+        el.innerHTML = `
+          <div class="page-header">
+            <h1>Auth (Cognito)</h1>
+            <p>No Cognito user pool found in your config.</p>
+          </div>
+          <div class="callout callout-warning">
+            <p>
+              Your <code>.boa/config.json</code> does not include a Cognito User Pool ID.
+              Make sure your bootstrap has completed and the config contains a
+              <strong>cognito_user_pool_id</strong> or <strong>auth.userPoolId</strong> field.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      const commands = CLIBridge.getCognitoCommands(cfg);
+
+      el.innerHTML = `
+        <div class="page-header">
+          <h1>Auth (Cognito)</h1>
+          <p>Amazon Cognito &mdash; User sign-up, sign-in, and access control</p>
+        </div>
+
+        <!-- Hero card -->
+        <div class="detail-hero">
+          <div class="detail-service">Amazon Cognito</div>
+          <div class="detail-title">User Pool</div>
+          <div class="detail-info">
+            <div>
+              <div class="info-row">
+                <span class="info-label">User Pool ID</span>
+                <span class="info-value">${BOA.escapeHtml(poolId)}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Region</span>
+                <span class="info-value">${BOA.escapeHtml(region)}</span>
+              </div>
+            </div>
+            <div>
+              <div class="info-row">
+                <span class="info-label">Client ID</span>
+                <span class="info-value">${BOA.escapeHtml(clientId || 'Not found in config')}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Auth flows</span>
+                <span class="info-value">USER_PASSWORD_AUTH, USER_SRP_AUTH</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Commands -->
+        <div class="section-header">
+          <span class="section-icon">\u26BF</span>
+          <h2>Cognito Commands</h2>
+        </div>
+        <div class="command-list">
+          ${commands.map(c => BOA.commandBlockHtml(c)).join('')}
+        </div>
+
+        <!-- Tip -->
+        <div class="callout callout-success">
+          <p>
+            <strong>Tip:</strong> To get an ID token for API testing, use the
+            <code>initiate-auth</code> command with <code>USER_PASSWORD_AUTH</code>
+            flow. The token is returned in the <code>AuthenticationResult.IdToken</code> field
+            and can be passed as a <code>Bearer</code> token in the <code>Authorization</code> header.
+          </p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
