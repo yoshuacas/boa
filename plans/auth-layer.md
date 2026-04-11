@@ -1,8 +1,30 @@
 # BOA Authentication Architecture — Supabase-Compatible, Provider-Swappable
 
-## Execution Instructions
+## Execution via rring
 
-This plan can be executed independently. It touches `plugin/lambda-templates/auth/`, `plugin/lambda-templates/authorizer/`, `plugin/scripts/`, and `plugin/templates/backend.yaml`. Coordinate with the PostgREST plan (plans/postgrest-layer.md) on the authorizer context contract.
+This plan is executed through the rring harness. The prompt is already created at `docs/design/prompts/auth-layer.md`. Run these commands in order:
+
+```bash
+cd /Users/davcasd/research/boa
+
+# 1. Generate design document from the prompt
+rring design auth-layer
+
+# 2. Break the design into implementation tasks
+rring task auth-layer
+
+# 3. Execute tasks via the implementer agent loop
+rring work -n 15
+
+# 4. Review the implementation
+rring review auth-layer
+```
+
+The rring agent backend is Claude Code (configured in `.rring/agent`). No authorization/RLS in this plan — focus purely on authentication.
+
+## Coordination
+
+This plan runs in parallel with the PostgREST layer plan. They share one contract:
 
 **Contract with PostgREST layer:** After auth is implemented, downstream Lambdas read:
 ```
