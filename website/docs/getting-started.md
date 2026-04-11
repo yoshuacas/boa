@@ -45,7 +45,7 @@ Build a todo app with user accounts
 
 BOA will guide your agent to:
 
-1. Create a DSQL cluster with a `todos` table and a `users` table
+1. Write migration files for a `todos` table and a `users` table, then apply them
 2. Set up a Cognito user pool with self-signup and email verification
 3. Deploy a pre-signup Lambda trigger that auto-confirms users
 4. Create Lambda functions for CRUD operations on todos
@@ -65,6 +65,7 @@ After your agent deploys, you will have:
 | **API Gateway (REST)** | Public API with Cognito-based authorization |
 | **S3 bucket** | Private file storage with presigned URL access |
 | **SAM template** | Infrastructure-as-code in `template.yaml` |
+| **Migration files** | Numbered SQL files in `migrations/` that define your schema |
 
 All resources are created in your AWS account. You own them.
 
@@ -102,4 +103,5 @@ You should get an empty array `[]` (no todos yet).
 - **Open the dashboard** — Run `open .boa/dashboard/index.html` to see your backend visually
 - **Add features** — Tell your agent to add new endpoints, tables, or file upload support
 - **Read the architecture docs** — See `plugin/docs/ARCHITECTURE.md` for schema patterns per app type
+- **Learn about migrations** — See [migrations](/docs/migrations) to understand how schema changes work
 - **Check the pricing** — See [pricing](/pricing) to understand costs as you scale

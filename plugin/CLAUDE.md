@@ -43,3 +43,5 @@ Do NOT use `event.requestContext.authorizer.claims.sub` — that is the old Cogn
 | `templates/backend.yaml` | SAM template (full stack) |
 | `lambda-templates/` | Ready-to-use Lambda handlers |
 | `scripts/deploy.sh` | One-command deploy |
+| `docs/MIGRATIONS.md` | Migration file format, runner, patterns |
+| `scripts/migrate.sh` | Database migration runner |

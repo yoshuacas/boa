@@ -197,6 +197,16 @@ EOF
 
 echo ""
 echo "Configuration written to $BOA_DIR/config.json"
+
+# ------------------------------------------------------------------
+# Run migrations (if migrations/ directory exists)
+# ------------------------------------------------------------------
+if [[ -d "$PROJECT_DIR/migrations" ]]; then
+  echo ""
+  echo "Running database migrations..."
+  bash "$SCRIPT_DIR/migrate.sh"
+fi
+
 echo ""
 echo "======================================"
 echo "  BOA deployment complete"

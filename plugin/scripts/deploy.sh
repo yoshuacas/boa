@@ -54,6 +54,8 @@ echo ""
 echo "Updating configuration..."
 
 ACCOUNT_ID=$(jq -r '.accountId' "$CONFIG_FILE")
+ANON_KEY=$(jq -r '.anonKey // ""' "$CONFIG_FILE")
+SERVICE_ROLE_KEY=$(jq -r '.serviceRoleKey // ""' "$CONFIG_FILE")
 
 OUTPUTS=$(aws cloudformation describe-stacks \
   --stack-name "$STACK_NAME" \
@@ -71,6 +73,8 @@ cat > "$CONFIG_FILE" <<EOF
   "region": "$REGION",
   "accountId": "$ACCOUNT_ID",
   "apiUrl": "$(get_output "ApiUrl")",
+  "anonKey": "$ANON_KEY",
+  "serviceRoleKey": "$SERVICE_ROLE_KEY",
   "userPoolId": "$(get_output "UserPoolId")",
   "userPoolClientId": "$(get_output "UserPoolClientId")",
   "bucketName": "$(get_output "BucketName")",
@@ -82,3 +86,12 @@ EOF
 echo ""
 echo "Deploy complete. Configuration updated at $CONFIG_FILE"
 echo "API URL: $(jq -r '.apiUrl' "$CONFIG_FILE")"
+
+# ------------------------------------------------------------------
+# Run migrations (if migrations/ directory exists)
+# ------------------------------------------------------------------
+if [[ -d "$PROJECT_DIR/migrations" ]]; then
+  echo ""
+  echo "Running database migrations..."
+  bash "$SCRIPT_DIR/migrate.sh"
+fi

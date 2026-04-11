@@ -36,6 +36,7 @@ export default defineConfig({
           text: 'Architecture',
           items: [
             { text: 'The Stack', link: '/docs/stack-overview' },
+            { text: 'Migrations', link: '/docs/migrations' },
           ]
         },
         {

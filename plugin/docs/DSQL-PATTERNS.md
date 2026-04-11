@@ -50,30 +50,11 @@ async function getPool() {
 
 ## Migrations
 
-Run migrations via psql or a migration script. DSQL supports standard PostgreSQL DDL.
+BOA uses file-based migrations with a tracking table. Never run DDL directly — write a numbered SQL file in `migrations/` and run the migration script.
 
-```bash
-# Generate IAM auth token
-TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
-  --hostname "$DSQL_ENDPOINT" \
-  --region "$REGION")
+See [MIGRATIONS.md](MIGRATIONS.md) for the complete guide: file naming, content rules, common patterns, and runner usage.
 
-# Run migration file
-PGPASSWORD="$TOKEN" psql \
-  "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin sslmode=require" \
-  -f migrations/001_initial.sql
-```
-
-### Migration file naming
-
-```
-migrations/
-├── 001_initial.sql
-├── 002_add_posts.sql
-└── 003_add_indexes.sql
-```
-
-Each migration should be idempotent (`CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`).
+Quick summary: write numbered SQL files in `migrations/`, run `migrate.sh`. The runner tracks applied migrations in a `_boa_migrations` table and verifies checksums to prevent tampering.
 
 ## Row-Level Security (RLS)
 

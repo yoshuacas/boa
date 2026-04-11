@@ -3,7 +3,7 @@ name: boa
 description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda, API Gateway, and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires AWS CLI configured with credentials, Node.js 18+, SAM CLI
-allowed-tools: "Bash(sam *) Bash(aws *) Bash(node *) Bash(npm *) Read Grep Glob Write Edit"
+allowed-tools: "Bash(sam *) Bash(aws *) Bash(node *) Bash(npm *) Bash(bash *) Read Grep Glob Write Edit"
 metadata:
   author: aws
   version: "0.1"
@@ -106,31 +106,28 @@ Write them to `.boa/config.json` in the project root:
 
 ## Step 3: Create the Database Schema
 
-Connect to DSQL and create tables. DSQL uses IAM auth tokens:
+Write migration files instead of running SQL directly. Never connect to DSQL and run DDL by hand.
+
+### Create migration files
 
 ```bash
-# Generate auth token
-TOKEN=$(aws dsql generate-db-connect-admin-auth-token \
-  --hostname <DsqlEndpoint> \
-  --region "$REGION")
-
-# Connect with psql
-PGPASSWORD="$TOKEN" psql \
-  "host=<DsqlEndpoint> port=5432 dbname=postgres user=admin sslmode=require"
+mkdir -p migrations
 ```
 
-Create your schema using standard PostgreSQL SQL. See [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) for per-app-type schemas and migration patterns.
-
-Example (todo app):
+Write your schema as numbered SQL files:
 
 ```sql
+-- migrations/001_create_users.sql
 CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   email TEXT UNIQUE NOT NULL,
   display_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
 
+```sql
+-- migrations/002_create_todos.sql
 CREATE TABLE IF NOT EXISTS todos (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -139,8 +136,18 @@ CREATE TABLE IF NOT EXISTS todos (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_todos_user ON todos(user_id);
+CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
+
+### Run the migrations
+
+```bash
+bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/migrate.sh
+```
+
+This connects to DSQL using IAM auth, applies pending migrations, and refreshes the PostgREST schema cache so new tables are immediately available via the API.
+
+For subsequent schema changes, create new numbered files (`003_add_priority.sql`, `004_create_comments.sql`) and run `migrate.sh` again. See [MIGRATIONS.md](../../docs/MIGRATIONS.md) for file format, naming rules, and common patterns.
 
 ## Authentication
 
@@ -163,7 +170,6 @@ curl "$API_URL/rest/v1/todos" \
   -H "apikey: $ANON_KEY" \
   -H "Authorization: Bearer $USER_TOKEN"
 ```
-
 ## Step 4: Lambda Function Code
 
 Copy the Lambda handler from the BOA templates:
@@ -266,6 +272,7 @@ Load these when you need detailed patterns for a specific concern:
 - [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
 - [API-PATTERNS.md](../../docs/API-PATTERNS.md) — API Gateway + Lambda patterns
 - [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
+- [MIGRATIONS.md](../../docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
 
 ## Teardown
 
