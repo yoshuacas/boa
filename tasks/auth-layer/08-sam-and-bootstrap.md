@@ -35,6 +35,7 @@ Auth:
       Identity:
         Headers:
           - Authorization
+          - apikey
         ReauthorizeEvery: 300
 ```
 

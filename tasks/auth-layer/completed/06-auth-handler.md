@@ -86,6 +86,18 @@ The handler:
 6. Sign BOA access and refresh tokens.
 7. Return sessionResponse.
 
+**Error mapping for signup (and token endpoints):**
+Map provider error codes to GoTrue error responses. For
+`weak_password`, pass the extra `weak_password` field:
+```javascript
+errorResponse(422, 'weak_password',
+  'Password must be at least 8 characters and include uppercase, lowercase, and numbers',
+  { weak_password: { reasons: ['length', 'characters'] } })
+```
+For `user_already_exists` → 400, `invalid_grant` → 400,
+`validation_failed` → 400, `unexpected_failure` → 500.
+See the design's error response tables for exact messages.
+
 **handleToken (password) flow:**
 1. Validate email and password presence.
 2. `provider.signIn(email, password)`.
