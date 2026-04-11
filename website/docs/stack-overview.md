@@ -1,3 +1,7 @@
+---
+outline: deep
+---
+
 # The BOA Stack
 
 Every service in the BOA stack is serverless. No servers to manage, no capacity planning, pay only for what you use.

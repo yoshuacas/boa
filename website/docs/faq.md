@@ -1,3 +1,7 @@
+---
+outline: deep
+---
+
 # Frequently Asked Questions
 
 ## Is this free?
@@ -6,7 +10,7 @@ BOA itself is free and open source (Apache 2.0 license). The AWS services it dep
 
 A typical productivity app with 1,000 users costs $0/month on BOA. The combined free tiers include: 100K DSQL DPUs, 10K Cognito MAUs, 1M Lambda requests, 1M API Gateway requests, and 5 GB S3 storage.
 
-See the [pricing calculator](../pricing.html) for exact costs at your scale.
+See the [pricing calculator](/pricing) for exact costs at your scale.
 
 ## Why not Supabase?
 

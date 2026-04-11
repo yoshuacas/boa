@@ -1,3 +1,7 @@
+---
+outline: deep
+---
+
 # How BOA Works
 
 ## BOA is a skill plugin for coding agents

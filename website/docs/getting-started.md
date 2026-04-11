@@ -1,3 +1,7 @@
+---
+outline: deep
+---
+
 # Getting Started with BOA
 
 Build your first serverless backend on AWS in under 10 minutes.
@@ -29,7 +33,7 @@ claude plugin install boa
 
 ### Other agents
 
-See the [install page](../install.html) for Kiro, VS Code Copilot, and Codex instructions.
+See the [install page](/install) for Kiro, VS Code Copilot, and Codex instructions.
 
 ## Build Your First Backend
 
@@ -98,4 +102,4 @@ You should get an empty array `[]` (no todos yet).
 - **Open the dashboard** — Run `open .boa/dashboard/index.html` to see your backend visually
 - **Add features** — Tell your agent to add new endpoints, tables, or file upload support
 - **Read the architecture docs** — See `plugin/docs/ARCHITECTURE.md` for schema patterns per app type
-- **Check the pricing** — See [pricing](../pricing.html) to understand costs as you scale
+- **Check the pricing** — See [pricing](/pricing) to understand costs as you scale
