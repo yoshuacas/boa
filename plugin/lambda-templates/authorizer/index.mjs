@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
 
 const ISSUER = 'boa';
+const SECRET = process.env.JWT_SECRET;
 
 export async function handler(event) {
   try {
-    const secret = process.env.JWT_SECRET;
+    const secret = SECRET;
     const apikey = event.headers?.apikey
       || event.headers?.Apikey || '';
     const authHeader = event.headers?.Authorization

@@ -42,24 +42,18 @@ function providerErrorResponse(err) {
   const code = err.code || 'unexpected_failure';
   const status = ERROR_STATUS[code] || 500;
   const desc = ERROR_DESCRIPTION[code] || 'An unexpected error occurred';
-  return errorResponse(status, code, desc);
+  const extra = code === 'weak_password' && err.reasons
+    ? { weak_password: { reasons: err.reasons } }
+    : undefined;
+  return errorResponse(status, code, desc, extra);
 }
 
 export async function handler(event) {
   const method = event.httpMethod;
 
   if (method === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers':
-          'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info',
-        'Access-Control-Allow-Methods':
-          'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-        'Content-Type': 'application/json',
-      },
-    };
+    const { CORS_HEADERS } = await import('../shared/cors.mjs');
+    return { statusCode: 200, headers: { ...CORS_HEADERS } };
   }
 
   const path = event.path || '';

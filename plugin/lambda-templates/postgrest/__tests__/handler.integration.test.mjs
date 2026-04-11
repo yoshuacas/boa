@@ -26,8 +26,11 @@ const mockPkRows = [
 // --- Mock pool that handles schema + data queries ---
 
 function createMockPool() {
-  return {
+  const capturedQueries = [];
+  const pool = {
+    capturedQueries,
     query: async (text, values) => {
+      capturedQueries.push({ text, values });
       // Schema introspection: columns
       if (text.includes('pg_catalog') && !text.includes('contype')) {
         return { rows: mockColumnRows };
@@ -99,6 +102,7 @@ function createMockPool() {
       return { rows: [] };
     },
   };
+  return pool;
 }
 
 // Set the mock pool before any handler calls
@@ -112,6 +116,8 @@ function makeEvent({
   headers = {},
   body = null,
   userId = 'user-1',
+  role = 'authenticated',
+  email = '',
 } = {}) {
   return {
     httpMethod: method,
@@ -123,11 +129,7 @@ function makeEvent({
     },
     body: body ? JSON.stringify(body) : null,
     requestContext: {
-      authorizer: {
-        claims: {
-          sub: userId,
-        },
-      },
+      authorizer: { role, userId, email },
     },
   };
 }
@@ -405,6 +407,94 @@ describe('handler integration', () => {
       const body = JSON.parse(res.body);
       assert.equal(body.code, 'PGRST116',
         'error code should be PGRST116');
+    });
+  });
+
+  describe('service_role bypass', () => {
+    it('service_role skips user_id filter in SQL', async () => {
+      const mockPool = createMockPool();
+      _setPool(mockPool);
+
+      const event = makeEvent({
+        method: 'GET',
+        path: '/rest/v1/todos',
+        role: 'service_role',
+        userId: '',
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 200);
+
+      // Find the SELECT query (not schema introspection)
+      const selectQuery = mockPool.capturedQueries.find(
+        q => q.text.trimStart().startsWith('SELECT') && !q.text.includes('pg_catalog')
+      );
+      assert.ok(selectQuery, 'should have captured a SELECT query');
+      assert.ok(
+        !selectQuery.text.includes('user_id'),
+        'SQL should NOT include user_id filter for service_role'
+      );
+    });
+  });
+
+  describe('user_id binding', () => {
+    it('binds correct user_id for authenticated requests', async () => {
+      const mockPool = createMockPool();
+      _setPool(mockPool);
+
+      const event = makeEvent({
+        method: 'GET',
+        path: '/rest/v1/todos',
+        userId: 'specific-user-abc',
+        role: 'authenticated',
+      });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 200);
+
+      const selectQuery = mockPool.capturedQueries.find(
+        q => q.text.trimStart().startsWith('SELECT') && !q.text.includes('pg_catalog')
+      );
+      assert.ok(selectQuery, 'should have captured a SELECT query');
+      assert.ok(
+        selectQuery.values.includes('specific-user-abc'),
+        'SQL values should include the authenticated user_id'
+      );
+    });
+  });
+
+  describe('PATCH/DELETE with invalid body', () => {
+    it('PATCH with malformed JSON body returns 400', async () => {
+      const event = makeEvent({
+        method: 'PATCH',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.abc' },
+      });
+      event.body = '{{invalid json';
+      const res = await handler(event);
+      assert.equal(res.statusCode, 400,
+        'PATCH with malformed JSON should return 400');
+      const body = JSON.parse(res.body);
+      assert.equal(body.code, 'PGRST100');
+    });
+
+    it('PATCH with null body returns 400', async () => {
+      const event = makeEvent({
+        method: 'PATCH',
+        path: '/rest/v1/todos',
+        query: { id: 'eq.abc' },
+      });
+      event.body = null;
+      const res = await handler(event);
+      assert.equal(res.statusCode, 400,
+        'PATCH with null body should return 400');
+    });
+  });
+
+  describe('router trailing slash', () => {
+    it('GET /rest/v1/todos/ strips trailing slash and works', async () => {
+      const event = makeEvent({ method: 'GET', path: '/rest/v1/todos/' });
+      const res = await handler(event);
+      assert.equal(res.statusCode, 200,
+        'trailing slash should resolve to todos table');
     });
   });
 });

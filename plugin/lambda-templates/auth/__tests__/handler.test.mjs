@@ -205,6 +205,65 @@ describe('handler.mjs', () => {
       );
     });
 
+    it('calls both signUp and signIn during signup flow', async () => {
+      let signUpCalls = 0;
+      let signInCalls = 0;
+      const countingProvider = {
+        ...createMockProvider(),
+        async signUp(email, password) {
+          signUpCalls++;
+          return createMockProvider().signUp(email, password);
+        },
+        async signIn(email, password) {
+          signInCalls++;
+          return createMockProvider().signIn(email, password);
+        },
+      };
+      _setProvider(countingProvider);
+
+      const event = makeEvent({
+        body: { email: 'count@example.com', password: 'StrongPass1' },
+      });
+      const res = await handler(event);
+
+      assert.equal(res.statusCode, 200);
+      assert.equal(signUpCalls, 1, 'signUp should be called exactly once');
+      assert.equal(signInCalls, 1, 'signIn should be called exactly once');
+
+      // Reset
+      _setProvider(createMockProvider());
+    });
+
+    it('returns weak_password with reasons field for weak password', async () => {
+      const providerWithReasons = {
+        ...createMockProvider(),
+        async signUp(email, password) {
+          if (password === 'weak') {
+            const err = new Error('Weak password');
+            err.code = 'weak_password';
+            err.reasons = ['length', 'characters'];
+            throw err;
+          }
+          return createMockProvider().signUp(email, password);
+        },
+      };
+      _setProvider(providerWithReasons);
+
+      const event = makeEvent({
+        body: { email: 'test@example.com', password: 'weak' },
+      });
+      const res = await handler(event);
+
+      assert.equal(res.statusCode, 422);
+      const body = parseBody(res);
+      assert.equal(body.error, 'weak_password');
+      assert.ok(body.weak_password, 'should include weak_password field');
+      assert.deepEqual(body.weak_password.reasons, ['length', 'characters']);
+
+      // Reset
+      _setProvider(createMockProvider());
+    });
+
     it('returns 500 with unexpected_failure for unexpected provider error', async () => {
       const event = makeEvent({
         body: {

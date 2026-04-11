@@ -184,69 +184,73 @@ describe('authorizer', () => {
     );
   });
 
-  it('denies when apikey header is missing', async () => {
+  it('throws Unauthorized when apikey header is missing', async () => {
     const event = makeAuthEvent({});
-    const result = await handler(event);
-
-    assert.equal(
-      result.policyDocument.Statement[0].Effect,
-      'Deny',
-      'should Deny when apikey is missing'
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" when apikey is missing'
     );
   });
 
-  it('denies when apikey is an invalid JWT', async () => {
+  it('throws Unauthorized when apikey is an invalid JWT', async () => {
     const event = makeAuthEvent({ apikey: 'not-a-valid-jwt' });
-    const result = await handler(event);
-
-    assert.equal(
-      result.policyDocument.Statement[0].Effect,
-      'Deny',
-      'should Deny for invalid apikey JWT'
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" for invalid apikey JWT'
     );
   });
 
-  it('denies when apikey is valid but Bearer is expired', async () => {
+  it('throws Unauthorized when apikey is signed with wrong secret', async () => {
+    const wrongSecretKey = signJwt({
+      role: 'anon',
+      iss: 'boa',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    }, 'completely-different-secret');
+    const event = makeAuthEvent({ apikey: wrongSecretKey });
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" for apikey signed with wrong secret'
+    );
+  });
+
+  it('throws Unauthorized when apikey is valid but Bearer is expired', async () => {
     const event = makeAuthEvent({
       apikey: ANON_KEY,
       authorization: `Bearer ${EXPIRED_TOKEN}`,
     });
-    const result = await handler(event);
-
-    assert.equal(
-      result.policyDocument.Statement[0].Effect,
-      'Deny',
-      'should Deny for expired Bearer token'
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" for expired Bearer token'
     );
   });
 
-  it('denies when apikey is valid but Bearer is malformed', async () => {
+  it('throws Unauthorized when apikey is valid but Bearer is malformed', async () => {
     const event = makeAuthEvent({
       apikey: ANON_KEY,
       authorization: 'Bearer garbage-not-jwt',
     });
-    const result = await handler(event);
-
-    assert.equal(
-      result.policyDocument.Statement[0].Effect,
-      'Deny',
-      'should Deny for malformed Bearer token'
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" for malformed Bearer token'
     );
   });
 
-  it('denies when apikey has role=authenticated (forged key)', async () => {
+  it('throws Unauthorized when apikey has role=authenticated (forged key)', async () => {
     const forgedKey = signJwt({
       role: 'authenticated',
       iss: 'boa',
       exp: Math.floor(Date.now() / 1000) + 3600,
     });
     const event = makeAuthEvent({ apikey: forgedKey });
-    const result = await handler(event);
-
-    assert.equal(
-      result.policyDocument.Statement[0].Effect,
-      'Deny',
-      'should Deny apikey with role=authenticated'
+    await assert.rejects(
+      () => handler(event),
+      (err) => err === 'Unauthorized',
+      'should throw "Unauthorized" for apikey with role=authenticated'
     );
   });
 

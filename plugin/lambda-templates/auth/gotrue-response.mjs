@@ -24,13 +24,14 @@ export function logoutResponse() {
   return { statusCode: 204, headers: corsHeaders() };
 }
 
-export function errorResponse(statusCode, error, description) {
+export function errorResponse(statusCode, error, description, extra) {
   return {
     statusCode,
     headers: corsHeaders(),
     body: JSON.stringify({
       error,
       error_description: description,
+      ...extra,
     }),
   };
 }
@@ -50,13 +51,8 @@ function formatUser(user) {
   };
 }
 
+import { CORS_HEADERS } from '../shared/cors.mjs';
+
 function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info',
-    'Access-Control-Allow-Methods':
-      'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-    'Content-Type': 'application/json',
-  };
+  return { ...CORS_HEADERS };
 }

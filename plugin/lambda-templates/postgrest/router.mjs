@@ -14,9 +14,10 @@ export function route(path, schema) {
     return { type: 'refresh' };
   }
 
-  const tableName = remaining.replace(/^\//, '');
+  // Strip leading/trailing slashes and take only the first segment
+  const tableName = remaining.replace(/^\//, '').replace(/\/.*$/, '');
 
-  if (!hasTable(schema, tableName)) {
+  if (!tableName || !hasTable(schema, tableName)) {
     throw new PostgRESTError(
       404,
       'PGRST205',

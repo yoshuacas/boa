@@ -141,6 +141,12 @@ export async function handler(event) {
       }
 
       case 'PATCH': {
+        if (!body || typeof body !== 'object') {
+          throw new PostgRESTError(
+            400, 'PGRST100',
+            'Missing or invalid request body',
+          );
+        }
         const q = buildUpdate(table, body, parsed, schema, userId, role);
         const result = await pool.query(q.text, q.values);
         rows = result.rows;
