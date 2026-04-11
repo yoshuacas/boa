@@ -21,6 +21,12 @@ async function generateToken() {
   return signer.getDbConnectAdminAuthToken();
 }
 
+/** @internal Test helper — pre-set the pool to skip DSQL auth. */
+export function _setPool(p) {
+  pool = p;
+  tokenRefreshedAt = Date.now();
+}
+
 export async function getPool() {
   const now = Date.now();
   if (pool && now - tokenRefreshedAt < TOKEN_LIFETIME_MS) {

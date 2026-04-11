@@ -1,6 +1,200 @@
 // handler.mjs — Lambda entry point, wire everything together
-// Stub: throws "not implemented" until real implementation is added.
+
+import { getPool } from './db.mjs';
+import { getSchema, refresh, hasColumn } from './schema-cache.mjs';
+import { PostgRESTError, mapPgError } from './errors.mjs';
+import { parseQuery } from './query-parser.mjs';
+import {
+  buildSelect, buildInsert, buildUpdate, buildDelete, buildCount,
+} from './sql-builder.mjs';
+import { success, error } from './response.mjs';
+import { route } from './router.mjs';
+import { generateSpec } from './openapi.mjs';
+
+function parsePrefer(raw) {
+  const prefer = {};
+  if (!raw) return prefer;
+  for (const part of raw.split(',')) {
+    const trimmed = part.trim();
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx !== -1) {
+      prefer[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1);
+    }
+  }
+  return prefer;
+}
+
+function lowercaseHeaders(raw) {
+  const headers = {};
+  if (raw) {
+    for (const [k, v] of Object.entries(raw)) {
+      headers[k.toLowerCase()] = v;
+    }
+  }
+  return headers;
+}
+
+function contentRange(rowCount, totalCount) {
+  if (totalCount != null) {
+    return rowCount > 0
+      ? `0-${rowCount - 1}/${totalCount}`
+      : `*/${totalCount}`;
+  }
+  return rowCount > 0
+    ? `0-${rowCount - 1}/*`
+    : `*/*`;
+}
 
 export async function handler(event) {
-  throw new Error('handler not implemented');
+  try {
+    // 1. CORS preflight
+    if (event.httpMethod === 'OPTIONS') {
+      return success(200, null, {});
+    }
+
+    // 2. Extract request data
+    const method = event.httpMethod;
+    const path = event.path;
+    const userId = event.requestContext?.authorizer?.claims?.sub
+      || 'anonymous';
+    const headers = lowercaseHeaders(event.headers);
+
+    let body = null;
+    if (event.body) {
+      try {
+        body = JSON.parse(event.body);
+      } catch {
+        body = null;
+      }
+    }
+
+    const params = event.queryStringParameters || {};
+    const prefer = parsePrefer(headers['prefer']);
+    const accept = headers['accept'] || '';
+
+    // 3. Get pool and schema
+    const pool = await getPool();
+    const schema = await getSchema(pool);
+
+    // 4. Route
+    const routeInfo = route(path, schema);
+
+    // 5. Handle special routes
+    if (routeInfo.type === 'openapi') {
+      const apiUrl =
+        `https://${headers['host'] || 'localhost'}/rest/v1`;
+      return success(200, generateSpec(schema, apiUrl));
+    }
+
+    if (routeInfo.type === 'refresh') {
+      const newSchema = await refresh(pool);
+      const apiUrl =
+        `https://${headers['host'] || 'localhost'}/rest/v1`;
+      return success(200, generateSpec(newSchema, apiUrl));
+    }
+
+    const table = routeInfo.table;
+
+    // 6. Parse query
+    const parsed = parseQuery(params, method);
+
+    // 7. Column validation is performed inside sql-builder
+    //    functions (filters, select, order, body).
+
+    // 8. Build and execute SQL
+    let rows;
+    let count;
+
+    switch (method) {
+      case 'GET': {
+        const q = buildSelect(table, parsed, schema, userId);
+        const result = await pool.query(q.text, q.values);
+        rows = result.rows;
+
+        if (prefer.count === 'exact') {
+          const cq = buildCount(table, parsed, schema, userId);
+          const cr = await pool.query(cq.text, cq.values);
+          count = parseInt(cr.rows[0].count, 10);
+        }
+        break;
+      }
+
+      case 'POST': {
+        if (!body) {
+          throw new PostgRESTError(
+            400, 'PGRST100',
+            'Missing or invalid request body',
+          );
+        }
+
+        const q =
+          parsed.onConflict
+            && prefer.resolution === 'merge-duplicates'
+            ? buildInsert(table, body, schema, userId, parsed)
+            : buildInsert(table, body, schema, userId,
+              { ...parsed, onConflict: null });
+
+        const result = await pool.query(q.text, q.values);
+        rows = result.rows;
+        break;
+      }
+
+      case 'PATCH': {
+        const q = buildUpdate(table, body, parsed, schema, userId);
+        const result = await pool.query(q.text, q.values);
+        rows = result.rows;
+        break;
+      }
+
+      case 'DELETE': {
+        const q = buildDelete(table, parsed, schema, userId);
+        const result = await pool.query(q.text, q.values);
+        rows = result.rows;
+        break;
+      }
+
+      default:
+        throw new PostgRESTError(
+          405, 'PGRST000', `Method ${method} not allowed`,
+        );
+    }
+
+    // 9. Format response
+    const singleObject =
+      accept.includes('application/vnd.pgrst.object+json');
+    const returnRep = prefer.return === 'representation';
+
+    if (method === 'GET') {
+      return success(200, rows, {
+        contentRange: contentRange(rows.length, count),
+        singleObject,
+      });
+    }
+
+    if (method === 'POST') {
+      return success(201, returnRep ? rows : null, {});
+    }
+
+    // PATCH and DELETE
+    if (returnRep) {
+      return success(200, rows, { singleObject });
+    }
+    return success(204, null, {});
+
+  } catch (err) {
+    if (err instanceof PostgRESTError) {
+      return error(err);
+    }
+    // PG error codes are 5-char alphanumeric (e.g. 23505, 42P01)
+    if (err.code && typeof err.code === 'string'
+        && /^[0-9A-Z]{5}$/.test(err.code)) {
+      return error(mapPgError(err));
+    }
+    return error(
+      new PostgRESTError(
+        500, 'PGRST000',
+        err.message || 'Internal server error',
+      ),
+    );
+  }
 }

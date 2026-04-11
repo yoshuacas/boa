@@ -1,6 +1,108 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { _setPool } from '../db.mjs';
 import { handler } from '../handler.mjs';
+
+// --- Mock data for schema introspection ---
+
+const mockColumnRows = [
+  { table_name: 'todos', column_name: 'id',
+    data_type: 'text', is_nullable: false, column_default: null },
+  { table_name: 'todos', column_name: 'user_id',
+    data_type: 'text', is_nullable: false, column_default: null },
+  { table_name: 'todos', column_name: 'title',
+    data_type: 'text', is_nullable: true, column_default: null },
+  { table_name: 'todos', column_name: 'status',
+    data_type: 'text', is_nullable: true, column_default: null },
+  { table_name: 'todos', column_name: 'created_at',
+    data_type: 'timestamp with time zone',
+    is_nullable: false, column_default: 'now()' },
+];
+
+const mockPkRows = [
+  { table_name: 'todos', column_name: 'id' },
+];
+
+// --- Mock pool that handles schema + data queries ---
+
+function createMockPool() {
+  return {
+    query: async (text, values) => {
+      // Schema introspection: columns
+      if (text.includes('pg_catalog') && !text.includes('contype')) {
+        return { rows: mockColumnRows };
+      }
+      // Schema introspection: primary keys
+      if (text.includes('contype')) {
+        return { rows: mockPkRows };
+      }
+
+      // COUNT query
+      if (text.trimStart().startsWith('SELECT COUNT')) {
+        return { rows: [{ count: '2' }] };
+      }
+
+      // SELECT query
+      if (text.trimStart().startsWith('SELECT')) {
+        if (values && values.includes('nonexistent')) {
+          return { rows: [] };
+        }
+        if (values && values.includes('abc')) {
+          return {
+            rows: [{
+              id: 'abc', user_id: 'user-1', title: 'Test todo',
+              status: 'active', created_at: '2026-01-01T00:00:00Z',
+            }],
+          };
+        }
+        // Default: return 2 rows
+        return {
+          rows: [
+            { id: '1', user_id: 'user-1', title: 'Todo 1',
+              status: 'active', created_at: '2026-01-01T00:00:00Z' },
+            { id: '2', user_id: 'user-1', title: 'Todo 2',
+              status: 'done', created_at: '2026-01-02T00:00:00Z' },
+          ],
+        };
+      }
+
+      // INSERT query
+      if (text.trimStart().startsWith('INSERT')) {
+        return {
+          rows: [{
+            id: 'new-id', user_id: 'user-1', title: 'New todo',
+            status: null, created_at: '2026-01-01T00:00:00Z',
+          }],
+        };
+      }
+
+      // UPDATE query
+      if (text.trimStart().startsWith('UPDATE')) {
+        return {
+          rows: [{
+            id: 'abc', user_id: 'user-1', title: 'Updated',
+            status: 'active', created_at: '2026-01-01T00:00:00Z',
+          }],
+        };
+      }
+
+      // DELETE query
+      if (text.trimStart().startsWith('DELETE')) {
+        return {
+          rows: [{
+            id: 'abc', user_id: 'user-1', title: 'Deleted',
+            status: 'active', created_at: '2026-01-01T00:00:00Z',
+          }],
+        };
+      }
+
+      return { rows: [] };
+    },
+  };
+}
+
+// Set the mock pool before any handler calls
+_setPool(createMockPool());
 
 // Helper to build a Lambda API Gateway proxy event
 function makeEvent({
