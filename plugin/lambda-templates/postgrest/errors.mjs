@@ -1,20 +1,39 @@
 // errors.mjs — PostgRESTError class and PG error mapping
-// Stub: throws "not implemented" until real implementation is added.
 
 export class PostgRESTError extends Error {
-  constructor(statusCode, code, message, details, hint) {
+  constructor(statusCode, code, message, details = null, hint = null) {
     super(message);
     this.statusCode = statusCode;
     this.code = code;
-    this.details = details || null;
-    this.hint = hint || null;
+    this.details = details;
+    this.hint = hint;
   }
 
   toJSON() {
-    throw new Error('PostgRESTError.toJSON not implemented');
+    return {
+      code: this.code,
+      message: this.message,
+      details: this.details,
+      hint: this.hint,
+    };
   }
 }
 
+const PG_ERROR_MAP = {
+  '23505': 409, // unique constraint violation
+  '23503': 409, // foreign key violation
+  '23502': 400, // not-null violation
+  '42P01': 404, // undefined table
+  '42703': 400, // undefined column
+};
+
 export function mapPgError(pgError) {
-  throw new Error('mapPgError not implemented');
+  const statusCode = PG_ERROR_MAP[pgError.code] || 500;
+  return new PostgRESTError(
+    statusCode,
+    pgError.code,
+    pgError.message,
+    pgError.detail || null,
+    pgError.hint || null,
+  );
 }
