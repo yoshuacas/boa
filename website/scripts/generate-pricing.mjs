@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT_PATH = join(__dirname, '..', 'data', 'pricing-data.json');
+const OUTPUT_PATH = join(__dirname, '..', 'public', 'data', 'pricing-data.json');
 const REGION = 'us-east-1';
 
 // ---------------------------------------------------------------------------
