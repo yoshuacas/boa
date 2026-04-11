@@ -103,6 +103,25 @@ mkdir -p "$BOA_DIR"
 echo "Created $BOA_DIR"
 
 # ------------------------------------------------------------------
+# Generate JWT secret and store in SSM
+# ------------------------------------------------------------------
+echo ""
+echo "Generating JWT secret..."
+JWT_SECRET=$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")
+
+echo "Storing JWT secret in SSM Parameter Store..."
+aws ssm put-parameter \
+  --name "/${STACK_NAME}/jwt-secret" \
+  --value "$JWT_SECRET" \
+  --type SecureString \
+  --overwrite \
+  --region "$REGION" || {
+  echo "Error: Failed to store JWT secret in SSM."
+  exit 1
+}
+echo "  [OK] JWT secret stored at /${STACK_NAME}/jwt-secret"
+
+# ------------------------------------------------------------------
 # SAM build and deploy
 # ------------------------------------------------------------------
 echo ""
@@ -147,6 +166,16 @@ BUCKET_NAME=$(get_output "BucketName")
 DSQL_ENDPOINT=$(get_output "DsqlEndpoint")
 
 # ------------------------------------------------------------------
+# Generate BOA keys (anon key + service role key)
+# ------------------------------------------------------------------
+echo ""
+echo "Generating BOA keys..."
+KEYS=$(node "$SCRIPT_DIR/generate-keys.mjs" "$JWT_SECRET")
+ANON_KEY=$(echo "$KEYS" | jq -r '.anonKey')
+SERVICE_ROLE_KEY=$(echo "$KEYS" | jq -r '.serviceRoleKey')
+echo "  [OK] Anon key and service role key generated"
+
+# ------------------------------------------------------------------
 # Write config
 # ------------------------------------------------------------------
 cat > "$BOA_DIR/config.json" <<EOF
@@ -155,6 +184,8 @@ cat > "$BOA_DIR/config.json" <<EOF
   "region": "$REGION",
   "accountId": "$ACCOUNT_ID",
   "apiUrl": "$API_URL",
+  "anonKey": "$ANON_KEY",
+  "serviceRoleKey": "$SERVICE_ROLE_KEY",
   "userPoolId": "$USER_POOL_ID",
   "userPoolClientId": "$USER_POOL_CLIENT_ID",
   "bucketName": "$BUCKET_NAME",
@@ -171,13 +202,15 @@ echo "  BOA deployment complete"
 echo "======================================"
 echo ""
 echo "  API URL:          $API_URL"
+echo "  Anon Key:         ${ANON_KEY:0:20}..."
+echo "  Service Role Key: ${SERVICE_ROLE_KEY:0:20}..."
 echo "  User Pool ID:     $USER_POOL_ID"
 echo "  Client ID:        $USER_POOL_CLIENT_ID"
 echo "  S3 Bucket:        $BUCKET_NAME"
 echo "  DSQL Endpoint:    $DSQL_ENDPOINT"
 echo ""
 echo "Verification commands:"
-echo "  curl -s \"$API_URL/items\" -w '\\n%{http_code}'"
+echo "  curl -s \"$API_URL/items\" -H \"apikey: $ANON_KEY\" -w '\\n%{http_code}'"
 echo "  aws cognito-idp describe-user-pool --user-pool-id $USER_POOL_ID --region $REGION --query 'UserPool.AdminCreateUserConfig'"
 echo "  aws s3api get-public-access-block --bucket $BUCKET_NAME --region $REGION"
 echo ""
