@@ -1,0 +1,1131 @@
+{
+  "generatedAt": "2026-04-11T18:53:55.930Z",
+  "region": "us-east-1",
+  "regionName": "US East (N. Virginia)",
+  "sources": {
+    "aws": "AWS Pricing API (pricing.us-east-1.amazonaws.com)",
+    "supabase": "https://supabase.com/pricing"
+  },
+  "rates": {
+    "dsql": {
+      "dpuPrice": 0.000008,
+      "dpuPricePerMillion": 8,
+      "storagePricePerGB": 0.33,
+      "freeTierDPUs": 100,
+      "freeTierStorageGB": 1,
+      "dpuPerRead": 0.02,
+      "dpuPerWrite": 0.05,
+      "dpuPerDelete": 0.03
+    },
+    "cognito": {
+      "tiers": [
+        {
+          "upTo": 10000,
+          "pricePerMAU": 0
+        },
+        {
+          "upTo": 90000,
+          "pricePerMAU": 0.0055
+        },
+        {
+          "upTo": 990000,
+          "pricePerMAU": 0.0046
+        },
+        {
+          "upTo": 9990000,
+          "pricePerMAU": 0.00325
+        },
+        {
+          "upTo": 10000000,
+          "pricePerMAU": 0.0025
+        }
+      ],
+      "essentialsRatePerMAU": 0.015,
+      "tierModel": "Lite"
+    },
+    "lambda": {
+      "requestPricePerMillion": 0.19999999999999998,
+      "gbSecondPrice": 0.0000166667,
+      "freeTierRequests": 1000000,
+      "freeTierGBSeconds": 400000,
+      "memoryMB": 256,
+      "avgDurationMs": 100
+    },
+    "apiGateway": {
+      "tiers": [
+        {
+          "upTo": 333000000,
+          "pricePerMillion": 3.5
+        },
+        {
+          "upTo": 1000000000,
+          "pricePerMillion": 2.8
+        },
+        {
+          "upTo": 20000000000,
+          "pricePerMillion": 2.38
+        },
+        {
+          "upTo": 20000000000,
+          "pricePerMillion": 1.51
+        }
+      ],
+      "freeTierRequests": 1000000
+    },
+    "s3": {
+      "storagePricePerGB": 0.023,
+      "putPricePer1000": 0.005,
+      "getPricePer1000": 0.00039999999999999996,
+      "freeTierStorageGB": 5,
+      "freeTierPutRequests": 2000,
+      "freeTierGetRequests": 20000
+    }
+  },
+  "supabasePricing": {
+    "source": "https://supabase.com/pricing",
+    "lastVerified": "2026-04-11",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "baseCost": 0,
+        "includedStorageGB": 0.5,
+        "includedEgressGB": 5,
+        "includedMAU": 50000,
+        "maxOpsPerSec": 50
+      },
+      "pro": {
+        "name": "Pro",
+        "baseCost": 25,
+        "computeCredit": 10,
+        "includedStorageGB": 8,
+        "includedEgressGB": 250,
+        "includedMAU": 100000
+      },
+      "team": {
+        "name": "Team",
+        "baseCost": 599,
+        "computeCredit": 10,
+        "includedStorageGB": 8,
+        "includedEgressGB": 250,
+        "includedMAU": 100000
+      }
+    },
+    "computeTiers": [
+      {
+        "name": "Nano",
+        "cost": 0,
+        "maxDB": 0.5,
+        "maxConn": 200,
+        "maxOps": 50
+      },
+      {
+        "name": "Micro",
+        "cost": 10,
+        "maxDB": 10,
+        "maxConn": 200,
+        "maxOps": 150
+      },
+      {
+        "name": "Small",
+        "cost": 15,
+        "maxDB": 50,
+        "maxConn": 400,
+        "maxOps": 300
+      },
+      {
+        "name": "Medium",
+        "cost": 60,
+        "maxDB": 100,
+        "maxConn": 600,
+        "maxOps": 500
+      },
+      {
+        "name": "Large",
+        "cost": 110,
+        "maxDB": 200,
+        "maxConn": 800,
+        "maxOps": 1000
+      },
+      {
+        "name": "XL",
+        "cost": 210,
+        "maxDB": 500,
+        "maxConn": 1000,
+        "maxOps": 2500
+      },
+      {
+        "name": "2XL",
+        "cost": 410,
+        "maxDB": 1000,
+        "maxConn": 1500,
+        "maxOps": 5000
+      },
+      {
+        "name": "4XL",
+        "cost": 960,
+        "maxDB": 2000,
+        "maxConn": 3000,
+        "maxOps": 8000
+      },
+      {
+        "name": "8XL",
+        "cost": 1870,
+        "maxDB": 4000,
+        "maxConn": 6000,
+        "maxOps": 15000
+      },
+      {
+        "name": "12XL",
+        "cost": 2800,
+        "maxDB": 6000,
+        "maxConn": 9000,
+        "maxOps": 22000
+      },
+      {
+        "name": "16XL",
+        "cost": 3730,
+        "maxDB": 10000,
+        "maxConn": 12000,
+        "maxOps": 30000
+      }
+    ],
+    "overageRates": {
+      "storagePerGB": 0.125,
+      "egressPerGB": 0.09,
+      "mauPerUser": 0.00325
+    },
+    "secondsPerMonth": 2628000
+  },
+  "appProfiles": {
+    "productivity": {
+      "name": "Productivity App",
+      "example": "Todo lists, notes, project management",
+      "requestsPerUserMonth": 1000,
+      "readRatio": 0.6,
+      "writeRatio": 0.4,
+      "storagePerUserKB": 50,
+      "dbStoragePerUserKB": 5
+    },
+    "social": {
+      "name": "Social App",
+      "example": "Feeds, posts, comments, likes, media sharing",
+      "requestsPerUserMonth": 3000,
+      "readRatio": 0.8,
+      "writeRatio": 0.2,
+      "storagePerUserKB": 500,
+      "dbStoragePerUserKB": 20
+    },
+    "realtime": {
+      "name": "Real-time App",
+      "example": "Chat, collaboration, live dashboards",
+      "requestsPerUserMonth": 8000,
+      "readRatio": 0.5,
+      "writeRatio": 0.5,
+      "storagePerUserKB": 100,
+      "dbStoragePerUserKB": 30
+    },
+    "healthIot": {
+      "name": "Health / IoT App",
+      "example": "Tracking, telemetry, sensor data",
+      "requestsPerUserMonth": 7500,
+      "readRatio": 0.06,
+      "writeRatio": 0.94,
+      "storagePerUserKB": 5000,
+      "dbStoragePerUserKB": 500
+    },
+    "ecommerce": {
+      "name": "E-Commerce App",
+      "example": "Product catalog, cart, orders, payments",
+      "requestsPerUserMonth": 2000,
+      "readRatio": 0.75,
+      "writeRatio": 0.25,
+      "storagePerUserKB": 200,
+      "dbStoragePerUserKB": 15
+    },
+    "saas": {
+      "name": "Multi-tenant SaaS",
+      "example": "CRM, analytics dashboard, admin tools",
+      "requestsPerUserMonth": 4000,
+      "readRatio": 0.7,
+      "writeRatio": 0.3,
+      "storagePerUserKB": 300,
+      "dbStoragePerUserKB": 50
+    }
+  },
+  "sizeTiers": {
+    "prototype": {
+      "name": "Prototype",
+      "users": 50,
+      "desc": "Building & testing"
+    },
+    "startup": {
+      "name": "Startup",
+      "users": 1000,
+      "desc": "First paying customers"
+    },
+    "growth": {
+      "name": "Growth",
+      "users": 100000,
+      "desc": "Series A/B, scaling"
+    },
+    "unicorn": {
+      "name": "Unicorn",
+      "users": 2000000,
+      "desc": "At scale, 1M+ users"
+    }
+  },
+  "scenarios": {
+    "productivity": [
+      {
+        "workload": {
+          "profileKey": "productivity",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 50000,
+          "reads": 30000,
+          "writes": 20000,
+          "deletes": 1000,
+          "dbStorageGB": 0,
+          "s3StorageGB": 0.003,
+          "egressGB": 0,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.01,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 0.09,
+          "total": 0.11
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "productivity",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 1000000,
+          "reads": 600000,
+          "writes": 400000,
+          "deletes": 20000,
+          "dbStorageGB": 0.005,
+          "s3StorageGB": 0.05,
+          "egressGB": 0.6,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 0.26,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 2.22,
+          "total": 2.48
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "productivity",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 100000000,
+          "reads": 60000000,
+          "writes": 40000000,
+          "deletes": 2000000,
+          "dbStorageGB": 0.5,
+          "s3StorageGB": 5,
+          "egressGB": 57.2,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 26.08,
+          "cognito": 486,
+          "lambda": 54.8,
+          "apiGateway": 346.5,
+          "s3": 223.98,
+          "total": 1137.36
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "XL",
+          "baseCost": 25,
+          "computeCost": 200,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 225
+        },
+        "savingsPercent": -405.49
+      },
+      {
+        "workload": {
+          "profileKey": "productivity",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 2000000000,
+          "reads": 1200000000,
+          "writes": 800000000,
+          "deletes": 40000000,
+          "dbStorageGB": 10,
+          "s3StorageGB": 100,
+          "egressGB": 1144.4,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 524.57,
+          "cognito": 7862.5,
+          "lambda": 1226.47,
+          "apiGateway": 5410.72,
+          "s3": 4482.17,
+          "total": 19506.42
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 12.75,
+          "egressOverage": 80.5,
+          "mauOverage": 6175,
+          "total": 10013.25
+        },
+        "savingsPercent": -94.81
+      }
+    ],
+    "social": [
+      {
+        "workload": {
+          "profileKey": "social",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 150000,
+          "reads": 120000,
+          "writes": 30000,
+          "deletes": 1500,
+          "dbStorageGB": 0.001,
+          "s3StorageGB": 0.025,
+          "egressGB": 0.1,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.03,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 0.18,
+          "total": 0.21
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "social",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 3000000,
+          "reads": 2400000,
+          "writes": 600000,
+          "deletes": 30000,
+          "dbStorageGB": 0.02,
+          "s3StorageGB": 0.5,
+          "egressGB": 2.3,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 0.63,
+          "cognito": 0,
+          "lambda": 0.4,
+          "apiGateway": 7,
+          "s3": 3.94,
+          "total": 11.97
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "social",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 300000000,
+          "reads": 240000000,
+          "writes": 60000000,
+          "deletes": 3000000,
+          "dbStorageGB": 2,
+          "s3StorageGB": 50,
+          "egressGB": 228.9,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 63.45,
+          "cognito": 486,
+          "lambda": 178.13,
+          "apiGateway": 1046.5,
+          "s3": 397.02,
+          "total": 2171.1
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "XL",
+          "baseCost": 25,
+          "computeCost": 200,
+          "storageOverage": 5.5,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 230.5
+        },
+        "savingsPercent": -841.91
+      },
+      {
+        "workload": {
+          "profileKey": "social",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 6000000000,
+          "reads": 4800000000,
+          "writes": 1200000000,
+          "deletes": 60000000,
+          "dbStorageGB": 40,
+          "s3StorageGB": 1000,
+          "egressGB": 4577.6,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 1275.27,
+          "cognito": 7862.5,
+          "lambda": 3693.14,
+          "apiGateway": 14930.72,
+          "s3": 7942.87,
+          "total": 35704.49
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 129,
+          "egressOverage": 389.48,
+          "mauOverage": 6175,
+          "total": 10438.48
+        },
+        "savingsPercent": -242.05
+      }
+    ],
+    "realtime": [
+      {
+        "workload": {
+          "profileKey": "realtime",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 400000,
+          "reads": 200000,
+          "writes": 200000,
+          "deletes": 10000,
+          "dbStorageGB": 0.002,
+          "s3StorageGB": 0.005,
+          "egressGB": 0.2,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.11,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 1.06,
+          "total": 1.18
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "realtime",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 8000000,
+          "reads": 4000000,
+          "writes": 4000000,
+          "deletes": 200000,
+          "dbStorageGB": 0.03,
+          "s3StorageGB": 0.1,
+          "egressGB": 3.8,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 2.29,
+          "cognito": 0,
+          "lambda": 1.4,
+          "apiGateway": 24.5,
+          "s3": 21.58,
+          "total": 49.77
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "realtime",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 800000000,
+          "reads": 400000000,
+          "writes": 400000000,
+          "deletes": 20000000,
+          "dbStorageGB": 3,
+          "s3StorageGB": 10,
+          "egressGB": 381.5,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 229.46,
+          "cognito": 486,
+          "lambda": 486.47,
+          "apiGateway": 2470.3,
+          "s3": 2160.1,
+          "total": 5832.32
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "XL",
+          "baseCost": 25,
+          "computeCost": 200,
+          "storageOverage": 0.63,
+          "egressOverage": 11.84,
+          "mauOverage": 0,
+          "total": 237.46
+        },
+        "savingsPercent": -2356.13
+      },
+      {
+        "workload": {
+          "profileKey": "realtime",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 16000000000,
+          "reads": 8000000000,
+          "writes": 8000000000,
+          "deletes": 400000000,
+          "dbStorageGB": 60,
+          "s3StorageGB": 200,
+          "egressGB": 7629.4,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 4595.47,
+          "cognito": 7862.5,
+          "lambda": 9859.81,
+          "apiGateway": 38730.72,
+          "s3": 43204.47,
+          "total": 104252.97
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 31.5,
+          "egressOverage": 664.15,
+          "mauOverage": 6175,
+          "total": 10615.65
+        },
+        "savingsPercent": -882.07
+      }
+    ],
+    "healthIot": [
+      {
+        "workload": {
+          "profileKey": "healthIot",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 375000,
+          "reads": 22500,
+          "writes": 352500,
+          "deletes": 17625,
+          "dbStorageGB": 0.025,
+          "s3StorageGB": 0.25,
+          "egressGB": 0,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.15,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 1.75,
+          "total": 1.9
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "healthIot",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 7500000,
+          "reads": 450000,
+          "writes": 7050000,
+          "deletes": 352500,
+          "dbStorageGB": 0.5,
+          "s3StorageGB": 5,
+          "egressGB": 0.4,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 2.98,
+          "cognito": 0,
+          "lambda": 1.3,
+          "apiGateway": 22.75,
+          "s3": 35.41,
+          "total": 62.44
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0.63,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0.63
+        },
+        "savingsPercent": -9811.11
+      },
+      {
+        "workload": {
+          "profileKey": "healthIot",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 750000000,
+          "reads": 45000000,
+          "writes": 705000000,
+          "deletes": 35250000,
+          "dbStorageGB": 50,
+          "s3StorageGB": 500,
+          "egressGB": 42.9,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 313.83,
+          "cognito": 486,
+          "lambda": 455.63,
+          "apiGateway": 2330.3,
+          "s3": 3554.37,
+          "total": 7140.13
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "2XL",
+          "baseCost": 25,
+          "computeCost": 400,
+          "storageOverage": 67.75,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 492.75
+        },
+        "savingsPercent": -1349.04
+      },
+      {
+        "workload": {
+          "profileKey": "healthIot",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 15000000000,
+          "reads": 900000000,
+          "writes": 14100000000,
+          "deletes": 705000000,
+          "dbStorageGB": 1000,
+          "s3StorageGB": 10000,
+          "egressGB": 858.3,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 6282.87,
+          "cognito": 7862.5,
+          "lambda": 9243.15,
+          "apiGateway": 36350.72,
+          "s3": 71089.87,
+          "total": 130829.1
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 1374,
+          "egressOverage": 54.75,
+          "mauOverage": 6175,
+          "total": 11348.75
+        },
+        "savingsPercent": -1052.81
+      }
+    ],
+    "ecommerce": [
+      {
+        "workload": {
+          "profileKey": "ecommerce",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 100000,
+          "reads": 75000,
+          "writes": 25000,
+          "deletes": 1250,
+          "dbStorageGB": 0.001,
+          "s3StorageGB": 0.01,
+          "egressGB": 0.1,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.02,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 0.14,
+          "total": 0.16
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "ecommerce",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 2000000,
+          "reads": 1500000,
+          "writes": 500000,
+          "deletes": 25000,
+          "dbStorageGB": 0.015,
+          "s3StorageGB": 0.2,
+          "egressGB": 1.4,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 0.45,
+          "cognito": 0,
+          "lambda": 0.2,
+          "apiGateway": 3.5,
+          "s3": 3.08,
+          "total": 7.23
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "ecommerce",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 200000000,
+          "reads": 150000000,
+          "writes": 50000000,
+          "deletes": 2500000,
+          "dbStorageGB": 1.5,
+          "s3StorageGB": 20,
+          "egressGB": 143.1,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 44.76,
+          "cognito": 486,
+          "lambda": 116.47,
+          "apiGateway": 696.5,
+          "s3": 310.33,
+          "total": 1654.06
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "XL",
+          "baseCost": 25,
+          "computeCost": 200,
+          "storageOverage": 1.69,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 226.69
+        },
+        "savingsPercent": -629.66
+      },
+      {
+        "workload": {
+          "profileKey": "ecommerce",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 4000000000,
+          "reads": 3000000000,
+          "writes": 1000000000,
+          "deletes": 50000000,
+          "dbStorageGB": 30,
+          "s3StorageGB": 400,
+          "egressGB": 2861,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 901.57,
+          "cognito": 7862.5,
+          "lambda": 2459.8,
+          "apiGateway": 10170.72,
+          "s3": 6209.07,
+          "total": 27603.66
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 52.75,
+          "egressOverage": 234.99,
+          "mauOverage": 6175,
+          "total": 10207.74
+        },
+        "savingsPercent": -170.42
+      }
+    ],
+    "saas": [
+      {
+        "workload": {
+          "profileKey": "saas",
+          "sizeKey": "prototype",
+          "users": 50,
+          "totalRequests": 200000,
+          "reads": 140000,
+          "writes": 60000,
+          "deletes": 3000,
+          "dbStorageGB": 0.003,
+          "s3StorageGB": 0.015,
+          "egressGB": 0.1,
+          "peakConnections": 5,
+          "mau": 50
+        },
+        "boa": {
+          "dsql": 0.05,
+          "cognito": 0,
+          "lambda": 0,
+          "apiGateway": 0,
+          "s3": 0.34,
+          "total": 0.38
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "saas",
+          "sizeKey": "startup",
+          "users": 1000,
+          "totalRequests": 4000000,
+          "reads": 2800000,
+          "writes": 1200000,
+          "deletes": 60000,
+          "dbStorageGB": 0.05,
+          "s3StorageGB": 0.3,
+          "egressGB": 2.7,
+          "peakConnections": 10,
+          "mau": 1000
+        },
+        "boa": {
+          "dsql": 0.94,
+          "cognito": 0,
+          "lambda": 0.6,
+          "apiGateway": 10.5,
+          "s3": 7.1,
+          "total": 19.14
+        },
+        "supa": {
+          "plan": "Free",
+          "tier": "Nano",
+          "baseCost": 0,
+          "computeCost": 0,
+          "storageOverage": 0,
+          "egressOverage": 0,
+          "mauOverage": 0,
+          "total": 0
+        },
+        "savingsPercent": null
+      },
+      {
+        "workload": {
+          "profileKey": "saas",
+          "sizeKey": "growth",
+          "users": 100000,
+          "totalRequests": 400000000,
+          "reads": 280000000,
+          "writes": 120000000,
+          "deletes": 6000000,
+          "dbStorageGB": 5,
+          "s3StorageGB": 30,
+          "egressGB": 267,
+          "peakConnections": 1000,
+          "mau": 100000
+        },
+        "boa": {
+          "dsql": 95.56,
+          "cognito": 486,
+          "lambda": 239.8,
+          "apiGateway": 1350.3,
+          "s3": 712.56,
+          "total": 2884.22
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "XL",
+          "baseCost": 25,
+          "computeCost": 200,
+          "storageOverage": 3.38,
+          "egressOverage": 1.53,
+          "mauOverage": 0,
+          "total": 229.91
+        },
+        "savingsPercent": -1154.5
+      },
+      {
+        "workload": {
+          "profileKey": "saas",
+          "sizeKey": "unicorn",
+          "users": 2000000,
+          "totalRequests": 8000000000,
+          "reads": 5600000000,
+          "writes": 2400000000,
+          "deletes": 120000000,
+          "dbStorageGB": 100,
+          "s3StorageGB": 600,
+          "egressGB": 5340.6,
+          "peakConnections": 20000,
+          "mau": 2000000
+        },
+        "boa": {
+          "dsql": 1917.47,
+          "cognito": 7862.5,
+          "lambda": 4926.47,
+          "apiGateway": 19690.72,
+          "s3": 14253.67,
+          "total": 48650.83
+        },
+        "supa": {
+          "plan": "Pro",
+          "tier": "16XL",
+          "baseCost": 25,
+          "computeCost": 3720,
+          "storageOverage": 86.5,
+          "egressOverage": 458.15,
+          "mauOverage": 6175,
+          "total": 10464.65
+        },
+        "savingsPercent": -364.91
+      }
+    ]
+  }
+}

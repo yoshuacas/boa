@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'BOA',
   titleTemplate: ':title — BOA, Backend on AWS',
   description: 'Open-source skill plugin that teaches your AI coding agent to build serverless backends on AWS.',
+  base: '/boa/',
 
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
