@@ -71,8 +71,10 @@ function buildFilterConditions(filters, schema, table, values) {
   return conditions;
 }
 
-function appendUserId(conditions, schema, table, userId, values) {
-  if (hasColumn(schema, table, 'user_id') && userId != null) {
+function appendUserId(conditions, schema, table, userId, role, values) {
+  // service_role bypasses user_id filtering
+  if (role === 'service_role') return;
+  if (hasColumn(schema, table, 'user_id') && userId) {
     values.push(userId);
     conditions.push(`"user_id" = $${values.length}`);
   }
@@ -110,7 +112,7 @@ function limitOffsetClause(limit, offset, values) {
   return sql;
 }
 
-export function buildSelect(table, parsed, schema, userId) {
+export function buildSelect(table, parsed, schema, userId, role) {
   const values = [];
   const cols = resolveSelectCols(parsed.select, schema, table);
   const colList = cols.map((c) => `"${c}"`).join(', ');
@@ -118,7 +120,7 @@ export function buildSelect(table, parsed, schema, userId) {
   const conds = buildFilterConditions(
     parsed.filters, schema, table, values,
   );
-  appendUserId(conds, schema, table, userId, values);
+  appendUserId(conds, schema, table, userId, role, values);
 
   let sql = `SELECT ${colList} FROM "${table}"`;
   sql += whereClause(conds);
@@ -185,7 +187,7 @@ export function buildInsert(table, body, schema, userId, parsed) {
   return { text: sql, values };
 }
 
-export function buildUpdate(table, body, parsed, schema, userId) {
+export function buildUpdate(table, body, parsed, schema, userId, role) {
   if (parsed.filters.length === 0) {
     throw new PostgRESTError(
       400, 'PGRST106',
@@ -204,7 +206,7 @@ export function buildUpdate(table, body, parsed, schema, userId) {
   const conds = buildFilterConditions(
     parsed.filters, schema, table, values,
   );
-  appendUserId(conds, schema, table, userId, values);
+  appendUserId(conds, schema, table, userId, role, values);
 
   let sql = `UPDATE "${table}" SET ${setClauses.join(', ')}`;
   sql += whereClause(conds);
@@ -213,7 +215,7 @@ export function buildUpdate(table, body, parsed, schema, userId) {
   return { text: sql, values };
 }
 
-export function buildDelete(table, parsed, schema, userId) {
+export function buildDelete(table, parsed, schema, userId, role) {
   if (parsed.filters.length === 0) {
     throw new PostgRESTError(
       400, 'PGRST106',
@@ -225,7 +227,7 @@ export function buildDelete(table, parsed, schema, userId) {
   const conds = buildFilterConditions(
     parsed.filters, schema, table, values,
   );
-  appendUserId(conds, schema, table, userId, values);
+  appendUserId(conds, schema, table, userId, role, values);
 
   let sql = `DELETE FROM "${table}"`;
   sql += whereClause(conds);
@@ -234,12 +236,12 @@ export function buildDelete(table, parsed, schema, userId) {
   return { text: sql, values };
 }
 
-export function buildCount(table, parsed, schema, userId) {
+export function buildCount(table, parsed, schema, userId, role) {
   const values = [];
   const conds = buildFilterConditions(
     parsed.filters, schema, table, values,
   );
-  appendUserId(conds, schema, table, userId, values);
+  appendUserId(conds, schema, table, userId, role, values);
 
   let sql = `SELECT COUNT(*) FROM "${table}"`;
   sql += whereClause(conds);

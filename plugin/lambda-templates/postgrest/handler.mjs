@@ -55,8 +55,9 @@ export async function handler(event) {
     // 2. Extract request data
     const method = event.httpMethod;
     const path = event.path;
-    const userId = event.requestContext?.authorizer?.claims?.sub
-      || 'anonymous';
+    const authorizer = event.requestContext?.authorizer || {};
+    const userId = authorizer.userId || authorizer.claims?.sub || '';
+    const role = authorizer.role || 'anon';
     const headers = lowercaseHeaders(event.headers);
 
     let body = null;
@@ -107,12 +108,12 @@ export async function handler(event) {
 
     switch (method) {
       case 'GET': {
-        const q = buildSelect(table, parsed, schema, userId);
+        const q = buildSelect(table, parsed, schema, userId, role);
         const result = await pool.query(q.text, q.values);
         rows = result.rows;
 
         if (prefer.count === 'exact') {
-          const cq = buildCount(table, parsed, schema, userId);
+          const cq = buildCount(table, parsed, schema, userId, role);
           const cr = await pool.query(cq.text, cq.values);
           count = parseInt(cr.rows[0].count, 10);
         }
@@ -140,14 +141,14 @@ export async function handler(event) {
       }
 
       case 'PATCH': {
-        const q = buildUpdate(table, body, parsed, schema, userId);
+        const q = buildUpdate(table, body, parsed, schema, userId, role);
         const result = await pool.query(q.text, q.values);
         rows = result.rows;
         break;
       }
 
       case 'DELETE': {
-        const q = buildDelete(table, parsed, schema, userId);
+        const q = buildDelete(table, parsed, schema, userId, role);
         const result = await pool.query(q.text, q.values);
         rows = result.rows;
         break;

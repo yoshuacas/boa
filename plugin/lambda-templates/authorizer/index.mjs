@@ -11,11 +11,11 @@ export async function handler(event) {
       || event.headers?.authorization || '';
 
     // 1. Validate apikey
-    if (!apikey) return deny(event.methodArn);
+    if (!apikey) throw 'Unauthorized';
     const apikeyPayload = jwt.verify(apikey, secret,
       { issuer: ISSUER });
     if (!['anon', 'service_role'].includes(apikeyPayload.role))
-      return deny(event.methodArn);
+      throw 'Unauthorized';
 
     // 2. Determine effective identity
     let role = apikeyPayload.role;
@@ -34,7 +34,9 @@ export async function handler(event) {
     // 3. Return Allow policy with context
     return allow(event.methodArn, { role, userId, email });
   } catch (err) {
-    return deny(event.methodArn);
+    // Throw "Unauthorized" string so API Gateway returns 401
+    // (a Deny policy returns 403, which breaks supabase-js token refresh)
+    throw 'Unauthorized';
   }
 }
 
