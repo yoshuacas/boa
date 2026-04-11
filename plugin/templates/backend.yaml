@@ -135,6 +135,7 @@ Resources:
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info'"
         AllowOrigin: "'*'"
+        ExposeHeaders: "'Content-Range'"
         MaxAge: "'600'"
 
   # -------------------------------------------------------
