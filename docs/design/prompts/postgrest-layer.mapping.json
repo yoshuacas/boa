@@ -1,0 +1,6 @@
+{
+  "prompt": "docs/design/prompts/postgrest-layer.md",
+  "designs": [
+    "docs/design/postgrest-compatible-api.md"
+  ]
+}
