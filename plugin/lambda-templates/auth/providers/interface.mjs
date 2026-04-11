@@ -21,5 +21,11 @@
  * Default: 'cognito'.
  */
 export function createProvider() {
-  throw new Error('not implemented');
+  const name = process.env.AUTH_PROVIDER || 'cognito';
+  switch (name) {
+    case 'cognito':
+      return import('./cognito.mjs').then(m => m.default);
+    default:
+      throw new Error(`Unknown auth provider: ${name}`);
+  }
 }

@@ -1,20 +1,107 @@
 import { describe, it, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-// The cognito provider stub exports functions that throw
-// "not implemented". These tests verify the intended behavior
-// once the real implementation replaces the stubs.
-
-// We import the provider directly. When the real implementation
-// exists, it will use @aws-sdk/client-cognito-identity-provider
-// internally. For now, the stub throws on every call.
-import provider from '../providers/cognito.mjs';
+import provider, { _setClient } from '../providers/cognito.mjs';
 import { createProvider } from '../providers/interface.mjs';
+
+// Helper to create a fake Cognito SDK error
+function cognitoError(name, message) {
+  const err = new Error(message || name);
+  err.name = name;
+  return err;
+}
+
+// Fake IdToken payload for mock responses
+function fakeIdToken(sub, email) {
+  const header = Buffer.from(JSON.stringify({
+    alg: 'RS256', typ: 'JWT',
+  })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({
+    sub, email,
+  })).toString('base64url');
+  return `${header}.${payload}.fake-sig`;
+}
+
+function createMockClient() {
+  return {
+    send: mock.fn(async (command) => {
+      const name = command.constructor.name;
+
+      if (name === 'SignUpCommand') {
+        const { Username, Password } = command.input;
+        if (!Username || Username === '') {
+          throw cognitoError('InvalidParameterException');
+        }
+        if (Username === 'existing@example.com') {
+          throw cognitoError('UsernameExistsException');
+        }
+        if (Password === 'weak') {
+          throw cognitoError('InvalidPasswordException');
+        }
+        return { UserSub: 'fake-uuid-' + Username.split('@')[0] };
+      }
+
+      if (name === 'InitiateAuthCommand') {
+        const { AuthFlow, AuthParameters } = command.input;
+
+        if (AuthFlow === 'USER_PASSWORD_AUTH') {
+          const { USERNAME, PASSWORD } = AuthParameters;
+          if (USERNAME === 'noone@example.com') {
+            throw cognitoError('UserNotFoundException');
+          }
+          if (USERNAME === 'mismatch@example.com') {
+            throw cognitoError('CodeMismatchException');
+          }
+          if (PASSWORD === 'WrongPassword1') {
+            throw cognitoError('NotAuthorizedException');
+          }
+          return {
+            AuthenticationResult: {
+              AccessToken: 'mock-access-token',
+              RefreshToken: 'mock-refresh-token',
+              IdToken: fakeIdToken('uuid-' + USERNAME.split('@')[0], USERNAME),
+            },
+          };
+        }
+
+        if (AuthFlow === 'REFRESH_TOKEN_AUTH') {
+          const { REFRESH_TOKEN } = AuthParameters;
+          if (REFRESH_TOKEN === 'expired-token') {
+            throw cognitoError('NotAuthorizedException');
+          }
+          return {
+            AuthenticationResult: {
+              AccessToken: 'mock-new-access-token',
+              IdToken: fakeIdToken('uuid-refreshed', 'refreshed@example.com'),
+            },
+          };
+        }
+      }
+
+      if (name === 'GetUserCommand') {
+        return {
+          Username: 'test-user',
+          UserAttributes: [
+            { Name: 'sub', Value: 'uuid-test-user' },
+            { Name: 'email', Value: 'test@example.com' },
+          ],
+        };
+      }
+
+      throw new Error(`Unexpected command: ${name}`);
+    }),
+  };
+}
 
 describe('CognitoProvider', () => {
   beforeEach(() => {
     process.env.REGION_NAME = 'us-east-1';
     process.env.USER_POOL_CLIENT_ID = 'test-client-id';
+    _setClient(createMockClient());
+  });
+
+  afterEach(() => {
+    _setClient(null);
   });
 
   describe('signUp', () => {
@@ -39,9 +126,6 @@ describe('CognitoProvider', () => {
     });
 
     it('throws error with code user_already_exists for UsernameExistsException', async () => {
-      // When the real implementation encounters
-      // UsernameExistsException from Cognito, it should throw
-      // an error with code 'user_already_exists'
       await assert.rejects(
         () => provider.signUp('existing@example.com', 'Password123'),
         (err) => {
