@@ -1,10 +1,68 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { handler as authHandler } from '../handler.mjs';
+import { handler as authHandler, _setProvider } from '../handler.mjs';
 import { handler as authorizer } from '../../authorizer/index.mjs';
 
 const TEST_SECRET = 'integration-test-secret-key-1234';
+
+// Mock provider for integration tests
+function createMockProvider() {
+  const users = new Map();
+  let nextRefreshToken = 'cognito-refresh-initial';
+
+  return {
+    async signUp(email) {
+      const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const user = {
+        id,
+        email,
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: {},
+        created_at: new Date().toISOString(),
+      };
+      users.set(email, user);
+      return user;
+    },
+    async signIn(email) {
+      const user = users.get(email) || {
+        id: `user-signin-${Date.now()}`,
+        email,
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: {},
+        created_at: new Date().toISOString(),
+      };
+      if (!users.has(email)) users.set(email, user);
+      nextRefreshToken = `cognito-refresh-${Date.now()}`;
+      return {
+        user,
+        providerTokens: {
+          accessToken: 'cognito-access-token',
+          refreshToken: nextRefreshToken,
+          idToken: 'cognito-id-token',
+        },
+      };
+    },
+    async refreshToken(prt) {
+      const newRefresh = `cognito-refresh-new-${Date.now()}`;
+      return {
+        user: {
+          id: 'refreshed-user-id',
+          email: 'refresh@example.com',
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          created_at: new Date().toISOString(),
+        },
+        providerTokens: {
+          accessToken: 'new-cognito-access',
+          refreshToken: newRefresh,
+          idToken: 'new-cognito-id',
+        },
+      };
+    },
+    async signOut() {},
+  };
+}
 
 // Helper: sign a JWT using HMAC-SHA256 (pure Node.js)
 function signJwt(payload, secret = TEST_SECRET) {
@@ -79,6 +137,7 @@ describe('integration tests', () => {
     process.env.AUTH_PROVIDER = 'cognito';
     process.env.REGION_NAME = 'us-east-1';
     process.env.USER_POOL_CLIENT_ID = 'test-client-id';
+    _setProvider(createMockProvider());
   });
 
   it('full signup flow: signup returns tokens, then GET /user returns same user', async () => {

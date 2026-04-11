@@ -1,10 +1,75 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { handler } from '../handler.mjs';
+import { handler, _setProvider } from '../handler.mjs';
+import { signAccessToken, signRefreshToken } from '../jwt.mjs';
 
-// The handler stub throws "not implemented". These tests
-// verify the intended routing and response behavior once the
-// real implementation exists.
+// Mock provider that responds based on email/password values
+function createMockProvider() {
+  return {
+    async signUp(email, password) {
+      if (email === 'existing@example.com') {
+        const err = new Error('User already exists');
+        err.code = 'user_already_exists';
+        throw err;
+      }
+      if (password === 'weak') {
+        const err = new Error('Weak password');
+        err.code = 'weak_password';
+        throw err;
+      }
+      if (email === 'error@example.com') {
+        const err = new Error('Something went wrong');
+        err.code = 'unexpected_failure';
+        throw err;
+      }
+      return {
+        id: 'test-user-id-123',
+        email,
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: {},
+        created_at: '2026-04-11T12:00:00.000Z',
+      };
+    },
+    async signIn(email) {
+      if (email === 'badcreds@example.com') {
+        const err = new Error('Bad credentials');
+        err.code = 'invalid_grant';
+        throw err;
+      }
+      return {
+        user: {
+          id: 'test-user-id-123',
+          email,
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          created_at: '2026-04-11T12:00:00.000Z',
+        },
+        providerTokens: {
+          accessToken: 'cognito-access-token',
+          refreshToken: 'cognito-refresh-token',
+          idToken: 'cognito-id-token',
+        },
+      };
+    },
+    async refreshToken(prt) {
+      return {
+        user: {
+          id: 'test-user-id-123',
+          email: 'test@example.com',
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          created_at: '2026-04-11T12:00:00.000Z',
+        },
+        providerTokens: {
+          accessToken: 'new-cognito-access',
+          refreshToken: prt,
+          idToken: 'new-cognito-id',
+        },
+      };
+    },
+    async signOut() {},
+  };
+}
 
 // Helper: build a Lambda proxy event
 function makeEvent({
@@ -31,6 +96,7 @@ describe('handler.mjs', () => {
   beforeEach(() => {
     process.env.JWT_SECRET = 'test-secret-for-handler';
     process.env.AUTH_PROVIDER = 'cognito';
+    _setProvider(createMockProvider());
   });
 
   describe('POST /auth/v1/signup', () => {
@@ -217,7 +283,7 @@ describe('handler.mjs', () => {
         path: '/auth/v1/token',
         query: { grant_type: 'password' },
         body: {
-          email: 'test@example.com',
+          email: 'badcreds@example.com',
           password: 'WrongPass1',
         },
       });
@@ -276,10 +342,14 @@ describe('handler.mjs', () => {
 
   describe('POST /auth/v1/token?grant_type=refresh_token', () => {
     it('returns 200 with new session for valid refresh_token', async () => {
+      const validRefreshJwt = signRefreshToken(
+        'test-user-id-123',
+        'cognito-refresh-token'
+      );
       const event = makeEvent({
         path: '/auth/v1/token',
         query: { grant_type: 'refresh_token' },
-        body: { refresh_token: 'valid-refresh-jwt' },
+        body: { refresh_token: validRefreshJwt },
       });
 
       const res = await handler(event);
@@ -332,10 +402,14 @@ describe('handler.mjs', () => {
 
   describe('GET /auth/v1/user', () => {
     it('returns 200 with user for valid Bearer token', async () => {
+      const validAccessJwt = signAccessToken({
+        sub: 'test-user-id-123',
+        email: 'test@example.com',
+      });
       const event = makeEvent({
         method: 'GET',
         path: '/auth/v1/user',
-        headers: { Authorization: 'Bearer valid-access-jwt' },
+        headers: { Authorization: `Bearer ${validAccessJwt}` },
       });
 
       const res = await handler(event);

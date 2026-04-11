@@ -32,6 +32,7 @@ const ERROR_STATUS = {
 
 const ERROR_DESCRIPTION = {
   user_already_exists: 'User already registered',
+  invalid_grant: 'Invalid login credentials',
   weak_password:
     'Password must be at least 8 characters and include uppercase, lowercase, and numbers',
   unexpected_failure: 'An unexpected error occurred',
