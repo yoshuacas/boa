@@ -1,14 +1,23 @@
-const SECRET = process.env.JWT_SECRET;
+import jwt from 'jsonwebtoken';
+
 const ISSUER = 'boa';
 
 export function signAccessToken({ sub, email }) {
-  throw new Error('not implemented');
+  return jwt.sign(
+    { sub, email, role: 'authenticated', aud: 'authenticated' },
+    process.env.JWT_SECRET,
+    { issuer: ISSUER, expiresIn: '1h' }
+  );
 }
 
 export function signRefreshToken(sub, providerRefreshToken) {
-  throw new Error('not implemented');
+  return jwt.sign(
+    { sub, role: 'authenticated', prt: providerRefreshToken },
+    process.env.JWT_SECRET,
+    { issuer: ISSUER, expiresIn: '30d' }
+  );
 }
 
 export function verifyToken(token) {
-  throw new Error('not implemented');
+  return jwt.verify(token, process.env.JWT_SECRET, { issuer: ISSUER });
 }
