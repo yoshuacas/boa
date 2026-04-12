@@ -35,6 +35,15 @@ sam build \
   --build-dir "$BOA_DIR/.aws-sam/build" \
   --region "$REGION"
 
+# ------------------------------------------------------------------
+# Copy Cedar policies into Lambda build (if they exist)
+# ------------------------------------------------------------------
+if [[ -d "$PROJECT_DIR/policies" ]]; then
+  echo "Copying Cedar policies into Lambda build..."
+  cp -r "$PROJECT_DIR/policies" "$BOA_DIR/.aws-sam/build/ApiFunction/policies"
+  echo "  [OK] Policies copied"
+fi
+
 echo ""
 echo "Deploying..."
 sam deploy \

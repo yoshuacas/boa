@@ -1,10 +1,16 @@
-import { handler as authHandler } from "./auth/handler.mjs";
-import { handler as apiHandler } from "./postgrest/handler.mjs";
+import { createPgrest } from 'pgrest-lambda';
+import { handler as uploadHandler } from './presigned-upload.mjs';
+
+const pgrest = createPgrest();
 
 export async function handler(event) {
   const path = event.path || '';
-  if (path.startsWith('/auth/v1/')) {
-    return authHandler(event);
+
+  // Presigned upload/download routes
+  if (path === '/upload' || path === '/download') {
+    return uploadHandler(event);
   }
-  return apiHandler(event);
+
+  // Auth + REST engine (PostgREST-compatible API, GoTrue-compatible auth)
+  return pgrest.handler(event);
 }

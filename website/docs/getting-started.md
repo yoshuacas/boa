@@ -8,19 +8,46 @@ Build your first serverless backend on AWS in under 10 minutes.
 
 ## Prerequisites
 
-Before you start, make sure you have:
+### 1. AWS account
 
-- **AWS account** — [Create one here](https://aws.amazon.com/) if you don't have one
-- **AWS CLI configured** — Run `aws configure` with your access key and secret key. Region should be `us-east-1` (Aurora DSQL is available there).
-- **Node.js 18+** — [Download from nodejs.org](https://nodejs.org/)
-- **SAM CLI** — [Install the AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+If you don't have one, [create a free account](https://aws.amazon.com/free/). You need an email, password, and payment method. The free tier covers everything BOA uses for development.
 
-Verify your setup:
+### 2. Install tools
+
+**macOS** (one command):
+
+```bash
+brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
+```
+
+**Linux (Ubuntu/Debian)**:
+
+```bash
+# AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
+  && unzip -qo /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
+
+# SAM CLI, Node.js, psql, jq
+pip3 install aws-sam-cli
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs postgresql-client jq
+```
+
+### 3. Sign in to AWS
+
+```bash
+aws login
+```
+
+This opens your browser. Sign in with your AWS account, and credentials are stored locally for 12 hours. No access keys needed.
+
+### 4. Verify
 
 ```bash
 aws sts get-caller-identity   # Should show your account ID
-node --version                # Should be 18.x or higher
 sam --version                 # Should be 1.x or higher
+node --version                # Should be 18.x or higher
+psql --version                # Should be 14.x or higher
 ```
 
 ## Install BOA in Your Coding Agent
@@ -43,15 +70,15 @@ Open your coding agent and tell it:
 Build a todo app with user accounts
 ```
 
-BOA will guide your agent to:
+If any tools are missing, BOA will detect them and walk you through installation before proceeding.
 
-1. Write migration files for a `todos` table and a `users` table, then apply them
-2. Set up a Cognito user pool with self-signup and email verification
-3. Deploy a pre-signup Lambda trigger that auto-confirms users
-4. Create Lambda functions for CRUD operations on todos
-5. Wire up API Gateway (REST) with Cognito authorization
-6. Configure S3 for file attachments (if requested)
-7. Generate a SAM template and deploy everything
+Once setup is complete, BOA will guide your agent to:
+
+1. Deploy the full serverless stack (DSQL, Cognito, Lambda, API Gateway, S3) with one command
+2. Write migration files for your app's data model and apply them
+3. Connect your frontend using `@supabase/supabase-js` — every table is automatically available as a REST endpoint
+4. Configure S3 for file attachments (if requested)
+5. Verify everything works
 
 ## What Gets Created
 
@@ -61,7 +88,7 @@ After your agent deploys, you will have:
 |----------|------------|
 | **Aurora DSQL cluster** | A serverless PostgreSQL database with your app's tables |
 | **Cognito user pool** | User sign-up and sign-in with email/password |
-| **Lambda functions** | Node.js handlers for each API endpoint |
+| **Lambda functions** | Thin handlers powered by pgrest-lambda — auto-generates REST API for all tables |
 | **API Gateway (REST)** | Public API with Cognito-based authorization |
 | **S3 bucket** | Private file storage with presigned URL access |
 | **SAM template** | Infrastructure-as-code in `template.yaml` |
@@ -85,15 +112,20 @@ The pre-signup trigger auto-confirms the user, so they can sign in immediately.
 ### Test API call
 
 ```bash
-# Get an auth token
-TOKEN=$(aws cognito-idp initiate-auth \
-  --client-id YOUR_CLIENT_ID \
-  --auth-flow USER_PASSWORD_AUTH \
-  --auth-parameters USERNAME=testuser@example.com,PASSWORD=TestPass123! \
-  --query 'AuthenticationResult.IdToken' --output text)
+# Read anonKey from .boa/config.json
+ANON_KEY=$(jq -r '.anonKey' .boa/config.json)
+API_URL=$(jq -r '.apiUrl' .boa/config.json)
+
+# Sign in and get a token
+TOKEN=$(curl -s -X POST "$API_URL/auth/v1/token?grant_type=password" \
+  -H "apikey: $ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"testuser@example.com","password":"TestPass123!"}' \
+  | jq -r '.access_token')
 
 # Call your API
-curl -H "Authorization: $TOKEN" https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod/todos
+curl -H "apikey: $ANON_KEY" -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/rest/v1/todos"
 ```
 
 You should get an empty array `[]` (no todos yet).

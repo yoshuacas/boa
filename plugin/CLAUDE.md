@@ -3,15 +3,18 @@
 This plugin teaches your agent to build serverless backends on AWS.
 
 ## Stack (all serverless, scales to zero)
-| Layer      | Service              |
-|------------|----------------------|
-| Database   | Aurora DSQL          |
-| Auth       | Amazon Cognito       |
-| Compute    | Lambda (Node.js 20)  |
-| API        | API Gateway (REST)   |
-| Storage    | Amazon S3            |
-| Hosting    | AWS Amplify          |
-| IaC        | SAM / CloudFormation |
+| Layer      | Service                  |
+|------------|--------------------------|
+| Database   | Aurora DSQL              |
+| Auth       | Amazon Cognito           |
+| Engine     | pgrest-lambda (npm)      |
+| Compute    | Lambda (Node.js 20)      |
+| API        | API Gateway (REST)       |
+| Storage    | Amazon S3                |
+| Hosting    | AWS Amplify              |
+| IaC        | SAM / CloudFormation     |
+
+**pgrest-lambda** provides a PostgREST-compatible REST API and GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client. The Lambda handlers are thin wrappers (~20 lines total).
 
 ## Critical Rules
 1. Always `AllowAdminCreateUserOnly: false` for Cognito self-signup
@@ -25,7 +28,7 @@ This plugin teaches your agent to build serverless backends on AWS.
 9. DSQL requires IAM auth tokens for connections — never hardcode credentials
 
 ## Authorizer Contract
-The BOA custom Lambda authorizer (replaces CognitoAuthorizer) passes flat keys:
+The BOA custom Lambda authorizer (JWT dual-layer validation) passes flat keys:
 ```javascript
 event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
 event.requestContext.authorizer.userId   // user UUID or '' for anon
@@ -37,11 +40,18 @@ Do NOT use `event.requestContext.authorizer.claims.sub` — that is the old Cogn
 | File | Purpose |
 |------|---------|
 | `skills/boa/SKILL.md` | Full skill instructions |
+| `templates/backend.yaml` | SAM template (full stack) |
+| `lambda-templates/index.mjs` | Main handler (pgrest-lambda + presigned uploads) |
+| `lambda-templates/authorizer.mjs` | JWT dual-layer authorizer |
+| `lambda-templates/presigned-upload.mjs` | S3 presigned URL handler |
+| `scripts/bootstrap.sh` | First-time deploy |
+| `scripts/deploy.sh` | Redeploy |
+| `scripts/migrate.sh` | Database migration runner |
+| `scripts/verify.sh` | Post-deploy verification |
+| `scripts/teardown.sh` | Stack removal |
+| `docs/REST-API.md` | Full REST API reference (filtering, pagination, errors) |
+| `docs/POLICIES.md` | Cedar authorization (entity model, examples, SQL translation) |
 | `docs/PITFALLS.md` | Every known failure with fix |
 | `docs/ARCHITECTURE.md` | Schema patterns per app type |
 | `docs/DSQL-PATTERNS.md` | SQL, migrations, RLS |
-| `templates/backend.yaml` | SAM template (full stack) |
-| `lambda-templates/` | Ready-to-use Lambda handlers |
-| `scripts/deploy.sh` | One-command deploy |
 | `docs/MIGRATIONS.md` | Migration file format, runner, patterns |
-| `scripts/migrate.sh` | Database migration runner |

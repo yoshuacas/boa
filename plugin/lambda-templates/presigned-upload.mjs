@@ -43,7 +43,7 @@ export async function handler(event) {
   const method = event.httpMethod;
   const path = event.resource || event.path;
   const userId =
-    event.requestContext?.authorizer?.claims?.sub || "anonymous";
+    event.requestContext?.authorizer?.userId || "anonymous";
 
   try {
     // POST /upload — generate a presigned upload URL

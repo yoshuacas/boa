@@ -19,7 +19,7 @@ boa/
 │   ├── skills/boa/SKILL.md         # Main skill (<500 lines)
 │   ├── docs/                        # Agent-readable docs (bundled)
 │   ├── templates/backend.yaml       # SAM template (full stack)
-│   ├── lambda-templates/            # PostgreSQL/DSQL Lambda handlers
+│   ├── lambda-templates/            # Thin wrappers around pgrest-lambda
 │   ├── scripts/                     # bootstrap, deploy, teardown, verify
 │   ├── CLAUDE.md                    # Plugin quick-ref for skill discovery
 │   └── AGENTS.md                    # VS Code Copilot / Codex cross-compat
@@ -47,8 +47,9 @@ boa/
 |-------|---------|-------|
 | Database | Aurora DSQL | Serverless PostgreSQL, scales to zero, IAM auth |
 | Auth | Amazon Cognito | Pre-signup auto-confirm trigger required |
+| Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
-| API | API Gateway (REST) | Not HTTP API — required for Cognito authorizers |
+| API | API Gateway (REST) | Not HTTP API — required for REQUEST-type Lambda authorizer |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
 | IaC | SAM / CloudFormation | One-command deploy |
