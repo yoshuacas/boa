@@ -6,7 +6,7 @@ compatibility: Requires AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(sam *) Bash(aws *) Bash(node *) Bash(npm *) Bash(bash *) Bash(brew *) Bash(apt *) Bash(sudo *) Bash(psql *) Read Grep Glob Write Edit"
 metadata:
   author: aws
-  version: "0.2"
+  version: "0.3"
 ---
 
 # BOA — Backend on AWS
@@ -34,18 +34,33 @@ Everything is serverless. No servers to manage. Scales to zero. Scales to millio
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
 
+## Locating the Plugin
+
+Before running any script, resolve the plugin root directory:
+
+```bash
+BOA_PLUGIN="$(dirname "$(dirname "$CLAUDE_SKILL_DIR")")"
+```
+
+All scripts and templates are relative to `$BOA_PLUGIN`:
+- `$BOA_PLUGIN/scripts/bootstrap.sh`
+- `$BOA_PLUGIN/scripts/migrate.sh`
+- `$BOA_PLUGIN/scripts/deploy.sh`
+- `$BOA_PLUGIN/scripts/verify.sh`
+- `$BOA_PLUGIN/scripts/teardown.sh`
+
 ## Quick Start — "Create a backend for my app"
 
 When the developer asks to create a backend, follow these steps in order:
 
 1. **Setup** — Run through Step 1 below to ensure all tools are installed and AWS credentials are active
-2. **Deploy** — Run `bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/bootstrap.sh --stack-name <app-name>`
-3. **Schema** — Write migration files for the app's data model, then run `bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/migrate.sh`
-4. **Policies** — Write Cedar policies for authorization, then redeploy with `bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/deploy.sh`. See [POLICIES.md](../../docs/POLICIES.md) for entity model and examples.
+2. **Schema** — Write migration files for the app's data model in `migrations/`
+3. **Policies** — Write Cedar policies in `policies/`. **Required — without policies, all API requests are denied.** See [POLICIES.md](../../docs/POLICIES.md) for examples.
+4. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
 5. **Frontend** — Connect the frontend using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
-6. **Verify** — Run `bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/verify.sh`
+6. **Verify** — Run `bash $BOA_PLUGIN/scripts/verify.sh`
 
-Every table in the database is immediately available as a REST endpoint. Authorization policies control who can read and write what.
+The bootstrap script builds the Lambda (bundling policies), deploys the full stack, runs migrations, and generates API keys — all in one command (~90 seconds).
 
 ## Critical Rules
 
@@ -60,6 +75,7 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 7. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
 8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
 9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
+10. **Cedar policies required**: Always create a `policies/` directory with at least one `.cedar` file — without policies, all API requests return 403
 
 ## Step 1: Setup
 
@@ -74,15 +90,40 @@ uname -s   # Darwin = macOS, Linux = Linux
 
 ### 1b. Check and install tools
 
-Check each tool. Install any that are missing. Detect the OS from step 1a and use the appropriate install command.
+Check each tool. Install any that are missing.
 
-| Tool | Check | macOS | Linux |
-|------|-------|-------|-------|
-| AWS CLI >= 2.32 | `aws --version` | `brew install awscli` | [awscli installer](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip) |
-| SAM CLI | `sam --version` | `brew install aws-sam-cli` | `pip3 install aws-sam-cli` |
-| Node.js >= 18 | `node --version` | `brew install node` | [nodesource setup_20.x](https://deb.nodesource.com/setup_20.x) |
-| psql | `psql --version` | `brew install libpq && brew link --force libpq` | `sudo apt-get install -y postgresql-client` |
-| jq | `jq --version` | `brew install jq` | `sudo apt-get install -y jq` |
+**macOS (all at once):**
+
+```bash
+brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
+```
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+# AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
+  && unzip -qo /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install --update
+
+# SAM CLI
+pip3 install aws-sam-cli
+
+# Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+
+# psql and jq
+sudo apt-get install -y postgresql-client jq
+```
+
+**Verify all tools:**
+
+```bash
+aws --version        # >= 2.32
+sam --version        # any
+node --version       # >= 18
+psql --version       # any
+jq --version         # any
+```
 
 ### 1c. AWS account
 
@@ -92,7 +133,7 @@ Check if the developer has an AWS account and active credentials:
 aws sts get-caller-identity
 ```
 
-If this succeeds, skip to Step 2.
+If this succeeds, skip to 1d.
 
 If this fails, the developer needs to set up AWS access:
 
@@ -108,23 +149,14 @@ Tell them to create one at https://aws.amazon.com/free/ (free tier covers everyt
 
 ### 1d. Verify region
 
-Aurora DSQL is available in us-east-1 and us-east-2:
+Aurora DSQL is only available in us-east-1 and us-east-2. Always pass `--region` explicitly to bootstrap.sh:
 
 ```bash
-aws configure get region
+aws configure get region   # check current default
+# Use --region us-east-1 if not already in a DSQL-supported region
 ```
 
-If the region is not us-east-1 or us-east-2, use `--region us-east-1` for all subsequent commands.
-
-## Step 2: Deploy the Backend
-
-```bash
-bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/bootstrap.sh --stack-name "<app-name>"
-```
-
-This creates: DSQL cluster, Cognito user pool, Lambda functions (powered by pgrest-lambda), REST API Gateway with BOA authorizer, S3 bucket. It generates BOA keys (anonKey + serviceRoleKey) and writes everything to `.boa/config.json`.
-
-## Step 3: Create the Database Schema
+## Step 2: Write the Database Schema
 
 Write migration files instead of running SQL directly. Never connect to DSQL and run DDL by hand.
 
@@ -132,7 +164,12 @@ Write migration files instead of running SQL directly. Never connect to DSQL and
 mkdir -p migrations
 ```
 
-Write your schema as numbered SQL files:
+Write your schema as numbered SQL files. **DSQL constraints — read these before writing SQL:**
+- No `REFERENCES` (foreign keys) — document relationships in comments
+- No `SERIAL` / `BIGSERIAL` — use `TEXT DEFAULT gen_random_uuid()::text`
+- `CREATE INDEX ASYNC` — DSQL requires ASYNC for all index creation
+- No triggers, stored procedures, or functions
+- See [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) for the full constraints table
 
 ```sql
 -- migrations/001_create_users.sql
@@ -160,28 +197,20 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
-Run the migrations:
+For naming rules and common patterns, see [MIGRATIONS.md](../../docs/MIGRATIONS.md).
 
-```bash
-bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/migrate.sh
-```
+## Step 3: Write Authorization Policies
 
-This applies pending migrations and refreshes the schema cache so new tables are immediately available via the REST API. For details on naming, format, and common patterns, see [MIGRATIONS.md](../../docs/MIGRATIONS.md).
-
-## Step 4: Write Authorization Policies
-
-Cedar policies in `policies/` control who can access what data. They are bundled with the Lambda at deploy time.
-
-Without custom policies, pgrest-lambda uses sensible defaults: authenticated users can CRUD their own rows (where `user_id` matches), `service_role` bypasses everything, anonymous users are denied.
-
-For most apps, write a policy file per table:
+**This step is required.** Without Cedar policies, all API requests return 403 (denied). Cedar uses default-deny — if no policy explicitly permits a request, it is blocked.
 
 ```bash
 mkdir -p policies
 ```
 
+Write a policy file. For most apps, the standard pattern is:
+
 ```cedar
-// policies/todos.cedar — users own their todos
+// policies/default.cedar — standard ownership-based access
 permit(
     principal is PgrestLambda::User,
     action in [PgrestLambda::Action::"select", PgrestLambda::Action::"update", PgrestLambda::Action::"delete"],
@@ -192,13 +221,21 @@ permit(principal is PgrestLambda::User, action == PgrestLambda::Action::"insert"
 permit(principal is PgrestLambda::ServiceRole, action, resource);
 ```
 
-After writing policies, redeploy: `bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/deploy.sh`
+For more patterns (public read, role-based, per-table), see [POLICIES.md](../../docs/POLICIES.md).
 
-For the full Cedar entity model, more examples (public read/private write, role-based, multi-table), and how policies translate to SQL WHERE clauses, see [POLICIES.md](../../docs/POLICIES.md).
+## Step 4: Deploy
+
+With migrations and policies written, deploy everything in one command:
+
+```bash
+bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name "<app-name>" --region us-east-1
+```
+
+This creates: DSQL cluster, Cognito user pool, Lambda functions (with pgrest-lambda + your policies), REST API Gateway with BOA authorizer, S3 bucket. It runs migrations, generates API keys, and writes everything to `.boa/config.json`.
 
 ## REST API
 
-After deploying and running migrations, every table is automatically available:
+After deploying, every table is automatically available:
 
 ```
 GET    /rest/v1/<table>                — list rows (with filtering, ordering, pagination)
@@ -271,7 +308,7 @@ For Vite: add `define: { global: 'globalThis' }` to `vite.config.js` (required f
 ## Step 6: Verify Deployment
 
 ```bash
-bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/verify.sh
+bash $BOA_PLUGIN/scripts/verify.sh
 ```
 
 This checks: Cognito self-signup enabled, API returns 401 (not 500), S3 bucket is private.
@@ -299,7 +336,7 @@ Load these on demand when you need detailed patterns:
 - [POLICIES.md](../../docs/POLICIES.md) — Cedar authorization: entity model, examples per app type, SQL translation
 - [PITFALLS.md](../../docs/PITFALLS.md) — Every known failure with severity and fix
 - [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — DSQL schema patterns per app type
-- [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) — SQL patterns, migrations, RLS, IAM auth
+- [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns
 - [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
 - [API-PATTERNS.md](../../docs/API-PATTERNS.md) — API Gateway + Lambda patterns
 - [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
@@ -308,5 +345,5 @@ Load these on demand when you need detailed patterns:
 ## Teardown
 
 ```bash
-bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/teardown.sh
+bash $BOA_PLUGIN/scripts/teardown.sh
 ```

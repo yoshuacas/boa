@@ -115,11 +115,8 @@ APPLIED=$(psql "$CONNSTR" -t -A -c "SELECT name || '|' || checksum FROM _boa_mig
   exit 1
 }
 
-# Build lookup map: name -> checksum
-declare -A APPLIED_MAP
-while IFS='|' read -r name checksum; do
-  [[ -n "$name" ]] && APPLIED_MAP["$name"]="$checksum"
-done <<< "$APPLIED"
+# Store applied migrations as newline-separated "name|checksum" pairs
+# (compatible with bash 3.2 — no associative arrays)
 
 # ------------------------------------------------------------------
 # Apply pending migrations
@@ -133,8 +130,8 @@ for file in "${SQL_FILES[@]}"; do
   CHECKSUM=$(sha256 "$file")
 
   # Already applied — verify checksum
-  if [[ -v "APPLIED_MAP[$NAME]" ]]; then
-    STORED_CHECKSUM="${APPLIED_MAP[$NAME]}"
+  STORED_CHECKSUM=$(echo "$APPLIED" | grep "^${NAME}|" | cut -d'|' -f2)
+  if [[ -n "$STORED_CHECKSUM" ]]; then
     if [[ "$CHECKSUM" != "$STORED_CHECKSUM" ]]; then
       echo "  [ERROR] $NAME — file modified after being applied"
       echo "          Expected: $STORED_CHECKSUM"
