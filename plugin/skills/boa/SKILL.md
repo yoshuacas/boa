@@ -6,7 +6,7 @@ compatibility: Requires AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(sam *) Bash(aws *) Bash(node *) Bash(npm *) Bash(bash *) Bash(brew *) Bash(apt *) Bash(sudo *) Bash(psql *) Read Grep Glob Write Edit"
 metadata:
   author: aws
-  version: "0.3"
+  version: "0.4"
 ---
 
 # BOA — Backend on AWS
@@ -49,18 +49,30 @@ All scripts and templates are relative to `$BOA_PLUGIN`:
 - `$BOA_PLUGIN/scripts/verify.sh`
 - `$BOA_PLUGIN/scripts/teardown.sh`
 
-## Quick Start — "Create a backend for my app"
+## Quick Start
 
-When the developer asks to create a backend, follow these steps in order:
+There are two entry points depending on what the developer asks:
 
-1. **Setup** — Run through Step 1 below to ensure all tools are installed and AWS credentials are active
-2. **Schema** — Write migration files for the app's data model in `migrations/`
-3. **Policies** — Write Cedar policies in `policies/`. **Required — without policies, all API requests are denied.** See [POLICIES.md](../../docs/POLICIES.md) for examples.
-4. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
-5. **Frontend** — Connect the frontend using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
-6. **Verify** — Run `bash $BOA_PLUGIN/scripts/verify.sh`
+### "Create a backend" (infrastructure only)
 
-The bootstrap script builds the Lambda (bundling policies), deploys the full stack, runs migrations, and generates API keys — all in one command (~90 seconds).
+The developer wants a backend but hasn't described their app yet. Deploy the bare infrastructure — no tables, no policies. The backend is ready to use once keys and credentials are generated.
+
+1. **Setup** — Run through Step 1 below (tools + AWS credentials)
+2. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
+3. **Done** — The backend is live. `.boa/config.json` has the API URL, keys, and all connection details. Auth endpoints work immediately. The developer can now describe their app and you'll add tables and policies.
+
+### "Build me an app to [description]"
+
+The developer described what they want. Create the backend, then build on it.
+
+1. **Setup** — Run through Step 1 below (tools + AWS credentials)
+2. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
+3. **Design** — Based on the developer's description, design the data model (tables, columns, indexes) and authorization rules (who can read/write what)
+4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](../../docs/MIGRATIONS.md).
+5. **Policies** — Write Cedar policy files in `policies/`. See [POLICIES.md](../../docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
+6. **Deploy changes** — Run `bash $BOA_PLUGIN/scripts/deploy.sh` (bundles policies), then `bash $BOA_PLUGIN/scripts/migrate.sh` (creates tables)
+7. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
+8. **Verify** — Run `bash $BOA_PLUGIN/scripts/verify.sh`
 
 ## Critical Rules
 
@@ -75,7 +87,7 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 7. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
 8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
 9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
-10. **Cedar policies required**: Always create a `policies/` directory with at least one `.cedar` file — without policies, all API requests return 403
+10. **Cedar policies required with tables**: When creating tables, always write Cedar policies too — tables without policies return 403 on all requests
 
 ## Step 1: Setup
 
@@ -156,15 +168,17 @@ aws configure get region   # check current default
 # Use --region us-east-1 if not already in a DSQL-supported region
 ```
 
-## Step 2: Write the Database Schema
+## Adding Tables and Policies
 
-Write migration files instead of running SQL directly. Never connect to DSQL and run DDL by hand.
+When adding tables to an existing backend (or during the "build me an app" flow):
+
+### Write migrations
 
 ```bash
 mkdir -p migrations
 ```
 
-Write your schema as numbered SQL files. **DSQL constraints — read these before writing SQL:**
+**DSQL constraints — read before writing SQL:**
 - No `REFERENCES` (foreign keys) — document relationships in comments
 - No `SERIAL` / `BIGSERIAL` — use `TEXT DEFAULT gen_random_uuid()::text`
 - `CREATE INDEX ASYNC` — DSQL requires ASYNC for all index creation
@@ -199,15 +213,13 @@ CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 
 For naming rules and common patterns, see [MIGRATIONS.md](../../docs/MIGRATIONS.md).
 
-## Step 3: Write Authorization Policies
+### Write Cedar policies
 
-**This step is required.** Without Cedar policies, all API requests return 403 (denied). Cedar uses default-deny — if no policy explicitly permits a request, it is blocked.
+**Every table needs a Cedar policy.** Without one, all requests to that table return 403.
 
 ```bash
 mkdir -p policies
 ```
-
-Write a policy file. For most apps, the standard pattern is:
 
 ```cedar
 // policies/default.cedar — standard ownership-based access
@@ -223,19 +235,16 @@ permit(principal is PgrestLambda::ServiceRole, action, resource);
 
 For more patterns (public read, role-based, per-table), see [POLICIES.md](../../docs/POLICIES.md).
 
-## Step 4: Deploy
-
-With migrations and policies written, deploy everything in one command:
+### Deploy and apply
 
 ```bash
-bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name "<app-name>" --region us-east-1
+bash $BOA_PLUGIN/scripts/deploy.sh    # bundles policies into Lambda
+bash $BOA_PLUGIN/scripts/migrate.sh   # creates tables in DSQL
 ```
-
-This creates: DSQL cluster, Cognito user pool, Lambda functions (with pgrest-lambda + your policies), REST API Gateway with BOA authorizer, S3 bucket. It runs migrations, generates API keys, and writes everything to `.boa/config.json`.
 
 ## REST API
 
-After deploying, every table is automatically available:
+After deploying and running migrations, every table is automatically available:
 
 ```
 GET    /rest/v1/<table>                — list rows (with filtering, ordering, pagination)
@@ -251,7 +260,7 @@ For filtering syntax, headers, @supabase/supabase-js examples, and error handlin
 
 ## Authentication
 
-The auth engine is GoTrue-compatible at `/auth/v1/*`:
+The auth engine is GoTrue-compatible at `/auth/v1/*`. Auth endpoints work immediately after bootstrap — no tables or policies needed.
 
 ```
 POST /auth/v1/signup                         — register
@@ -267,7 +276,7 @@ The bootstrap script generates two API keys in `.boa/config.json`:
 
 For Cognito flows, social login, MFA, and token handling details, see [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md).
 
-## Step 5: Frontend Configuration
+## Frontend Configuration
 
 ### Option A: @supabase/supabase-js (recommended)
 
@@ -304,14 +313,6 @@ export const config = {
 ```
 
 For Vite: add `define: { global: 'globalThis' }` to `vite.config.js` (required for Cognito SDK).
-
-## Step 6: Verify Deployment
-
-```bash
-bash $BOA_PLUGIN/scripts/verify.sh
-```
-
-This checks: Cognito self-signup enabled, API returns 401 (not 500), S3 bucket is private.
 
 ## Dashboard
 
