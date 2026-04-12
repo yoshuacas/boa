@@ -105,15 +105,11 @@ Resources:
             FunctionArn: !GetAtt AuthorizerFunction.Arn
             FunctionPayloadType: REQUEST
             Identity:
-              Headers:
-                - Authorization
-                - apikey
-              ReauthorizeEvery: 300
+              ReauthorizeEvery: 0
       Cors:
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info'"
         AllowOrigin: "'*'"
-        ExposeHeaders: "'Content-Range'"
         MaxAge: "'600'"
 
   # -------------------------------------------------------
@@ -211,46 +207,6 @@ Resources:
             AllowedOrigins:
               - '*'
             MaxAge: 3600
-
-  # -------------------------------------------------------
-  # IAM — Lambda execution role additions
-  # -------------------------------------------------------
-  ApiFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${ProjectName}-api-extended-role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: DsqlAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dsql:DbConnect
-                  - dsql:DbConnectAdmin
-                Resource: '*'
-        - PolicyName: S3Access
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt StorageBucket.Arn
-                  - !Sub '${StorageBucket.Arn}/*'
 
 Outputs:
   ApiUrl:

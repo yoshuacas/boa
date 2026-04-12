@@ -148,13 +148,16 @@ CREATE TABLE IF NOT EXISTS users (
 -- migrations/002_create_todos.sql
 CREATE TABLE IF NOT EXISTS todos (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT NOT NULL,  -- references users(id), enforced by Cedar policies
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
 
-CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
+```sql
+-- migrations/003_add_indexes.sql
+CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
 Run the migrations:

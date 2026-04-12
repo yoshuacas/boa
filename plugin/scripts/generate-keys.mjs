@@ -28,11 +28,11 @@ const TEN_YEARS = 10 * 365 * 24 * 3600;
 const now = Math.floor(Date.now() / 1000);
 
 const anonKey = sign(
-  { role: 'anon', iss: 'boa', exp: now + TEN_YEARS },
+  { role: 'anon', iss: 'pgrest-lambda', exp: now + TEN_YEARS },
   secret
 );
 const serviceRoleKey = sign(
-  { role: 'service_role', iss: 'boa', exp: now + TEN_YEARS },
+  { role: 'service_role', iss: 'pgrest-lambda', exp: now + TEN_YEARS },
   secret
 );
 

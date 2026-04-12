@@ -21,7 +21,7 @@ CREATE TABLE users (
 
 CREATE TABLE items (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   title TEXT NOT NULL,
   description TEXT,
   completed BOOLEAN DEFAULT FALSE,
@@ -31,8 +31,8 @@ CREATE TABLE items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_items_user ON items(user_id);
-CREATE INDEX idx_items_user_completed ON items(user_id, completed);
+CREATE INDEX ASYNC idx_items_user ON items(user_id);
+CREATE INDEX ASYNC idx_items_user_completed ON items(user_id, completed);
 ```
 
 ### API Routes
@@ -65,7 +65,7 @@ CREATE TABLE users (
 
 CREATE TABLE posts (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   content TEXT NOT NULL,
   image_url TEXT,                   -- S3 presigned URL reference
   like_count INT DEFAULT 0,
@@ -75,30 +75,30 @@ CREATE TABLE posts (
 
 CREATE TABLE comments (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  post_id TEXT NOT NULL NOT NULL,  -- references posts(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE likes (
-  user_id TEXT NOT NULL REFERENCES users(id),
-  post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
+  post_id TEXT NOT NULL NOT NULL,  -- references posts(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, post_id)
 );
 
 CREATE TABLE follows (
-  follower_id TEXT NOT NULL REFERENCES users(id),
-  following_id TEXT NOT NULL REFERENCES users(id),
+  follower_id TEXT NOT NULL NOT NULL,  -- references users(id),
+  following_id TEXT NOT NULL NOT NULL,  -- references users(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (follower_id, following_id)
 );
 
-CREATE INDEX idx_posts_user ON posts(user_id);
-CREATE INDEX idx_posts_created ON posts(created_at DESC);
-CREATE INDEX idx_comments_post ON comments(post_id);
-CREATE INDEX idx_follows_following ON follows(following_id);
+CREATE INDEX ASYNC idx_posts_user ON posts(user_id);
+CREATE INDEX ASYNC idx_posts_created ON posts(created_at DESC);
+CREATE INDEX ASYNC idx_comments_post ON comments(post_id);
+CREATE INDEX ASYNC idx_follows_following ON follows(following_id);
 ```
 
 ### API Routes
@@ -137,14 +137,14 @@ LIMIT 20 OFFSET $2;
 CREATE TABLE rooms (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name TEXT NOT NULL,
-  created_by TEXT NOT NULL REFERENCES users(id),
+  created_by TEXT NOT NULL NOT NULL,  -- references users(id),
   is_direct BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE room_members (
-  room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  room_id TEXT NOT NULL NOT NULL,  -- references rooms(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   role TEXT DEFAULT 'member',       -- 'admin', 'member'
   joined_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (room_id, user_id)
@@ -152,8 +152,8 @@ CREATE TABLE room_members (
 
 CREATE TABLE messages (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  room_id TEXT NOT NULL NOT NULL,  -- references rooms(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   content TEXT NOT NULL,
   attachment_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -167,9 +167,9 @@ CREATE TABLE ws_connections (
   connected_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_messages_room ON messages(room_id, created_at DESC);
-CREATE INDEX idx_room_members_user ON room_members(user_id);
-CREATE INDEX idx_ws_connections_room ON ws_connections(room_id);
+CREATE INDEX ASYNC idx_messages_room ON messages(room_id, created_at DESC);
+CREATE INDEX ASYNC idx_room_members_user ON room_members(user_id);
+CREATE INDEX ASYNC idx_ws_connections_room ON ws_connections(room_id);
 ```
 
 ### WebSocket Flow
@@ -193,7 +193,7 @@ CREATE INDEX idx_ws_connections_room ON ws_connections(room_id);
 ```sql
 CREATE TABLE products (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  seller_id TEXT NOT NULL REFERENCES users(id),
+  seller_id TEXT NOT NULL NOT NULL,  -- references users(id),
   title TEXT NOT NULL,
   description TEXT,
   price_cents INT NOT NULL,
@@ -204,31 +204,31 @@ CREATE TABLE products (
 );
 
 CREATE TABLE cart_items (
-  user_id TEXT NOT NULL REFERENCES users(id),
-  product_id TEXT NOT NULL REFERENCES products(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
+  product_id TEXT NOT NULL NOT NULL,  -- references products(id)
   quantity INT DEFAULT 1,
   PRIMARY KEY (user_id, product_id)
 );
 
 CREATE TABLE orders (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  buyer_id TEXT NOT NULL REFERENCES users(id),
+  buyer_id TEXT NOT NULL NOT NULL,  -- references users(id),
   total_cents INT NOT NULL,
   status TEXT DEFAULT 'pending',    -- 'pending', 'paid', 'shipped', 'delivered'
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE order_items (
-  order_id TEXT NOT NULL REFERENCES orders(id),
-  product_id TEXT NOT NULL REFERENCES products(id),
+  order_id TEXT NOT NULL NOT NULL,  -- references orders(id)
+  product_id TEXT NOT NULL NOT NULL,  -- references products(id)
   quantity INT NOT NULL,
   price_cents INT NOT NULL,         -- snapshot at time of order
   PRIMARY KEY (order_id, product_id)
 );
 
-CREATE INDEX idx_products_seller ON products(seller_id);
-CREATE INDEX idx_products_status ON products(status) WHERE status = 'active';
-CREATE INDEX idx_orders_buyer ON orders(buyer_id);
+CREATE INDEX ASYNC idx_products_seller ON products(seller_id);
+CREATE INDEX ASYNC idx_products_status ON products(status) WHERE status = 'active';
+CREATE INDEX ASYNC idx_orders_buyer ON orders(buyer_id);
 ```
 
 ### Checkout Pattern (Transaction)
@@ -273,8 +273,8 @@ CREATE TABLE organizations (
 );
 
 CREATE TABLE org_members (
-  org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  org_id TEXT NOT NULL NOT NULL,  -- references organizations(id),
+  user_id TEXT NOT NULL NOT NULL,  -- references users(id),
   role TEXT NOT NULL DEFAULT 'member',  -- 'owner', 'admin', 'member', 'viewer'
   invited_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (org_id, user_id)
@@ -283,7 +283,7 @@ CREATE TABLE org_members (
 -- All tenant data includes org_id for row-level isolation
 CREATE TABLE projects (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  org_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  org_id TEXT NOT NULL NOT NULL,  -- references organizations(id),
   name TEXT NOT NULL,
   status TEXT DEFAULT 'active',
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -291,20 +291,20 @@ CREATE TABLE projects (
 
 CREATE TABLE tasks (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  project_id TEXT NOT NULL NOT NULL,  -- references projects(id),
   org_id TEXT NOT NULL,             -- denormalized for efficient queries
-  assigned_to TEXT REFERENCES users(id),
+  assigned_to TEXT NOT NULL,  -- references users(id),
   title TEXT NOT NULL,
   status TEXT DEFAULT 'todo',       -- 'todo', 'in_progress', 'done'
   due_date DATE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_projects_org ON projects(org_id);
-CREATE INDEX idx_tasks_project ON tasks(project_id);
-CREATE INDEX idx_tasks_org ON tasks(org_id);
-CREATE INDEX idx_tasks_assigned ON tasks(assigned_to);
-CREATE INDEX idx_org_members_user ON org_members(user_id);
+CREATE INDEX ASYNC idx_projects_org ON projects(org_id);
+CREATE INDEX ASYNC idx_tasks_project ON tasks(project_id);
+CREATE INDEX ASYNC idx_tasks_org ON tasks(org_id);
+CREATE INDEX ASYNC idx_tasks_assigned ON tasks(assigned_to);
+CREATE INDEX ASYNC idx_org_members_user ON org_members(user_id);
 ```
 
 ### Multi-tenancy Pattern

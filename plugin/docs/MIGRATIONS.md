@@ -43,12 +43,14 @@ Examples:
 ## Content Rules
 
 1. **One logical change per file** — don't combine table creation with unrelated index changes
-2. **Use `IF NOT EXISTS` / `IF EXISTS`** — makes migrations idempotent as a safety net
-3. **No SERIAL / BIGSERIAL** — DSQL doesn't support sequences; use `gen_random_uuid()::text` for primary keys
-4. **No triggers** — implement trigger logic in Lambda handlers
-5. **No stored procedures or functions** — DSQL doesn't support PL/pgSQL
-6. **No advisory locks** — use application-level locking if needed
-7. **Standard DDL works** — CREATE TABLE, ALTER TABLE, CREATE INDEX, DROP TABLE, etc.
+2. **Use `IF NOT EXISTS` / `IF EXISTS`** — DDL is auto-committed in DSQL; this makes re-runs safe
+3. **No `SERIAL` / `BIGSERIAL`** — use `TEXT DEFAULT gen_random_uuid()::text` for primary keys
+4. **No `REFERENCES` (foreign keys)** — DSQL doesn't support foreign key constraints; document relationships in comments
+5. **`CREATE INDEX ASYNC`** — DSQL requires ASYNC for index creation; always `CREATE INDEX ASYNC IF NOT EXISTS`
+6. **No triggers, stored procedures, or functions** — implement in Lambda handlers
+7. **No multi-statement batching** — execute one SQL statement at a time (one `CREATE TABLE` per file, or separate statements clearly)
+
+See [DSQL-PATTERNS.md](DSQL-PATTERNS.md) for the full constraints table.
 
 ## Running Migrations
 
@@ -83,19 +85,24 @@ CREATE TABLE IF NOT EXISTS users (
 );
 ```
 
-### Create a table with a foreign key
+### Create a table with a relationship
 
 ```sql
 -- 002_create_todos.sql
 CREATE TABLE IF NOT EXISTS todos (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT NOT NULL,  -- references users(id), enforced in app
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
 
-CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
+### Add an async index
+
+```sql
+-- 003_add_todos_user_index.sql
+CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
 ### Add a column
@@ -109,7 +116,7 @@ ALTER TABLE todos ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 0;
 
 ```sql
 -- 004_add_todos_created_index.sql
-CREATE INDEX IF NOT EXISTS idx_todos_created ON todos(created_at DESC);
+CREATE INDEX ASYNC IF NOT EXISTS idx_todos_created ON todos(created_at DESC);
 ```
 
 ### Drop a column

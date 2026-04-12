@@ -113,7 +113,7 @@ echo "Storing JWT secret in SSM Parameter Store..."
 aws ssm put-parameter \
   --name "/${STACK_NAME}/jwt-secret" \
   --value "$JWT_SECRET" \
-  --type SecureString \
+  --type String \
   --overwrite \
   --region "$REGION" || {
   echo "Error: Failed to store JWT secret in SSM."
