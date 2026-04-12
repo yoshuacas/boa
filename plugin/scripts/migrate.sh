@@ -130,7 +130,7 @@ for file in "${SQL_FILES[@]}"; do
   CHECKSUM=$(sha256 "$file")
 
   # Already applied — verify checksum
-  STORED_CHECKSUM=$(echo "$APPLIED" | grep "^${NAME}|" | cut -d'|' -f2)
+  STORED_CHECKSUM=$(echo "$APPLIED" | grep "^${NAME}|" | cut -d'|' -f2 || true)
   if [[ -n "$STORED_CHECKSUM" ]]; then
     if [[ "$CHECKSUM" != "$STORED_CHECKSUM" ]]; then
       echo "  [ERROR] $NAME — file modified after being applied"
