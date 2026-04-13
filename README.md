@@ -18,15 +18,30 @@ BOA is agent-ready. The BOA skill works with any coding agent — install it, de
 
 ## Quick Start
 
-Add the BOA plugin to Claude Code from GitHub:
+### 1. Clone the repo and install the CLI
 
 ```bash
-# In Claude Code, run:
-/plugin marketplace add https://github.com/yoshuacas/boa.git
-/plugin install boa@aws-boa
+git clone https://github.com/yoshuacas/boa.git
+cd boa/cli && npm link && cd ../..
 ```
 
-Then tell your agent what to build:
+This installs the `boa` command globally.
+
+### 2. Add the skill to your agent
+
+**Claude Code:**
+
+```bash
+claude --plugin-dir ./boa/plugin
+```
+
+**Kiro:**
+
+Copy `boa/plugin/skills/boa/SKILL.md` into your Kiro skills directory.
+
+### 3. Build something
+
+Tell your agent:
 
 ```
 "Build a todo app with user accounts and file uploads"
@@ -34,29 +49,24 @@ Then tell your agent what to build:
 
 BOA guides your agent through the right architecture and deploys everything to your AWS account.
 
-> **Coming soon:** `claude plugin install boa` will be available once the plugin is published to the marketplace.
-
 ## Project Structure
 
 ```
 boa/
+├── cli/                 # BOA CLI (boa init, deploy, migrate, verify, teardown)
 ├── plugin/              # The agent skill plugin
 │   ├── skills/boa/      # SKILL.md — main skill instructions
 │   ├── docs/            # Pitfalls, architecture, patterns
-│   ├── templates/       # SAM/CloudFormation templates
-│   ├── lambda-templates/# Ready-to-use Lambda handlers
-│   └── scripts/         # Bootstrap and deploy scripts
-├── website/             # Public website (hosted on AWS)
+│   └── templates/       # SAM/CloudFormation templates
+├── website/             # Public website
 ├── dashboard/           # Local management dashboard (HTML + AWS CLI)
 └── evals/               # Skill evaluation and testing
 ```
 
 ## Links
 
-- **Website:** [boa.aws](https://boa.aws) (coming soon)
 - **Documentation:** [website/docs/](website/docs/)
-- **Install guide:** [website/install.html](website/install.html)
-- **Pricing:** [website/pricing.html](website/pricing.html)
+- **Install guide:** [website/install.md](website/install.md)
 
 ## Contributing
 
@@ -65,7 +75,3 @@ Contributions are welcome. See the [plugin/docs/](plugin/docs/) directory for ar
 ## License
 
 [Apache License 2.0](LICENSE)
-
----
-
-BOA is a community-driven open-source project from AWS.

@@ -41,22 +41,20 @@ aws login
 
 This opens your browser. Sign in with your AWS account, and credentials are stored locally for 12 hours. No access keys needed.
 
-### 4. Verify
+### 4. Clone BOA and install the CLI
 
 ```bash
-aws sts get-caller-identity   # Should show your account ID
-sam --version                 # Should be 1.x or higher
-node --version                # Should be 18.x or higher
-psql --version                # Should be 14.x or higher
+git clone https://github.com/yoshuacas/boa.git
+cd boa/cli && npm link && cd ../..
 ```
 
-## Install the BOA CLI
+Verify everything is ready:
 
 ```bash
-npm install -g boa-cli
+boa check
 ```
 
-This gives you the `boa` command, which handles deployment, migrations, and stack management.
+This checks all tools, AWS credentials, and region in one shot.
 
 ## Build Your First Backend
 
@@ -65,14 +63,15 @@ You have two paths — pick whichever fits your workflow.
 ### Option A: CLI directly
 
 ```bash
-boa init my-app
+mkdir my-app && cd my-app
+boa init --region us-east-1
 ```
 
 This creates and deploys the full serverless stack (DSQL, Cognito, Lambda, API Gateway, S3) in one command. Then add tables, write migrations, and connect your frontend.
 
 ### Option B: Through a coding agent
 
-Install the BOA skill in your agent (see the [install page](/install)), then tell it:
+Add the BOA skill to your agent (see the [install page](/install)), then tell it:
 
 ```
 Build a todo app with user accounts
@@ -88,7 +87,7 @@ The agent uses the BOA CLI under the hood. It will:
 
 ## What Gets Created
 
-After your agent deploys, you will have:
+After deployment, you will have:
 
 | Resource | What it is |
 |----------|------------|

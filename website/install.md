@@ -4,77 +4,92 @@ outline: false
 
 # Install BOA
 
-Two paths: use the CLI directly, or install the skill in your coding agent and let it handle everything.
+Clone the repository, install the CLI, and add the skill to your coding agent.
 
-## CLI-first (recommended)
-
-Install the BOA CLI from npm:
-
-```bash
-npm install -g boa-cli
-```
-
-Then create and deploy a backend:
-
-```bash
-boa init my-app
-```
-
-The CLI handles prerequisite checks, stack deployment, migrations, and verification. Run `boa --help` to see all commands.
-
-## Skill-first (agent does the work)
-
-Install the BOA skill in your coding agent. The agent uses the BOA CLI under the hood -- if the CLI is not installed, the agent will install it for you.
-
-### Claude Code
-
-Add the BOA plugin from the GitHub repository:
-
-```bash
-# In Claude Code, add the GitHub repo as a plugin source
-/plugin marketplace add https://github.com/yoshuacas/boa.git
-
-# Install the plugin
-/plugin install boa@aws-boa
-```
-
-After installing, tell Claude what to build. The skill guides the agent through database schema, auth, APIs, and deployment.
-
-**For development/testing**, you can also clone and load locally:
+## 1. Clone and install the CLI
 
 ```bash
 git clone https://github.com/yoshuacas/boa.git
+cd boa/cli && npm link && cd ../..
+```
+
+This builds the `boa` command and makes it available globally. Verify with:
+
+```bash
+boa --version
+```
+
+## 2. Add the skill to your agent
+
+### Claude Code
+
+Load the plugin directly from the cloned repo:
+
+```bash
 claude --plugin-dir ./boa/plugin
 ```
 
-> **Coming soon:** `claude plugin install boa` will work once published to the marketplace.
+Or, to load it every time you start Claude Code from a specific project, add it to your project's `.claude/settings.json`:
+
+```json
+{
+  "plugins": ["path/to/boa/plugin"]
+}
+```
 
 ### Kiro
 
-Import the BOA skill from the GitHub repository. Kiro reads the SKILL.md file directly.
+Copy the skill file into your Kiro workspace:
 
-```
-https://github.com/yoshuacas/boa/blob/main/plugin/skills/boa/SKILL.md
+```bash
+cp boa/plugin/skills/boa/SKILL.md /path/to/your/kiro/skills/boa/
 ```
 
-In Kiro, use the import skill feature and point it to the URL above. Kiro will fetch the skill and make it available in your workspace.
+Kiro reads SKILL.md files from the skills directory automatically.
 
 ### VS Code Copilot
 
-Clone the BOA repo and open it with VS Code. Copilot automatically reads AGENTS.md and .github/copilot-instructions.md.
+Open the BOA repo in VS Code. Copilot automatically reads `AGENTS.md` and `.github/copilot-instructions.md`.
 
 ```bash
-git clone https://github.com/yoshuacas/boa.git && code boa
+code boa
 ```
 
-No manual configuration needed. VS Code Copilot picks up the instructions files automatically when the repository is open. Ask Copilot to build your backend and it will follow the BOA patterns.
+No manual configuration needed. Ask Copilot to build your backend and it will follow the BOA patterns.
 
 ### Codex
 
-Copy the BOA skill file into your project's agents skills directory.
+Copy the BOA skill file into your project's agents directory:
 
 ```bash
-mkdir -p .agents/skills/boa && cp plugin/skills/boa/SKILL.md .agents/skills/boa/
+mkdir -p .agents/skills/boa
+cp boa/plugin/skills/boa/SKILL.md .agents/skills/boa/
 ```
 
-Clone the BOA repo first, then copy the skill file into your project. Codex reads skills from the .agents/skills/ directory.
+## 3. Build your first backend
+
+Tell your agent:
+
+```
+"Build a todo app with user accounts"
+```
+
+Or use the CLI directly:
+
+```bash
+mkdir my-app && cd my-app
+boa init --region us-east-1
+```
+
+## CLI Commands
+
+| Command | What it does |
+|---------|-------------|
+| `boa init <name>` | Create and deploy a new backend |
+| `boa deploy` | Redeploy after changes |
+| `boa migrate` | Apply database migrations |
+| `boa verify` | Check deployment health |
+| `boa status` | Show stack info and tables |
+| `boa check` | Check prerequisites |
+| `boa teardown` | Destroy everything |
+| `boa feedback` | Submit feedback to improve BOA |
