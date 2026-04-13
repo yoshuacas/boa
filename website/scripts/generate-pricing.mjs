@@ -551,10 +551,15 @@ function calculateBOA(workload, rates) {
   }
 
   // 5. Amazon S3
+  // Only ~1% of requests involve file storage (uploads/downloads).
+  // Most requests are database CRUD, not file operations.
+  const FILE_REQUEST_RATIO = 0.01;
+  const s3Puts = Math.round(workload.writes * FILE_REQUEST_RATIO);
+  const s3Gets = Math.round(workload.reads * FILE_REQUEST_RATIO);
   const billableS3Storage = Math.max(0, workload.s3StorageGB - s3.freeTierStorageGB);
   const s3StorageCost = billableS3Storage * s3.storagePricePerGB;
-  const billablePuts = Math.max(0, workload.writes - s3.freeTierPutRequests);
-  const billableGets = Math.max(0, workload.reads - s3.freeTierGetRequests);
+  const billablePuts = Math.max(0, s3Puts - s3.freeTierPutRequests);
+  const billableGets = Math.max(0, s3Gets - s3.freeTierGetRequests);
   const s3RequestCost = (billablePuts / 1000) * s3.putPricePer1000
                       + (billableGets / 1000) * s3.getPricePer1000;
   const s3Cost = s3StorageCost + s3RequestCost;
