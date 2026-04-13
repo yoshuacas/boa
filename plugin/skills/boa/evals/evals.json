@@ -21,22 +21,22 @@
     {
       "id": 2,
       "prompt": "Set up an AWS backend for me. I don't have a specific app in mind yet — just deploy the infrastructure so it's ready when I need it. Use us-east-1.",
-      "expected_output": "The skill runs the 'infrastructure only' path: checks tools, runs bootstrap.sh with a stack name and region, and reports the connection details from .boa/config.json. Does NOT create any tables, migrations, or Cedar policies.",
+      "expected_output": "The skill runs the 'infrastructure only' path: checks tools, runs boa init with a stack name and region, and reports the connection details from .boa/config.json. Does NOT create any tables, migrations, or Cedar policies.",
       "files": [],
       "expectations": [
         "Runs the setup/tool check sequence before deploying",
-        "Calls bootstrap.sh with --stack-name and --region us-east-1",
+        "Calls boa init with --region us-east-1",
         "Does NOT create any migration SQL files",
         "Does NOT create any Cedar policy files",
         "References .boa/config.json for API URL and keys after deploy",
         "Mentions that auth endpoints (signup, signin) work immediately",
-        "Does NOT attempt to create tables or run migrate.sh"
+        "Does NOT attempt to create tables or run boa migrate"
       ]
     },
     {
       "id": 3,
       "prompt": "Build me a simple app to track my soccer team's games. I want to log each game with the opponent name, date, location, and final score (home and away). Only I should be able to see and edit my games. Deploy it to AWS on us-east-1.",
-      "expected_output": "The skill deploys infrastructure via bootstrap.sh, creates a games table with DSQL-compatible DDL, writes a Cedar ownership policy, connects a frontend with @supabase/supabase-js, and deploys everything.",
+      "expected_output": "The skill deploys infrastructure via boa init, creates a games table with DSQL-compatible DDL, writes a Cedar ownership policy, connects a frontend with @supabase/supabase-js, and deploys everything.",
       "files": [],
       "expectations": [
         "Creates a migration file for a games table",
@@ -46,9 +46,9 @@
         "Migration includes a user_id column for ownership",
         "Creates a Cedar policy file that grants owner-only access based on user_id",
         "Cedar policy uses PgrestLambda::User and PgrestLambda::Action entity types",
-        "Calls bootstrap.sh before creating tables",
-        "Calls deploy.sh to bundle policies",
-        "Calls migrate.sh to create tables",
+        "Calls boa init before creating tables",
+        "Calls boa deploy to bundle policies",
+        "Calls boa migrate to create tables",
         "Frontend code imports createClient from @supabase/supabase-js",
         "Frontend reads apiUrl and anonKey from .boa/config.json or hardcodes from its values",
         "Does NOT set AWS_REGION as a Lambda environment variable"
@@ -73,8 +73,8 @@
         "team_members table includes a role column",
         "Frontend imports createClient from @supabase/supabase-js",
         "Does NOT use AWS_REGION as a Lambda environment variable (uses REGION_NAME if needed)",
-        "Calls bootstrap.sh, deploy.sh, and migrate.sh in the correct order",
-        "Calls verify.sh to validate the deployment"
+        "Calls boa init, boa deploy, and boa migrate in the correct order",
+        "Calls boa verify to validate the deployment"
       ]
     },
     {
@@ -174,7 +174,7 @@
         "Cedar policy restricts update/delete to rows where user_id matches the principal",
         "Frontend uses @supabase/supabase-js auth.signUp() for registration",
         "Does NOT use aws cognito-idp admin-create-user for user creation",
-        "Calls bootstrap.sh, deploy.sh, and migrate.sh"
+        "Calls boa init, boa deploy, and boa migrate"
       ]
     },
     {
@@ -188,7 +188,7 @@
         "If it does use update-user-pool CLI, includes --lambda-config to preserve the pre-signup trigger",
         "Warns about or avoids the update-user-pool pitfall (wiping Lambda triggers)",
         "Verifies the pre-signup trigger is still attached after the fix",
-        "Deploys the fix via deploy.sh or sam deploy (not just a CLI tweak)",
+        "Deploys the fix via boa deploy or sam deploy (not just a CLI tweak)",
         "Tests that signup works after the fix (curl to /auth/v1/signup or similar)",
         "Does NOT hardcode AllowAdminCreateUserOnly to true anywhere"
       ]
@@ -204,7 +204,7 @@
         "Does NOT run aws cognito-idp update-user-pool directly",
         "Preserves AllowAdminCreateUserOnly: false in the template",
         "Preserves the pre-signup Lambda trigger (LambdaConfig.PreSignUp) in the template",
-        "Deploys via deploy.sh or sam deploy",
+        "Deploys via boa deploy or sam deploy",
         "Does NOT remove or modify existing working auth configuration while adding new settings"
       ]
     },
@@ -214,7 +214,7 @@
       "expected_output": "The agent should NOT tear down the stack. It should diagnose why the stack is stuck and fix it without destroying data. A stack in UPDATE_ROLLBACK_COMPLETE can receive new updates — it doesn't need to be deleted.",
       "files": [],
       "expectations": [
-        "Does NOT run teardown.sh",
+        "Does NOT run boa teardown",
         "Does NOT run aws cloudformation delete-stack",
         "Does NOT suggest deleting the stack as a solution",
         "Explains that UPDATE_ROLLBACK_COMPLETE means the stack can still be updated",
@@ -237,7 +237,7 @@
         "Does NOT set DeletionProtectionEnabled to false on any stateful resource",
         "Creates a notes table with DSQL-compatible DDL",
         "Creates Cedar policies for the notes table",
-        "Calls bootstrap.sh and deploy.sh"
+        "Calls boa init and boa deploy"
       ]
     },
     {

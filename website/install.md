@@ -2,11 +2,31 @@
 outline: false
 ---
 
-# Install BOA in Your Agent
+# Install BOA
 
-BOA works with Claude Code, Kiro, VS Code Copilot, and Codex. Pick your agent below.
+Two paths: use the CLI directly, or install the skill in your coding agent and let it handle everything.
 
-## Claude Code (recommended)
+## CLI-first (recommended)
+
+Install the BOA CLI from npm:
+
+```bash
+npm install -g boa-cli
+```
+
+Then create and deploy a backend:
+
+```bash
+boa init my-app
+```
+
+The CLI handles prerequisite checks, stack deployment, migrations, and verification. Run `boa --help` to see all commands.
+
+## Skill-first (agent does the work)
+
+Install the BOA skill in your coding agent. The agent uses the BOA CLI under the hood -- if the CLI is not installed, the agent will install it for you.
+
+### Claude Code
 
 Add the BOA plugin from the GitHub repository:
 
@@ -29,7 +49,7 @@ claude --plugin-dir ./boa/plugin
 
 > **Coming soon:** `claude plugin install boa` will work once published to the marketplace.
 
-## Kiro
+### Kiro
 
 Import the BOA skill from the GitHub repository. Kiro reads the SKILL.md file directly.
 
@@ -39,7 +59,7 @@ https://github.com/aws/boa/blob/main/plugin/skills/boa/SKILL.md
 
 In Kiro, use the import skill feature and point it to the URL above. Kiro will fetch the skill and make it available in your workspace.
 
-## VS Code Copilot
+### VS Code Copilot
 
 Clone the BOA repo and open it with VS Code. Copilot automatically reads AGENTS.md and .github/copilot-instructions.md.
 
@@ -49,7 +69,7 @@ git clone https://github.com/aws/boa.git && code boa
 
 No manual configuration needed. VS Code Copilot picks up the instructions files automatically when the repository is open. Ask Copilot to build your backend and it will follow the BOA patterns.
 
-## Codex
+### Codex
 
 Copy the BOA skill file into your project's agents skills directory.
 

@@ -2,17 +2,30 @@
 name: boa
 description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda, API Gateway, and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
-compatibility: Requires AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
-allowed-tools: "Bash(sam *) Bash(aws *) Bash(node *) Bash(npm *) Bash(bash *) Bash(brew *) Bash(apt *) Bash(sudo *) Bash(psql *) Read Grep Glob Write Edit"
+compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
+allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
 metadata:
   author: aws
-  version: "0.4"
+  version: "0.5"
 ---
 
 # BOA — Backend on AWS
 
 Build a complete serverless backend on AWS. This skill is extremely opinionated.
 There is one way to do things — the way that works.
+
+## Communication Style
+
+You are a confident backend engineer pair-programming with the developer.
+These rules shape every interaction:
+
+- **Narrate, don't dump.** Before running a command, explain what you're doing in one plain sentence. After it finishes, summarize the outcome. Never paste raw bash into your explanation text.
+- **Summarize results visually.** After checking tools or deploying, show a clean summary table or checklist — not raw terminal output.
+- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up login" not "deploying a Cognito user pool with pre-signup Lambda trigger." Translate AWS jargon into what it means for their app.
+- **Hide infrastructure plumbing.** The developer doesn't need to see IAM token generation, CloudFormation resource IDs, or internal connection strings mid-flow. Show them outcomes: "Your backend is live at https://...", "Login is working", "Tables created."
+- **Be brief and direct.** One sentence before an action, one sentence after. No walls of text explaining what you're about to do.
+- **When something fails, explain the fix — not the internals.** Say "Your AWS session expired — run `aws login` in your terminal to refresh it" not "STS AssumeRole returned ExpiredTokenException for ARN arn:aws:iam::..."
+- **Never open HTML via `file://`.** When building a frontend, always start a local dev server (`npx vite`, `npx serve`, `python3 -m http.server`) instead of opening `index.html` directly. Browsers block API requests from `file://` origins due to CORS. If the developer opens a file directly and gets CORS errors, tell them to use `http://localhost` instead.
 
 ## Architecture
 
@@ -34,20 +47,20 @@ Everything is serverless. No servers to manage. Scales to zero. Scales to millio
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
 
-## Locating the Plugin
+## BOA CLI
 
-Before running any script, resolve the plugin root directory:
+All operations go through the `boa` CLI. The developer can also run these commands directly.
 
-```bash
-BOA_PLUGIN="$(dirname "$(dirname "$CLAUDE_SKILL_DIR")")"
-```
-
-All scripts and templates are relative to `$BOA_PLUGIN`:
-- `$BOA_PLUGIN/scripts/bootstrap.sh`
-- `$BOA_PLUGIN/scripts/migrate.sh`
-- `$BOA_PLUGIN/scripts/deploy.sh`
-- `$BOA_PLUGIN/scripts/verify.sh`
-- `$BOA_PLUGIN/scripts/teardown.sh`
+| Command | What it does |
+|---------|-------------|
+| `boa init <name>` | Create project, deploy stack, write `.boa/config.json` |
+| `boa deploy` | Rebuild + redeploy (SAM build/deploy, bundle policies) |
+| `boa migrate` | Apply pending SQL migrations to DSQL |
+| `boa verify` | Check all stack components are correct |
+| `boa teardown` | Destroy everything (with confirmation) |
+| `boa status` | Show stack info, tables, pending migrations |
+| `boa check` | Check required tools + AWS credentials |
+| `boa feedback` | Submit feedback to improve BOA |
 
 ## Quick Start
 
@@ -58,21 +71,21 @@ There are two entry points depending on what the developer asks:
 The developer wants a backend but hasn't described their app yet. Deploy the bare infrastructure — no tables, no policies. The backend is ready to use once keys and credentials are generated.
 
 1. **Setup** — Run through Step 1 below (tools + AWS credentials)
-2. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
-3. **Done** — The backend is live. `.boa/config.json` has the API URL, keys, and all connection details. Auth endpoints work immediately. The developer can now describe their app and you'll add tables and policies.
+2. **Deploy** — Run `boa init <app-name> --region us-east-1`
+3. **Done** — The backend is live. `.boa/config.json` has the API URL, keys, and all connection details. Auth endpoints work immediately. Tell the developer their backend is ready and they can describe their app whenever they want — you'll design the tables and access policies for them.
 
 ### "Build me an app to [description]"
 
 The developer described what they want. Create the backend, then build on it.
 
 1. **Setup** — Run through Step 1 below (tools + AWS credentials)
-2. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
+2. **Deploy** — Run `boa init <app-name> --region us-east-1`
 3. **Design** — Based on the developer's description, design the data model (tables, columns, indexes) and authorization rules (who can read/write what)
 4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](../../docs/MIGRATIONS.md).
 5. **Policies** — Write Cedar policy files in `policies/`. See [POLICIES.md](../../docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
-6. **Deploy changes** — Run `bash $BOA_PLUGIN/scripts/deploy.sh` (bundles policies), then `bash $BOA_PLUGIN/scripts/migrate.sh` (creates tables)
+6. **Deploy changes** — Run `boa deploy` (bundles policies and applies migrations)
 7. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
-8. **Verify** — Run `bash $BOA_PLUGIN/scripts/verify.sh`
+8. **Verify** — Run `boa verify`
 
 ## Critical Rules
 
@@ -88,25 +101,28 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
 9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
 10. **Cedar policies required with tables**: When creating tables, always write Cedar policies too — tables without policies return 403 on all requests
-11. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `teardown.sh` or deleting the CloudFormation stack destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
+11. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
 12. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
 
 ## Step 1: Setup
 
-Run through this checklist. For each missing tool, install it before continuing.
-The agent should detect the OS and run the appropriate install command automatically.
-
-### 1a. Detect the platform
+Check what's installed and what's missing:
 
 ```bash
-uname -s   # Darwin = macOS, Linux = Linux
+boa check
 ```
 
-### 1b. Check and install tools
+This checks the platform, all required tools (aws, sam, node, psql, jq), AWS credentials, and region. Present the output to the developer as a clean checklist.
 
-Check each tool. Install any that are missing.
+### If the BOA CLI is not installed
 
-**macOS (all at once):**
+```bash
+npm install -g boa-cli
+```
+
+### If tools are missing — install them
+
+**macOS:**
 
 ```bash
 brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
@@ -129,46 +145,17 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-ge
 sudo apt-get install -y postgresql-client jq
 ```
 
-**Verify all tools:**
+After installing, re-run `boa check` to confirm everything passes.
 
-```bash
-aws --version        # >= 2.32
-sam --version        # any
-node --version       # >= 18
-psql --version       # any
-jq --version         # any
-```
+### If AWS credentials are missing
 
-### 1c. AWS account
+If the developer has an AWS account but no local credentials, tell them to run `aws login` in their terminal. This opens a browser for sign-in — the developer must run it themselves. Session lasts 12 hours.
 
-Check if the developer has an AWS account and active credentials:
+If they don't have an AWS account, tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws login`.
 
-```bash
-aws sts get-caller-identity
-```
+### Region
 
-If this succeeds, skip to 1d.
-
-If this fails, the developer needs to set up AWS access:
-
-**If they have an AWS account but no local credentials:**
-
-Tell the developer to run `aws login` in their terminal. This opens a browser where they sign in to AWS and temporary credentials are stored locally. The developer must run this command themselves — it requires interactive browser access. Session lasts 12 hours.
-
-After they confirm login succeeded, verify with `aws sts get-caller-identity`.
-
-**If they do NOT have an AWS account:**
-
-Tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws login`.
-
-### 1d. Verify region
-
-Aurora DSQL is only available in us-east-1 and us-east-2. Always pass `--region` explicitly to bootstrap.sh:
-
-```bash
-aws configure get region   # check current default
-# Use --region us-east-1 if not already in a DSQL-supported region
-```
+Aurora DSQL requires us-east-1 or us-east-2. The `boa check` output shows the current default. Always pass `--region` explicitly to `boa init` if the default isn't a DSQL region.
 
 ## Adding Tables and Policies
 
@@ -241,8 +228,13 @@ For more patterns (public read, role-based, per-table), see [POLICIES.md](../../
 ### Deploy and apply
 
 ```bash
-bash $BOA_PLUGIN/scripts/deploy.sh    # bundles policies into Lambda
-bash $BOA_PLUGIN/scripts/migrate.sh   # creates tables in DSQL
+boa deploy    # bundles policies into Lambda and applies pending migrations
+```
+
+Or to apply migrations only (without redeploying):
+
+```bash
+boa migrate
 ```
 
 ## REST API
@@ -272,7 +264,7 @@ For embedding patterns, filtering syntax, and @supabase/supabase-js examples, se
 
 ## Authentication
 
-The auth engine is GoTrue-compatible at `/auth/v1/*`. Auth endpoints work immediately after bootstrap — no tables or policies needed.
+The auth engine is GoTrue-compatible at `/auth/v1/*`. Auth endpoints work immediately after `boa init` — no tables or policies needed.
 
 ```
 POST /auth/v1/signup                         — register
@@ -282,7 +274,7 @@ GET  /auth/v1/user                           — current user
 POST /auth/v1/logout                         — sign out
 ```
 
-The bootstrap script generates two API keys in `.boa/config.json`:
+`boa init` generates two API keys in `.boa/config.json`:
 - **anonKey** — role `anon`, for public access
 - **serviceRoleKey** — role `service_role`, bypasses authorization (server-side only)
 
@@ -355,9 +347,14 @@ Load these on demand when you need detailed patterns:
 - [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
 - [FUNCTIONS.md](../../docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs
 - [MIGRATIONS.md](../../docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
+- [FEEDBACK.md](../../docs/FEEDBACK.md) — How to report BOA bugs found during a session
+
+## Feedback
+
+When you encounter a BOA bug (not a developer error), see [FEEDBACK.md](../../docs/FEEDBACK.md) for how to report it.
 
 ## Teardown
 
 ```bash
-bash $BOA_PLUGIN/scripts/teardown.sh
+boa teardown
 ```

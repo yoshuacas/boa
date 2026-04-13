@@ -26,7 +26,7 @@ This document maps every task a developer needs when building web applications w
 |---|------|--------|-------------|----------|
 | 1.1 | Check/install prerequisites (AWS CLI, SAM, Node, psql, jq) | DONE | SKILL.md Step 1 | P0 |
 | 1.2 | Set up AWS credentials (`aws login`) | DONE | SKILL.md Step 1c | P0 |
-| 1.3 | Deploy the full stack (one command) | DONE | bootstrap.sh, SKILL.md Step 2 | P0 |
+| 1.3 | Deploy the full stack (one command) | DONE | boa init, SKILL.md Step 2 | P0 |
 | 1.4 | Understand what was created and where | DONE | .boa/config.json, dashboard | P0 |
 | 1.5 | Open the dashboard to see my backend | DONE | SKILL.md Dashboard | P1 |
 
@@ -36,7 +36,7 @@ This document maps every task a developer needs when building web applications w
 |---|------|--------|-------------|----------|
 | 2.1 | Design a schema for my app | PARTIAL | ARCHITECTURE.md (5 app types) | P0 |
 | 2.2 | Write migration files | DONE | SKILL.md Step 3, MIGRATIONS.md | P0 |
-| 2.3 | Run migrations | DONE | migrate.sh | P0 |
+| 2.3 | Run migrations | DONE | boa migrate | P0 |
 | 2.4 | Add a new table to existing schema | DONE | MIGRATIONS.md | P0 |
 | 2.5 | Add/remove/rename columns | DONE | MIGRATIONS.md common patterns | P0 |
 | 2.6 | Add indexes for performance | PARTIAL | DSQL-PATTERNS.md | P1 |
@@ -51,7 +51,7 @@ This document maps every task a developer needs when building web applications w
 |---|------|--------|-------------|----------|
 | 3.1 | Understand the default authorization model | DONE | POLICIES.md, SKILL.md Step 4 | P0 |
 | 3.2 | Write Cedar policies for my tables | DONE | POLICIES.md (4 examples) | P0 |
-| 3.3 | Deploy updated policies | DONE | deploy.sh | P0 |
+| 3.3 | Deploy updated policies | DONE | boa deploy | P0 |
 | 3.4 | "Explain what policies apply to this table" | PARTIAL | POLICIES.md explaining section | P1 |
 | 3.5 | "Can user X do action Y on table Z?" (trace a request) | MISSING | — | P1 |
 | 3.6 | Debug a 403 — why was my request denied? | MISSING | — | P1 |
@@ -105,8 +105,8 @@ This document maps every task a developer needs when building web applications w
 
 | # | Task | Status | Where Today | Priority |
 |---|------|--------|-------------|----------|
-| 7.1 | Redeploy after code/policy changes | DONE | deploy.sh | P0 |
-| 7.2 | Deploy schema changes (new migrations) | DONE | migrate.sh | P0 |
+| 7.1 | Redeploy after code/policy changes | DONE | boa deploy | P0 |
+| 7.2 | Deploy schema changes (new migrations) | DONE | boa migrate | P0 |
 | 7.3 | View deployment status | PARTIAL | CloudFormation outputs | P1 |
 | 7.4 | Rollback a bad deployment | MISSING | — | P1 |
 | 7.5 | Set up CI/CD (auto-deploy on push) | MISSING | — | P2 |
@@ -198,7 +198,7 @@ This document maps every task a developer needs when building web applications w
 
 | Script | Covers Tasks | Description |
 |--------|-------------|-------------|
-| `scripts/seed.sh` | 2.8, 6.4 | Run SQL seed files from a `seeds/` directory, similar to migrate.sh |
+| `scripts/seed.sh` | 2.8, 6.4 | Run SQL seed files from a `seeds/` directory, similar to `boa migrate` |
 | `scripts/local.sh` | 6.1 | Wrapper around `sam local start-api` with correct env vars from .boa/config.json |
 | `scripts/status.sh` | 2.10, 7.3 | List tables/columns via psql introspection, show stack status, recent deploys |
 
@@ -232,6 +232,6 @@ Issues identified during live deploy testing (2026-04-12). Not blocking launch b
 | B.1 | JWT secret stored as plain String in SSM (not SecureString) | Medium | CloudFormation can't resolve SecureString into Lambda env vars. Alternative: read from SSM at Lambda cold start instead of env var. |
 | B.2 | `.boa/config.json` contains serviceRoleKey in plaintext on disk | Medium | If accidentally committed to git, key is exposed. Add `.boa/` to `.gitignore` template. Consider splitting secrets to a separate file. |
 | B.3 | No secret rotation mechanism | Low (pre-launch) | anon/service keys are valid for 10 years. No script to rotate JWT secret + regenerate keys without downtime. |
-| B.4 | `bootstrap.sh` re-bootstrap regenerates keys, invalidating existing ones | Low | `deploy.sh` preserves keys, but a full re-bootstrap breaks all existing clients. Document this or add a `--keep-keys` flag. |
+| B.4 | `boa init` re-bootstrap regenerates keys, invalidating existing ones | Low | `boa deploy` preserves keys, but a full re-bootstrap breaks all existing clients. Document this or add a `--keep-keys` flag. |
 | B.5 | No `.gitignore` template provided | Medium | Developers may commit `.boa/config.json` (contains keys) or `node_modules/`. Skill should create a `.gitignore` during setup. |
 | B.6 | Linux install missing `unzip` | Low | Ubuntu doesn't have `unzip` by default. AWS CLI install fails. Add `sudo apt-get install -y unzip` before AWS CLI curl command. |

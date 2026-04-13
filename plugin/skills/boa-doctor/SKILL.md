@@ -38,8 +38,7 @@ If the table has no corresponding policy file, that's the problem. Write a Cedar
 Cedar policies are bundled into the Lambda at deploy time. If you wrote policies but didn't redeploy:
 
 ```bash
-BOA_PLUGIN="$(dirname "$(dirname "$CLAUDE_SKILL_DIR")")"
-bash $BOA_PLUGIN/scripts/deploy.sh
+boa deploy
 ```
 
 **3. User is not authenticated.**
@@ -156,7 +155,7 @@ Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 
 ## Flow 6: Migration Failed
 
-**Symptom:** "migrate.sh failed" or "SQL error"
+**Symptom:** "boa migrate failed" or "SQL error"
 
 **1. DSQL constraint violation.** The most common SQL errors in DSQL:
 - `REFERENCES` → DSQL doesn't support foreign keys. Remove them; document relationships in comments.
@@ -166,7 +165,7 @@ Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 
 **2. Table already exists.** Use `CREATE TABLE IF NOT EXISTS` in all migrations.
 
-**3. Connection auth failed.** IAM token may have expired (valid 15 minutes). The migrate.sh script generates a fresh token each run, but if running psql manually, generate a new token.
+**3. Connection auth failed.** IAM token may have expired (valid 15 minutes). The `boa migrate` command generates a fresh token each run, but if running psql manually, generate a new token.
 
 For complete DSQL constraints, see [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md).
 

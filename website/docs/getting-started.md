@@ -50,35 +50,41 @@ node --version                # Should be 18.x or higher
 psql --version                # Should be 14.x or higher
 ```
 
-## Install BOA in Your Coding Agent
-
-### Claude Code (recommended)
+## Install the BOA CLI
 
 ```bash
-claude plugin install boa
+npm install -g boa-cli
 ```
 
-### Other agents
-
-See the [install page](/install) for Kiro, VS Code Copilot, and Codex instructions.
+This gives you the `boa` command, which handles deployment, migrations, and stack management.
 
 ## Build Your First Backend
 
-Open your coding agent and tell it:
+You have two paths — pick whichever fits your workflow.
+
+### Option A: CLI directly
+
+```bash
+boa init my-app
+```
+
+This creates and deploys the full serverless stack (DSQL, Cognito, Lambda, API Gateway, S3) in one command. Then add tables, write migrations, and connect your frontend.
+
+### Option B: Through a coding agent
+
+Install the BOA skill in your agent (see the [install page](/install)), then tell it:
 
 ```
 Build a todo app with user accounts
 ```
 
-If any tools are missing, BOA will detect them and walk you through installation before proceeding.
+The agent uses the BOA CLI under the hood. It will:
 
-Once setup is complete, BOA will guide your agent to:
-
-1. Deploy the full serverless stack (DSQL, Cognito, Lambda, API Gateway, S3) with one command
-2. Write migration files for your app's data model and apply them
+1. Run `boa init` to deploy the full serverless stack
+2. Write migration files for your app's data model and run `boa migrate`
 3. Connect your frontend using `@supabase/supabase-js` — every table is automatically available as a REST endpoint
 4. Configure S3 for file attachments (if requested)
-5. Verify everything works
+5. Run `boa verify` to confirm everything works
 
 ## What Gets Created
 
@@ -95,6 +101,18 @@ After your agent deploys, you will have:
 | **Migration files** | Numbered SQL files in `migrations/` that define your schema |
 
 All resources are created in your AWS account. You own them.
+
+## Common CLI Commands
+
+| Command | What it does |
+|---------|-------------|
+| `boa init <name>` | Create and deploy a new backend |
+| `boa deploy` | Redeploy after changes |
+| `boa migrate` | Apply database migrations |
+| `boa verify` | Check deployment health |
+| `boa status` | Show stack info and tables |
+| `boa check` | Check prerequisites |
+| `boa teardown` | Destroy everything |
 
 ## Verify It Works
 

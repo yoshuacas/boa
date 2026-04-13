@@ -143,7 +143,7 @@ Resources:
     Properties:
       FunctionName: !Sub '${ProjectName}-authorizer'
       Handler: authorizer.handler
-      CodeUri: ../lambda-templates/
+      CodeUri: ./lambda/
       MemorySize: 128
       Environment:
         Variables:
@@ -165,7 +165,7 @@ Resources:
     Properties:
       FunctionName: !Sub '${ProjectName}-api'
       Handler: index.handler
-      CodeUri: ../lambda-templates/
+      CodeUri: ./lambda/
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint

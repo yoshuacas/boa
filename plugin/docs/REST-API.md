@@ -28,7 +28,7 @@ curl "$API_URL/rest/v1/todos" \
 - **anonKey** — role `anon`, for unauthenticated/public access
 - **serviceRoleKey** — role `service_role`, bypasses authorization (server-side only)
 
-Both keys are in `.boa/config.json` after running `bootstrap.sh`.
+Both keys are in `.boa/config.json` after running `boa init`.
 
 ## Filtering
 
@@ -319,7 +319,7 @@ All errors follow PostgREST format:
 
 ## Schema Cache
 
-The engine caches database schema for 5 minutes (configurable). After adding tables or columns via migrations, the cache refreshes automatically when `migrate.sh` runs. To force a manual refresh:
+The engine caches database schema for 5 minutes (configurable). After adding tables or columns via migrations, the cache refreshes automatically when `boa migrate` runs. To force a manual refresh:
 
 ```bash
 curl -X POST "$API_URL/rest/v1/_refresh" -H "apikey: $SERVICE_ROLE_KEY"

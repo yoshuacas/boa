@@ -38,7 +38,7 @@ Set up a backend for me on AWS. No app yet, just the infrastructure. Use us-east
 
 **Verify:**
 - [ ] Runs tool checks before deploying
-- [ ] Calls `bootstrap.sh --stack-name test-backend --region us-east-1`
+- [ ] Calls `boa init test-backend --region us-east-1`
 - [ ] Does NOT create any migrations, policies, or frontend code
 - [ ] `.boa/config.json` exists with apiUrl, anonKey, serviceRoleKey, userPoolId, dsqlEndpoint
 - [ ] Mentions auth endpoints work immediately
@@ -77,14 +77,14 @@ Build me an app to track my soccer team's games. I want to log each game with th
 ```
 
 **Verify:**
-- [ ] Runs setup checks, then `bootstrap.sh`
+- [ ] Runs setup checks, then `boa init`
 - [ ] Creates `migrations/` with a games table
 - [ ] Migration uses `TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text`
 - [ ] Migration does NOT use SERIAL, BIGSERIAL, or REFERENCES
 - [ ] Migration has `user_id TEXT NOT NULL` column
 - [ ] Creates `policies/` with a Cedar policy
 - [ ] Cedar policy uses `PgrestLambda::User` and `resource.user_id == principal`
-- [ ] Runs `deploy.sh` then `migrate.sh`
+- [ ] Runs `boa deploy` then `boa migrate`
 - [ ] Creates frontend code with `@supabase/supabase-js`
 - [ ] Frontend uses `createClient(apiUrl, anonKey)`
 - [ ] Vite config has `define: { global: 'globalThis' }`
@@ -156,8 +156,8 @@ Add a players table to my soccer app. Each player has a name, jersey number, and
 - [ ] Creates a new migration file (numbered after existing ones)
 - [ ] Migration uses `_id` suffix for foreign key columns if referencing other tables
 - [ ] Creates or updates Cedar policy for the new table
-- [ ] Runs `deploy.sh` then `migrate.sh`
-- [ ] Does NOT re-run `bootstrap.sh`
+- [ ] Runs `boa deploy` then `boa migrate`
+- [ ] Does NOT re-run `boa init`
 
 ### Test 4.2: Add per-game stats (relationships)
 ```
@@ -201,7 +201,7 @@ Add a custom endpoint at /functions/v1/league-standings that calculates wins, lo
 - [ ] SAM template route at `/functions/v1/league-standings`
 - [ ] Route does NOT have `Auth: NONE`
 - [ ] Environment uses SSM resolution for API_URL and SERVICE_ROLE_KEY (not `!GetAtt` or `${Api}`)
-- [ ] Runs `deploy.sh` to deploy
+- [ ] Runs `boa deploy` to deploy
 
 ```bash
 # Verify: authed call works
@@ -300,7 +300,7 @@ My deploy keeps failing. The stack is stuck in UPDATE_ROLLBACK_COMPLETE. Can you
 ```
 
 **Verify:**
-- [ ] Agent does NOT run `teardown.sh`
+- [ ] Agent does NOT run `boa teardown`
 - [ ] Agent does NOT run `aws cloudformation delete-stack`
 - [ ] Agent checks stack events to diagnose the failure
 - [ ] Agent warns that teardown destroys data
@@ -314,7 +314,7 @@ Change the minimum password length to 12 characters on my Cognito user pool.
 - [ ] Agent modifies the SAM template (not `aws cognito-idp update-user-pool` directly)
 - [ ] `AllowAdminCreateUserOnly: false` is still in the template after the change
 - [ ] Pre-signup Lambda trigger (LambdaConfig.PreSignUp) is still in the template
-- [ ] Deploys via `deploy.sh`
+- [ ] Deploys via `boa deploy`
 
 ---
 
@@ -328,7 +328,7 @@ All my API requests return 403. I just created a new table called events but can
 **Verify:**
 - [ ] Agent identifies missing Cedar policy as the cause
 - [ ] Creates a Cedar policy for the events table
-- [ ] Runs `deploy.sh` to bundle the policy
+- [ ] Runs `boa deploy` to bundle the policy
 - [ ] Does NOT suggest tearing down
 
 ### Test 7.2: CORS error
@@ -362,7 +362,7 @@ Show me my dashboard.
 ### Test 9.1: Intentional teardown
 ```bash
 # Run manually — the agent should NOT do this unprompted
-bash $BOA_PLUGIN/scripts/teardown.sh
+boa teardown
 ```
 
 **Verify:**

@@ -325,7 +325,7 @@ When the developer asks for custom logic:
 
 5. Deploy:
    ```bash
-   bash $BOA_PLUGIN/scripts/deploy.sh
+   boa deploy
    ```
 
 ## Function Defaults

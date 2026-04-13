@@ -169,8 +169,8 @@ const BOA = (() => {
               <code>"Build a todo app with user auth and file uploads"</code>
             </li>
             <li>
-              Or run the bootstrap script directly
-              <code>bash .boa/bootstrap.sh</code>
+              Or run the bootstrap command directly
+              <code>boa init</code>
             </li>
             <li>
               Then reload this page &mdash; the dashboard will pick up your config automatically.

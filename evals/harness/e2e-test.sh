@@ -45,9 +45,7 @@ do_teardown() {
   done
 
   step "Deleting stack..."
-  if [ -f "$PLUGIN_DIR/scripts/teardown.sh" ]; then
-    bash "$PLUGIN_DIR/scripts/teardown.sh" 2>&1 || true
-  fi
+  boa teardown 2>&1 || true
   aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$REGION" 2>/dev/null || true
   step "Waiting for delete..."
   aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$REGION" 2>/dev/null || true
@@ -88,28 +86,32 @@ if [ "$TEST_ONLY" = false ]; then
 
   log "STORE SECRETS"
   step "Storing test secrets in SSM..."
+  # Use String type (not SecureString) — CloudFormation resolve:ssm: doesn't support SecureString in Lambda env vars
   aws ssm put-parameter --name "/$STACK_NAME/stripe-secret-key" \
-    --value "sk_test_fake" --type SecureString --region "$REGION" --overwrite 2>/dev/null || true
+    --value "sk_test_fake" --type String --region "$REGION" --overwrite 2>/dev/null || true
   aws ssm put-parameter --name "/$STACK_NAME/stripe-webhook-secret" \
-    --value "$WEBHOOK_TEST_SECRET" --type SecureString --region "$REGION" --overwrite 2>/dev/null || true
+    --value "$WEBHOOK_TEST_SECRET" --type String --region "$REGION" --overwrite 2>/dev/null || true
+  # Placeholder — real key is stored after boa init generates it
+  aws ssm put-parameter --name "/$STACK_NAME/service-role-key" \
+    --value "placeholder" --type String --region "$REGION" --overwrite 2>/dev/null || true
 
   log "BOOTSTRAP"
   step "Deploying base infrastructure..."
   export BOA_TEMPLATE_OVERRIDE="$WORK_DIR/template.yaml"
-  bash "$PLUGIN_DIR/scripts/bootstrap.sh" --stack-name "$STACK_NAME" --region "$REGION"
+  boa init --region "$REGION"
 
   # Store service role key in SSM so functions can use it
   SERVICE_ROLE_KEY=$(jq -r '.serviceRoleKey' .boa/config.json)
   aws ssm put-parameter --name "/$STACK_NAME/service-role-key" \
-    --value "$SERVICE_ROLE_KEY" --type SecureString --region "$REGION" --overwrite 2>/dev/null || true
+    --value "$SERVICE_ROLE_KEY" --type String --region "$REGION" --overwrite 2>/dev/null || true
 
   log "DEPLOY APP"
   step "Deploying tables, policies, and functions..."
-  bash "$PLUGIN_DIR/scripts/deploy.sh"
+  boa deploy
 
   log "MIGRATE"
   step "Creating tables..."
-  bash "$PLUGIN_DIR/scripts/migrate.sh"
+  boa migrate
 
   log "SEED"
   step "Installing test harness dependencies..."

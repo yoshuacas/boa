@@ -32,13 +32,13 @@ evals/
 
 ```bash
 # 1. Deploy fresh stack
-bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name boa-e2e-test --region us-east-1
+boa init boa-e2e-test --region us-east-1
 
 # 2. Deploy app (functions, policies, etc.)
-bash $BOA_PLUGIN/scripts/deploy.sh
+boa deploy
 
 # 3. Run migrations (create tables)
-bash $BOA_PLUGIN/scripts/migrate.sh
+boa migrate
 
 # 4. Seed test data
 node evals/harness/seed.mjs
@@ -47,7 +47,7 @@ node evals/harness/seed.mjs
 node --test evals/harness/tests/*.test.mjs
 
 # 6. Teardown
-bash $BOA_PLUGIN/scripts/teardown.sh
+boa teardown
 ```
 
 ## Test Suite Detail
