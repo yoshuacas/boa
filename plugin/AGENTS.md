@@ -6,7 +6,7 @@ Build serverless backends on AWS using Aurora DSQL (PostgreSQL), Cognito, Lambda
 When building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage.
 
 ## Critical rules
-1. Always `AllowAdminCreateUserOnly: false` for Cognito self-signup
+1. Always `AllowAdminCreateUserOnly: false` for Cognito self-sign-up
 2. Always deploy pre-signup Lambda that auto-confirms users
 3. Always use REST API Gateway (not HTTP API) for REQUEST-type Lambda authorizer
 4. Always use Node.js for Lambda — never Python (binary deps break)

@@ -18,7 +18,7 @@ The BOA skill teaches your agent to build serverless backends on AWS.
 **pgrest-lambda** provides a PostgREST-compatible REST API and GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client. The Lambda handlers are thin wrappers (~20 lines total).
 
 ## Critical Rules
-1. Always `AllowAdminCreateUserOnly: false` for Cognito self-signup
+1. Always `AllowAdminCreateUserOnly: false` for Cognito self-sign-up
 2. Always deploy pre-signup Lambda that auto-confirms users
 3. Always use REST API Gateway (not HTTP API) — required for REQUEST-type Lambda authorizer with header caching
 4. Always use Node.js for Lambda — never Python (binary dependency failures)

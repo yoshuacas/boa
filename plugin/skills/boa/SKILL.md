@@ -91,7 +91,7 @@ The developer described what they want. Create the backend, then build on it.
 
 These come from hundreds of real AI-built backends. Every rule prevents a real failure.
 
-1. **Cognito self-signup**: Always set `AllowAdminCreateUserOnly: false`
+1. **Cognito self-sign-up**: Always set `AllowAdminCreateUserOnly: false`
 2. **Pre-signup trigger**: Always deploy a Lambda that auto-confirms users
 3. **API Gateway type**: Always use REST (not HTTP API) — required for REQUEST-type Lambda authorizer
 4. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
