@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T20:05:00.275Z",
+  "generatedAt": "2026-04-13T20:47:22.300Z",
   "region": "us-east-1",
   "regionName": "US East (N. Virginia)",
   "sources": {
@@ -292,6 +292,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.01,
+            "cognito": 0.27,
+            "lambda": 0.03,
+            "s3": 0,
+            "total": 0.32
+          },
+          "freeTier": {
+            "dsql": 0.01,
+            "cognito": 0.27,
+            "lambda": 0.03,
+            "s3": 0,
+            "total": 0.32,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -327,6 +345,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 0.26,
+            "cognito": 5.5,
+            "lambda": 0.62,
+            "s3": 0.02,
+            "total": 6.4
+          },
+          "freeTier": {
+            "dsql": 0.26,
+            "cognito": 5.5,
+            "lambda": 0.62,
+            "s3": 0.01,
+            "total": 6.39,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -362,6 +398,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 26.24,
+            "cognito": 541,
+            "lambda": 61.67,
+            "s3": 2.36,
+            "total": 631.27
+          },
+          "freeTier": {
+            "dsql": 0.97,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 62.96,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 25.28,
           "cognito": 486,
           "lambda": 54.8,
@@ -397,6 +451,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 524.9,
+            "cognito": 7917.5,
+            "lambda": 1233.34,
+            "s3": 47.1,
+            "total": 9722.84
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 523.77,
           "cognito": 7862.5,
           "lambda": 1226.47,
@@ -434,6 +506,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.03,
+            "cognito": 0.27,
+            "lambda": 0.09,
+            "s3": 0,
+            "total": 0.4
+          },
+          "freeTier": {
+            "dsql": 0.03,
+            "cognito": 0.27,
+            "lambda": 0.09,
+            "s3": 0,
+            "total": 0.4,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -469,6 +559,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 0.64,
+            "cognito": 5.5,
+            "lambda": 1.85,
+            "s3": 0.05,
+            "total": 8.04
+          },
+          "freeTier": {
+            "dsql": 0.64,
+            "cognito": 5.5,
+            "lambda": 1.45,
+            "s3": 0.03,
+            "total": 7.62,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0.4,
@@ -504,6 +612,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 63.78,
+            "cognito": 541,
+            "lambda": 185,
+            "s3": 5.11,
+            "total": 794.89
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 62.65,
           "cognito": 486,
           "lambda": 178.13,
@@ -539,6 +665,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 1275.6,
+            "cognito": 7917.5,
+            "lambda": 3700.01,
+            "s3": 102.2,
+            "total": 12995.31
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 1274.47,
           "cognito": 7862.5,
           "lambda": 3693.14,
@@ -576,6 +720,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.12,
+            "cognito": 0.27,
+            "lambda": 0.25,
+            "s3": 0.01,
+            "total": 0.65
+          },
+          "freeTier": {
+            "dsql": 0.12,
+            "cognito": 0.27,
+            "lambda": 0.25,
+            "s3": 0.01,
+            "total": 0.65,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -611,6 +773,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 2.3,
+            "cognito": 5.5,
+            "lambda": 4.93,
+            "s3": 0.22,
+            "total": 12.95
+          },
+          "freeTier": {
+            "dsql": 0.81,
+            "cognito": 5.5,
+            "lambda": 3.53,
+            "s3": 0.02,
+            "total": 9.86,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 1.49,
           "cognito": 0,
           "lambda": 1.4,
@@ -646,6 +826,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 229.79,
+            "cognito": 541,
+            "lambda": 493.33,
+            "s3": 21.83,
+            "total": 1285.95
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 228.66,
           "cognito": 486,
           "lambda": 486.47,
@@ -681,6 +879,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 4595.8,
+            "cognito": 7917.5,
+            "lambda": 9866.68,
+            "s3": 436.6,
+            "total": 22816.58
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 4594.67,
           "cognito": 7862.5,
           "lambda": 9859.81,
@@ -718,6 +934,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.16,
+            "cognito": 0.27,
+            "lambda": 0.23,
+            "s3": 0.02,
+            "total": 0.69
+          },
+          "freeTier": {
+            "dsql": 0.16,
+            "cognito": 0.27,
+            "lambda": 0.23,
+            "s3": 0.02,
+            "total": 0.68,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -753,6 +987,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 3.14,
+            "cognito": 5.5,
+            "lambda": 4.63,
+            "s3": 0.47,
+            "total": 13.74
+          },
+          "freeTier": {
+            "dsql": 0.97,
+            "cognito": 5.5,
+            "lambda": 3.33,
+            "s3": 0.13,
+            "total": 9.92,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 2.18,
           "cognito": 0,
           "lambda": 1.3,
@@ -788,6 +1040,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 314.16,
+            "cognito": 541,
+            "lambda": 462.5,
+            "s3": 46.93,
+            "total": 1364.59
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 313.03,
           "cognito": 486,
           "lambda": 455.63,
@@ -823,6 +1093,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 6283.2,
+            "cognito": 7917.5,
+            "lambda": 9250.01,
+            "s3": 938.6,
+            "total": 24389.31
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 6282.07,
           "cognito": 7862.5,
           "lambda": 9243.15,
@@ -860,6 +1148,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.02,
+            "cognito": 0.27,
+            "lambda": 0.06,
+            "s3": 0,
+            "total": 0.36
+          },
+          "freeTier": {
+            "dsql": 0.02,
+            "cognito": 0.27,
+            "lambda": 0.06,
+            "s3": 0,
+            "total": 0.36,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -895,6 +1201,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 0.45,
+            "cognito": 5.5,
+            "lambda": 1.23,
+            "s3": 0.04,
+            "total": 7.22
+          },
+          "freeTier": {
+            "dsql": 0.45,
+            "cognito": 5.5,
+            "lambda": 1.03,
+            "s3": 0.02,
+            "total": 7,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0.2,
@@ -930,6 +1254,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 45.1,
+            "cognito": 541,
+            "lambda": 123.33,
+            "s3": 3.56,
+            "total": 712.99
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 43.97,
           "cognito": 486,
           "lambda": 116.47,
@@ -965,6 +1307,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 901.9,
+            "cognito": 7917.5,
+            "lambda": 2466.67,
+            "s3": 71.2,
+            "total": 11357.27
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 900.77,
           "cognito": 7862.5,
           "lambda": 2459.8,
@@ -1002,6 +1362,24 @@
           "mau": 50
         },
         "boa": {
+          "gross": {
+            "dsql": 0.05,
+            "cognito": 0.27,
+            "lambda": 0.12,
+            "s3": 0,
+            "total": 0.45
+          },
+          "freeTier": {
+            "dsql": 0.05,
+            "cognito": 0.27,
+            "lambda": 0.12,
+            "s3": 0,
+            "total": 0.45,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0,
           "cognito": 0,
           "lambda": 0,
@@ -1037,6 +1415,24 @@
           "mau": 1000
         },
         "boa": {
+          "gross": {
+            "dsql": 0.96,
+            "cognito": 5.5,
+            "lambda": 2.47,
+            "s3": 0.08,
+            "total": 9
+          },
+          "freeTier": {
+            "dsql": 0.82,
+            "cognito": 5.5,
+            "lambda": 1.87,
+            "s3": 0.02,
+            "total": 8.21,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 0.14,
           "cognito": 0,
           "lambda": 0.6,
@@ -1072,6 +1468,24 @@
           "mau": 100000
         },
         "boa": {
+          "gross": {
+            "dsql": 95.89,
+            "cognito": 541,
+            "lambda": 246.67,
+            "s3": 7.81,
+            "total": 891.37
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 94.76,
           "cognito": 486,
           "lambda": 239.8,
@@ -1107,6 +1521,24 @@
           "mau": 2000000
         },
         "boa": {
+          "gross": {
+            "dsql": 1917.8,
+            "cognito": 7917.5,
+            "lambda": 4933.34,
+            "s3": 156.2,
+            "total": 14924.84
+          },
+          "freeTier": {
+            "dsql": 1.13,
+            "cognito": 55,
+            "lambda": 6.87,
+            "s3": 0.13,
+            "total": 63.13,
+            "dsqlType": "always",
+            "cognitoType": "always",
+            "lambdaType": "always",
+            "s3Type": "12mo"
+          },
           "dsql": 1916.67,
           "cognito": 7862.5,
           "lambda": 4926.47,

@@ -30,15 +30,29 @@ function fmtNum(n) {
   return n.toString()
 }
 
+function freeTierNote(r) {
+  const ft = r.boa.freeTier
+  if (ft.total === 0) return null
+  // Check if free tier covers everything
+  if (r.boa.total === 0) {
+    // S3 free tier is 12mo, rest is always free
+    if (ft.s3 > 0) return 'Covered by AWS Free Tier (S3 for first 12 months, rest always free)'
+    return 'Covered by AWS Always Free Tier'
+  }
+  // Partial coverage
+  if (ft.total > 0) return `Free tier saves ${fmt(ft.total)}/mo`
+  return null
+}
+
 const tiers = computed(() => pricingData.value?.sizeTiers || {})
 const rows = computed(() => pricingData.value?.scenarios[selectedApp.value] || [])
 const genDate = computed(() => pricingData.value?.generatedAt?.slice(0, 10) || '')
 
 const services = [
-  { key: 'dsql', name: 'Database', detail: 'Aurora DSQL' },
-  { key: 'cognito', name: 'Auth', detail: 'Cognito' },
-  { key: 'lambda', name: 'Compute', detail: 'Lambda + Function URL' },
-  { key: 's3', name: 'Storage', detail: 'S3' },
+  { key: 'dsql', name: 'Database', detail: 'Aurora DSQL', ftKey: 'dsqlType' },
+  { key: 'cognito', name: 'Auth', detail: 'Cognito', ftKey: 'cognitoType' },
+  { key: 'lambda', name: 'Compute', detail: 'Lambda', ftKey: 'lambdaType' },
+  { key: 's3', name: 'Storage', detail: 'S3', ftKey: 's3Type' },
 ]
 </script>
 
@@ -64,13 +78,7 @@ const services = [
   </select>
 </div>
 
-<!-- Free tier note -->
-<div class="free-note">
-  <strong>AWS Free Tier</strong> covers prototypes and early startups:
-  DSQL 100K DPUs &middot; Cognito 10K users &middot; Lambda 1M requests &middot; S3 5 GB
-</div>
-
-<!-- Cost grid: 4 columns (one per size tier) -->
+<!-- Cost grid -->
 <div class="cost-grid">
 
   <!-- Header row -->
@@ -80,27 +88,66 @@ const services = [
     <div class="tier-users">{{ fmtNum(tiers[r.workload.sizeKey].users) }} users</div>
   </div>
 
-  <!-- Total row -->
-  <div class="grid-label total-label">Total /mo</div>
-  <div v-for="r in rows" :key="'t-' + r.workload.sizeKey" class="grid-total">
-    <span :class="r.boa.total === 0 ? 'val-free' : 'val-boa'">{{ fmt(r.boa.total) }}</span>
-  </div>
-
-  <!-- Service rows -->
+  <!-- Service rows (gross cost) -->
   <template v-for="svc in services" :key="svc.key">
     <div class="grid-label">
       <span class="svc-name">{{ svc.name }}</span>
       <span class="svc-detail">{{ svc.detail }}</span>
     </div>
     <div v-for="r in rows" :key="svc.key + '-' + r.workload.sizeKey" class="grid-cell">
-      <span :class="r.boa[svc.key] === 0 ? 'val-free' : 'val-normal'">{{ fmt(r.boa[svc.key]) }}</span>
+      <span class="val-normal">{{ fmt(r.boa.gross[svc.key]) }}</span>
     </div>
   </template>
 
+  <!-- Subtotal row -->
+  <div class="grid-label subtotal-label">Subtotal</div>
+  <div v-for="r in rows" :key="'sub-' + r.workload.sizeKey" class="grid-cell subtotal-cell">
+    {{ fmt(r.boa.gross.total) }}
+  </div>
+
+  <!-- Free tier savings row -->
+  <div class="grid-label ft-label">
+    <span class="svc-name">Free Tier</span>
+  </div>
+  <div v-for="r in rows" :key="'ft-' + r.workload.sizeKey" class="grid-cell ft-cell">
+    <span v-if="r.boa.freeTier.total > 0" class="val-free">&minus;{{ fmt(r.boa.freeTier.total) }}</span>
+    <span v-else class="val-dim">&mdash;</span>
+  </div>
+
+  <!-- You pay row -->
+  <div class="grid-label total-label">You pay /mo</div>
+  <div v-for="r in rows" :key="'t-' + r.workload.sizeKey" class="grid-total">
+    <span :class="r.boa.total === 0 ? 'val-free-big' : 'val-boa'">{{ fmt(r.boa.total) }}</span>
+  </div>
+
+  <!-- Free tier note row -->
+  <div class="grid-label note-label"></div>
+  <div v-for="r in rows" :key="'n-' + r.workload.sizeKey" class="grid-note">
+    <span v-if="r.boa.total === 0 && r.boa.freeTier.s3 > 0" class="note-text">
+      Always free<br><span class="note-sub">(S3 free tier: 12 months)</span>
+    </span>
+    <span v-else-if="r.boa.total === 0" class="note-text">Always free</span>
+    <span v-else-if="r.boa.freeTier.total > 0" class="note-text note-sub">
+      Saves {{ fmt(r.boa.freeTier.total) }}/mo<br>(always free)
+    </span>
+  </div>
+
+</div>
+
+<!-- Free tier legend -->
+<div class="ft-legend">
+  <div class="ft-legend-item">
+    <span class="ft-dot ft-always"></span>
+    <span><strong>Always Free:</strong> Database, Auth, Compute — no expiration</span>
+  </div>
+  <div class="ft-legend-item">
+    <span class="ft-dot ft-12mo"></span>
+    <span><strong>12 Months Free:</strong> Storage (S3) — for new AWS accounts</span>
+  </div>
 </div>
 
 <p class="calc-footer">
-  US East (N. Virginia), {{ genDate }}. Lambda Function URLs are free. No API Gateway in the default backend.
+  US East (N. Virginia), {{ genDate }}. Lambda Function URLs are free — no API Gateway in the default backend.
 </p>
 
 </template>
@@ -131,7 +178,7 @@ const services = [
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .app-label {
@@ -154,84 +201,43 @@ const services = [
 .app-select:hover { border-color: var(--vp-c-text-3); }
 .app-select:focus { outline: none; border-color: #EC7211; }
 
-/* Free tier note */
-.free-note {
-  font-size: 0.85rem;
-  color: var(--vp-c-text-3);
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-.free-note strong {
-  color: #16a34a;
-}
-
 /* Cost grid */
 .cost-grid {
   display: grid;
-  grid-template-columns: 140px repeat(4, 1fr);
+  grid-template-columns: 130px repeat(4, 1fr);
   border: 1px solid var(--vp-c-divider);
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 @media (max-width: 600px) {
-  .cost-grid {
-    grid-template-columns: 100px repeat(4, 1fr);
-    font-size: 0.8rem;
-  }
+  .cost-grid { grid-template-columns: 90px repeat(4, 1fr); font-size: 0.78rem; }
+  .tier-name { font-size: 0.8rem !important; }
+  .grid-total { font-size: 1rem !important; }
 }
 
-/* Corner cell */
 .grid-corner {
   background: var(--vp-c-bg-soft);
-  border-bottom: 2px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
   border-right: 1px solid var(--vp-c-divider);
 }
 
-/* Header cells */
 .grid-header {
-  padding: 1rem 0.75rem;
+  padding: 0.9rem 0.5rem;
   text-align: center;
   background: var(--vp-c-bg-soft);
-  border-bottom: 2px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
   border-right: 1px solid var(--vp-c-divider);
 }
 .grid-header:last-child { border-right: none; }
 
-.tier-name {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--vp-c-text-1);
-}
+.tier-name { font-size: 0.9rem; font-weight: 700; color: var(--vp-c-text-1); }
+.tier-users { font-size: 0.72rem; color: var(--vp-c-text-3); margin-top: 2px; }
 
-.tier-users {
-  font-size: 0.75rem;
-  color: var(--vp-c-text-3);
-  margin-top: 2px;
-}
-
-/* Total row */
-.total-label {
-  font-weight: 700 !important;
-  color: var(--vp-c-text-1) !important;
-  background: var(--vp-c-bg-soft);
-}
-
-.grid-total {
-  padding: 0.9rem 0.75rem;
-  text-align: center;
-  font-size: 1.4rem;
-  font-weight: 800;
-  border-bottom: 2px solid var(--vp-c-divider);
-  border-right: 1px solid var(--vp-c-divider);
-  background: var(--vp-c-bg-soft);
-}
-.grid-total:last-child { border-right: none; }
-
-/* Label cells (left column) */
+/* Label cells */
 .grid-label {
-  padding: 0.7rem 0.75rem;
+  padding: 0.55rem 0.65rem;
   border-bottom: 1px solid var(--vp-c-divider);
   border-right: 1px solid var(--vp-c-divider);
   display: flex;
@@ -239,37 +245,112 @@ const services = [
   justify-content: center;
 }
 
-.svc-name {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--vp-c-text-2);
-}
-
-.svc-detail {
-  font-size: 0.7rem;
-  color: var(--vp-c-text-3);
-}
+.svc-name { font-size: 0.82rem; font-weight: 600; color: var(--vp-c-text-2); }
+.svc-detail { font-size: 0.68rem; color: var(--vp-c-text-3); }
 
 /* Data cells */
 .grid-cell {
-  padding: 0.7rem 0.75rem;
+  padding: 0.55rem 0.5rem;
   text-align: center;
   border-bottom: 1px solid var(--vp-c-divider);
   border-right: 1px solid var(--vp-c-divider);
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--vp-c-text-2);
 }
 .grid-cell:last-child { border-right: none; }
 
+/* Subtotal row */
+.subtotal-label {
+  font-weight: 600 !important;
+  border-top: 2px solid var(--vp-c-divider);
+}
+.subtotal-label .svc-name { color: var(--vp-c-text-1); }
+
+.subtotal-cell {
+  font-weight: 700;
+  color: var(--vp-c-text-1);
+  border-top: 2px solid var(--vp-c-divider);
+}
+
+/* Free tier row */
+.ft-label { background: rgba(22, 163, 74, 0.03); }
+.ft-cell {
+  background: rgba(22, 163, 74, 0.03);
+  font-weight: 600;
+}
+
+/* Total row */
+.total-label {
+  font-weight: 700 !important;
+  background: var(--vp-c-bg-soft);
+  border-top: 2px solid var(--vp-c-divider);
+}
+.total-label .svc-name { color: var(--vp-c-text-1); }
+
+.grid-total {
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  background: var(--vp-c-bg-soft);
+  border-bottom: 1px solid var(--vp-c-divider);
+  border-right: 1px solid var(--vp-c-divider);
+  border-top: 2px solid var(--vp-c-divider);
+}
+.grid-total:last-child { border-right: none; }
+
+/* Note row */
+.note-label { border-bottom: none; }
+.grid-note {
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  border-right: 1px solid var(--vp-c-divider);
+  border-bottom: none;
+}
+.grid-note:last-child { border-right: none; }
+.note-text { font-size: 0.7rem; color: #16a34a; font-weight: 600; }
+.note-sub { font-size: 0.65rem; color: var(--vp-c-text-3); font-weight: 400; }
+
 /* Value colors */
 .val-free { color: #16a34a; }
+.val-free-big { color: #16a34a; }
 .val-boa { color: #EC7211; }
-.val-normal { color: var(--vp-c-text-1); }
+.val-normal { color: var(--vp-c-text-2); }
+.val-dim { color: var(--vp-c-text-3); }
+
+/* Free tier legend */
+.ft-legend {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.ft-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--vp-c-text-3);
+}
+
+.ft-legend-item strong { color: var(--vp-c-text-2); }
+
+.ft-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ft-always { background: #16a34a; }
+.ft-12mo { background: #EC7211; }
 
 /* Footer */
 .calc-footer {
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--vp-c-text-3);
   line-height: 1.7;
 }

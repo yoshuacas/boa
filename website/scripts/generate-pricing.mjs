@@ -502,67 +502,99 @@ function deriveWorkload(profileKey, sizeKey) {
 function calculateBOA(workload, rates) {
   const { dsql, cognito, lambda, apiGateway, s3 } = rates;
 
-  // 1. Aurora DSQL
+  // 1. Aurora DSQL — always free tier (permanent)
   const readDPUs = workload.reads * dsql.dpuPerRead;
   const writeDPUs = workload.writes * dsql.dpuPerWrite;
   const deleteDPUs = workload.deletes * dsql.dpuPerDelete;
   const totalDPUs = readDPUs + writeDPUs + deleteDPUs;
-  const billableDPUs = Math.max(0, totalDPUs - dsql.freeTierDPUs);
-  const billableDbStorage = Math.max(0, workload.dbStorageGB - dsql.freeTierStorageGB);
-  const dsqlCost = (billableDPUs / 1000000) * dsql.dpuPricePerMillion
-                 + billableDbStorage * dsql.storagePricePerGB;
+  const dsqlGross = (totalDPUs / 1000000) * dsql.dpuPricePerMillion
+                  + workload.dbStorageGB * dsql.storagePricePerGB;
+  const dsqlFreeSavings = Math.min(dsqlGross, (dsql.freeTierDPUs / 1000000) * dsql.dpuPricePerMillion
+                        + Math.min(workload.dbStorageGB, dsql.freeTierStorageGB) * dsql.storagePricePerGB);
+  const dsqlNet = Math.max(0, dsqlGross - dsqlFreeSavings);
 
-  // 2. Amazon Cognito
-  let cognitoCost = 0;
+  // 2. Amazon Cognito — always free tier (permanent, 10K MAU)
+  let cognitoGross = 0;
+  let cognitoFreeMAU = 10000;
   let remainingMAU = workload.mau;
   let prevLimit = 0;
   for (const tier of cognito.tiers) {
     const tierUsers = Math.min(remainingMAU, tier.upTo - prevLimit);
     if (tierUsers <= 0) break;
-    cognitoCost += tierUsers * tier.pricePerMAU;
+    cognitoGross += tierUsers * tier.pricePerMAU;
     remainingMAU -= tierUsers;
     prevLimit = tier.upTo;
   }
+  // Cognito tiers already have first 10K at $0, so gross == net for Cognito
+  const cognitoNet = cognitoGross;
+  // But we want to show what those 10K MAU would cost if not free
+  // Use the first paid tier rate for the free tier value
+  const firstPaidRate = cognito.tiers.find(t => t.pricePerMAU > 0)?.pricePerMAU || 0;
+  const cognitoFreeSavings = Math.min(workload.mau, cognitoFreeMAU) * firstPaidRate;
 
-  // 3. AWS Lambda
+  // 3. AWS Lambda — always free tier (permanent)
   const lambdaRequests = workload.totalRequests;
-  const billableLambdaReqs = Math.max(0, lambdaRequests - lambda.freeTierRequests);
-  const lambdaRequestCost = (billableLambdaReqs / 1000000) * lambda.requestPricePerMillion;
+  const lambdaRequestGross = (lambdaRequests / 1000000) * lambda.requestPricePerMillion;
   const memoryGB = lambda.memoryMB / 1024;
   const durationSec = lambda.avgDurationMs / 1000;
   const totalGBSeconds = lambdaRequests * memoryGB * durationSec;
-  const billableGBSeconds = Math.max(0, totalGBSeconds - lambda.freeTierGBSeconds);
-  const lambdaComputeCost = billableGBSeconds * lambda.gbSecondPrice;
-  const lambdaCost = lambdaRequestCost + lambdaComputeCost;
+  const lambdaComputeGross = totalGBSeconds * lambda.gbSecondPrice;
+  const lambdaGross = lambdaRequestGross + lambdaComputeGross;
+  const lambdaFreeSavings = Math.min(lambdaGross,
+    (Math.min(lambdaRequests, lambda.freeTierRequests) / 1000000) * lambda.requestPricePerMillion
+    + Math.min(totalGBSeconds, lambda.freeTierGBSeconds) * lambda.gbSecondPrice);
+  const lambdaNet = Math.max(0, lambdaGross - lambdaFreeSavings);
 
   // 4. API Gateway — NOT in default stack (Lambda Function URLs are free).
-  // Cost is $0 unless the api-gateway extension is enabled.
-  // We still calculate it for the "with extension" comparison.
   const apigwCost = 0;
 
-  // 5. Amazon S3
-  // Only ~1% of requests involve file storage (uploads/downloads).
-  // Most requests are database CRUD, not file operations.
+  // 5. Amazon S3 — 12-month free tier (expires after first year)
   const FILE_REQUEST_RATIO = 0.01;
   const s3Puts = Math.round(workload.writes * FILE_REQUEST_RATIO);
   const s3Gets = Math.round(workload.reads * FILE_REQUEST_RATIO);
-  const billableS3Storage = Math.max(0, workload.s3StorageGB - s3.freeTierStorageGB);
-  const s3StorageCost = billableS3Storage * s3.storagePricePerGB;
-  const billablePuts = Math.max(0, s3Puts - s3.freeTierPutRequests);
-  const billableGets = Math.max(0, s3Gets - s3.freeTierGetRequests);
-  const s3RequestCost = (billablePuts / 1000) * s3.putPricePer1000
-                      + (billableGets / 1000) * s3.getPricePer1000;
-  const s3Cost = s3StorageCost + s3RequestCost;
+  const s3StorageGross = workload.s3StorageGB * s3.storagePricePerGB;
+  const s3RequestGross = (s3Puts / 1000) * s3.putPricePer1000
+                       + (s3Gets / 1000) * s3.getPricePer1000;
+  const s3Gross = s3StorageGross + s3RequestGross;
+  const s3FreeSavings = Math.min(s3Gross,
+    Math.min(workload.s3StorageGB, s3.freeTierStorageGB) * s3.storagePricePerGB
+    + (Math.min(s3Puts, s3.freeTierPutRequests) / 1000) * s3.putPricePer1000
+    + (Math.min(s3Gets, s3.freeTierGetRequests) / 1000) * s3.getPricePer1000);
+  const s3Net = Math.max(0, s3Gross - s3FreeSavings);
 
-  const total = dsqlCost + cognitoCost + lambdaCost + apigwCost + s3Cost;
+  const grossTotal = dsqlGross + cognitoGross + lambdaGross + s3Gross;
+  const freeSavingsTotal = dsqlFreeSavings + cognitoFreeSavings + lambdaFreeSavings + s3FreeSavings;
+  const netTotal = dsqlNet + cognitoNet + lambdaNet + s3Net;
 
   return {
-    dsql: round2(dsqlCost),
-    cognito: round2(cognitoCost),
-    lambda: round2(lambdaCost),
-    apiGateway: round2(apigwCost),
-    s3: round2(s3Cost),
-    total: round2(total),
+    // Gross cost (before free tier)
+    gross: {
+      dsql: round2(dsqlGross),
+      cognito: round2(cognitoGross + cognitoFreeSavings), // include what free MAU would cost
+      lambda: round2(lambdaGross),
+      s3: round2(s3Gross),
+      total: round2(dsqlGross + (cognitoGross + cognitoFreeSavings) + lambdaGross + s3Gross),
+    },
+    // Free tier savings
+    freeTier: {
+      dsql: round2(dsqlFreeSavings),
+      cognito: round2(cognitoFreeSavings),
+      lambda: round2(lambdaFreeSavings),
+      s3: round2(s3FreeSavings),
+      total: round2(dsqlFreeSavings + cognitoFreeSavings + lambdaFreeSavings + s3FreeSavings),
+      // Free tier types
+      dsqlType: 'always',      // permanent
+      cognitoType: 'always',   // permanent
+      lambdaType: 'always',    // permanent
+      s3Type: '12mo',          // expires after 12 months
+    },
+    // Net cost (what you actually pay)
+    dsql: round2(dsqlNet),
+    cognito: round2(cognitoNet),
+    lambda: round2(lambdaNet),
+    apiGateway: 0,
+    s3: round2(s3Net),
+    total: round2(netTotal),
   };
 }
 
