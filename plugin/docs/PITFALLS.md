@@ -30,6 +30,19 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | **Frontend** | | | |
 | 18 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #8 |
 | 19 | CORS errors — Lambda missing headers or OPTIONS not configured | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
+| 20 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
 | **Storage** | | | |
-| 20 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
-| 21 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
+| 21 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
+| 22 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
+| **Corporate Accounts** | | | |
+| 23 | Corporate security policies auto-disable Cognito self-signup | HIGH | See below |
+
+## Corporate AWS Accounts — Self-Signup
+
+Some enterprises (including Amazon) run automated security scans that set `AllowAdminCreateUserOnly: true` on Cognito user pools. This breaks BOA's signup flow silently — self-signup works initially, then stops working after the next security scan.
+
+**Symptoms:** Signup returns "User creation is not allowed" or the SAM template setting keeps reverting.
+
+**Workaround:** If this happens, tell the developer their corporate AWS account blocks self-signup. They can:
+1. Request a security exception for the user pool
+2. Use a personal AWS account for development (free tier covers everything BOA uses)

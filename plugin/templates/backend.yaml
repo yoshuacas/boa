@@ -105,6 +105,7 @@ Resources:
       StageName: prod
       Auth:
         DefaultAuthorizer: BoaAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
         Authorizers:
           BoaAuthorizer:
             FunctionArn: !GetAtt AuthorizerFunction.Arn
@@ -113,9 +114,26 @@ Resources:
               ReauthorizeEvery: 0
       Cors:
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info'"
+        AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
         AllowOrigin: "'*'"
         MaxAge: "'600'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
+        UNAUTHORIZED:
+          StatusCode: 401
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
 
   # -------------------------------------------------------
   # Authorizer — Lambda authorizer for BOA JWTs
@@ -165,6 +183,20 @@ Resources:
                 - dsql:DbConnect
                 - dsql:DbConnectAdmin
               Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:InitiateAuth
+                - cognito-idp:RespondToAuthChallenge
+                - cognito-idp:GetUser
+                - cognito-idp:GlobalSignOut
+                - cognito-idp:RevokeToken
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminRespondToAuthChallenge
+                - cognito-idp:AdminConfirmSignUp
+              Resource: !GetAtt UserPool.Arn
         - S3CrudPolicy:
             BucketName: !Ref StorageBucket
       Events:

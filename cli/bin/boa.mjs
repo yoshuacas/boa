@@ -23,6 +23,7 @@ Commands:
   teardown       Destroy the stack (with confirmation)
   status         Show stack info, tables, pending migrations
   check          Check required tools and AWS credentials
+  feedback       Submit feedback to improve BOA
 
 Options:
   --version      Print CLI version
@@ -36,7 +37,7 @@ if (command === '--help' || command === '-h' || !command) {
 
 const COMMANDS = [
   'init', 'deploy', 'migrate', 'verify',
-  'teardown', 'status', 'check',
+  'teardown', 'status', 'check', 'feedback',
 ];
 
 if (!COMMANDS.includes(command)) {

@@ -71,11 +71,11 @@ describe('boa CLI entry point', () => {
     );
   });
 
-  it('--help lists all seven commands', async () => {
+  it('--help lists all commands', async () => {
     const { stdout } = await run(['--help']);
     const commands = [
       'init', 'deploy', 'migrate', 'verify',
-      'teardown', 'status', 'check',
+      'teardown', 'status', 'check', 'feedback',
     ];
     for (const cmd of commands) {
       assert.ok(
