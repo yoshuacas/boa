@@ -22,10 +22,10 @@ Developer: "Add a comments table"
 Agent writes migrations/003_create_comments.sql
     │
     ▼
-Agent runs migrate.sh
+Run: boa migrate
     │
     ▼
-migrate.sh connects to DSQL via IAM auth
+boa migrate connects to DSQL via IAM auth
     │
     ├── Creates _boa_migrations tracking table (first run only)
     ├── Skips 001, 002 (already applied)
@@ -85,23 +85,23 @@ Guidelines:
 ### Directly
 
 ```bash
-bash plugin/scripts/migrate.sh
+boa migrate
 ```
 
-### Via bootstrap (first deploy)
+### Via init (first deploy)
 
-`bootstrap.sh` automatically runs `migrate.sh` after creating the stack. If you have migration files ready before your first deploy, they'll be applied immediately.
+`boa init` automatically runs migrations after creating the stack. If you have migration files ready before your first deploy, they are applied immediately.
 
 ### Via deploy (subsequent deploys)
 
-`deploy.sh` runs `migrate.sh` after every redeployment. New migration files added since the last deploy are applied automatically.
+`boa deploy` runs migrations after every redeployment. New migration files added since the last deploy are applied automatically.
 
 ## Deploying to a new environment
 
 This is where migrations pay off. To stand up an identical backend in a new region or account:
 
-1. Run `bootstrap.sh` with a new stack name — creates all AWS resources
-2. `bootstrap.sh` calls `migrate.sh` — replays every migration from `001` forward
+1. Run `boa init` with a new stack name — creates all AWS resources
+2. `boa init` runs `boa migrate` — replays every migration from `001` forward
 3. The new environment has the exact same schema as the original
 
 No manual SQL, no copying databases, no guesswork.
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
-Run `bootstrap.sh` — stack is created, both migrations are applied. The API immediately serves `/rest/v1/users` and `/rest/v1/todos`.
+Run `boa init my-app` — stack is created, both migrations are applied. The API immediately serves `/rest/v1/users` and `/rest/v1/todos`.
 
 **2. A week later — add a priority column**
 
@@ -177,8 +177,8 @@ Run `bootstrap.sh` — stack is created, both migrations are applied. The API im
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 0;
 ```
 
-Run `migrate.sh` (or `deploy.sh`). Only `003` is applied. The API now accepts and returns the `priority` field.
+Run `boa migrate` (or `boa deploy`, which runs migrations automatically). Only `003` is applied. The API now accepts and returns the `priority` field.
 
 **3. Deploy to staging**
 
-Run `bootstrap.sh` with `--stack-name my-app-staging`. All three migrations replay in order. Staging has the same schema as production.
+Run `boa init my-app-staging`. All three migrations replay in order. Staging has the same schema as production.

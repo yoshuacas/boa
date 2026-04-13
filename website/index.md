@@ -4,7 +4,7 @@ layout: home
 hero:
   name: BOA
   text: Backend on AWS
-  tagline: Open-source skill that teaches your AI coding agent to build production-ready, serverless backends on AWS.
+  tagline: Open-source CLI and agent skill for building production-ready, serverless backends on AWS. Install with npm, deploy with one command.
   actions:
     - theme: brand
       text: Get Started
@@ -23,7 +23,7 @@ features:
   - title: File Storage
     details: Amazon S3 — presigned URLs for uploads and downloads. Private by default, 5 GB free.
   - title: One-Command Deploy
-    details: SAM/CloudFormation — define your entire backend in a template and deploy with one command.
+    details: "npm install -g boa-cli && boa init my-app — deploy your entire backend with one command, from the terminal or through your agent."
   - title: Works With Any Agent
-    details: Claude Code, Kiro, VS Code Copilot, Codex — BOA teaches any coding agent to build on AWS.
+    details: Claude Code, Kiro, VS Code Copilot, Codex — use the BOA CLI directly or let your coding agent handle it.
 ---

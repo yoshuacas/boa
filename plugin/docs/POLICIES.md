@@ -5,7 +5,7 @@ Cedar policies control who can access what data in your BOA backend. They replac
 ## How It Works
 
 1. You write `.cedar` policy files in `policies/` in your project root
-2. At deploy time, `deploy.sh` bundles them with the Lambda
+2. At deploy time, `boa deploy` bundles them with the Lambda
 3. At runtime, pgrest-lambda evaluates policies and translates row-level conditions into SQL WHERE clauses — filtering happens in the database, not in application code
 4. The schema for Cedar entities is auto-generated from your PostgreSQL schema
 
@@ -218,7 +218,7 @@ permit(
 After writing or updating policies, redeploy:
 
 ```bash
-bash <plugin>/scripts/deploy.sh
+boa deploy
 ```
 
 The deploy script copies `policies/` into the Lambda build automatically. Changes take effect on next Lambda cold start, or within 5 minutes via the policy cache TTL.

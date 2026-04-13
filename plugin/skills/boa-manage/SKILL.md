@@ -16,7 +16,7 @@ Every operation starts by loading the backend config:
 ```bash
 CONFIG=".boa/config.json"
 if [ ! -f "$CONFIG" ]; then
-  echo "No .boa/config.json found. Run bootstrap.sh first."
+  echo "No .boa/config.json found. Run 'boa init' first."
   exit 1
 fi
 STACK_NAME=$(jq -r '.stackName' $CONFIG)
@@ -193,8 +193,7 @@ psql "host=$DSQL_ENDPOINT port=5432 dbname=postgres user=admin password=$TOKEN s
 Then re-run migrations:
 
 ```bash
-BOA_PLUGIN="$(dirname "$(dirname "$CLAUDE_SKILL_DIR")")"
-bash $BOA_PLUGIN/scripts/migrate.sh
+boa migrate
 ```
 
 ## Local Testing

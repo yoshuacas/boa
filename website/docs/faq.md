@@ -38,14 +38,20 @@ Node.js dependencies are pure JavaScript. They install the same way on every pla
 
 ## Can I use this without a coding agent?
 
-Yes. BOA is a skill file that agents read, but the underlying artifacts work standalone:
+Yes. Install the BOA CLI and use it directly from your terminal:
+
+```bash
+npm install -g boa-cli
+boa init my-app
+```
+
+The CLI handles everything — prerequisite checks, stack deployment, migrations, and verification. The agent skill uses the same CLI under the hood, so you get the same results either way.
+
+You also have direct access to the underlying artifacts:
 
 - **SAM templates** in `plugin/templates/` define the infrastructure
 - **Lambda handlers** in `plugin/lambda-templates/` are ready-to-use Node.js functions
-- **Deploy scripts** in `plugin/scripts/` automate the deployment
 - **Documentation** in `plugin/docs/` explains every pattern and pitfall
-
-You can read the SKILL.md file yourself and follow the same steps manually.
 
 ## Is this an official AWS service?
 

@@ -44,11 +44,11 @@ Do NOT use `event.requestContext.authorizer.claims.sub` — that is the old Cogn
 | `lambda-templates/index.mjs` | Main handler (pgrest-lambda + presigned uploads) |
 | `lambda-templates/authorizer.mjs` | JWT dual-layer authorizer |
 | `lambda-templates/presigned-upload.mjs` | S3 presigned URL handler |
-| `scripts/bootstrap.sh` | First-time deploy |
-| `scripts/deploy.sh` | Redeploy |
-| `scripts/migrate.sh` | Database migration runner |
-| `scripts/verify.sh` | Post-deploy verification |
-| `scripts/teardown.sh` | Stack removal |
+| `boa init` | First-time deploy (replaces `scripts/bootstrap.sh`) |
+| `boa deploy` | Redeploy (replaces `scripts/deploy.sh`) |
+| `boa migrate` | Database migration runner (replaces `scripts/migrate.sh`) |
+| `boa verify` | Post-deploy verification (replaces `scripts/verify.sh`) |
+| `boa teardown` | Stack removal (replaces `scripts/teardown.sh`) |
 | `docs/REST-API.md` | Full REST API reference (filtering, pagination, errors) |
 | `docs/POLICIES.md` | Cedar authorization (entity model, examples, SQL translation) |
 | `docs/PITFALLS.md` | Every known failure with fix |

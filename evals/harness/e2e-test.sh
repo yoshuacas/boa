@@ -45,9 +45,7 @@ do_teardown() {
   done
 
   step "Deleting stack..."
-  if [ -f "$PLUGIN_DIR/scripts/teardown.sh" ]; then
-    bash "$PLUGIN_DIR/scripts/teardown.sh" 2>&1 || true
-  fi
+  boa teardown 2>&1 || true
   aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$REGION" 2>/dev/null || true
   step "Waiting for delete..."
   aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$REGION" 2>/dev/null || true
@@ -96,7 +94,7 @@ if [ "$TEST_ONLY" = false ]; then
   log "BOOTSTRAP"
   step "Deploying base infrastructure..."
   export BOA_TEMPLATE_OVERRIDE="$WORK_DIR/template.yaml"
-  bash "$PLUGIN_DIR/scripts/bootstrap.sh" --stack-name "$STACK_NAME" --region "$REGION"
+  boa init "$STACK_NAME" --region "$REGION"
 
   # Store service role key in SSM so functions can use it
   SERVICE_ROLE_KEY=$(jq -r '.serviceRoleKey' .boa/config.json)
@@ -105,11 +103,11 @@ if [ "$TEST_ONLY" = false ]; then
 
   log "DEPLOY APP"
   step "Deploying tables, policies, and functions..."
-  bash "$PLUGIN_DIR/scripts/deploy.sh"
+  boa deploy
 
   log "MIGRATE"
   step "Creating tables..."
-  bash "$PLUGIN_DIR/scripts/migrate.sh"
+  boa migrate
 
   log "SEED"
   step "Installing test harness dependencies..."

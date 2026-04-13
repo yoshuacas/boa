@@ -6,7 +6,7 @@ File-based, forward-only migrations for Aurora DSQL.
 
 ## The Rule
 
-Never run DDL directly against DSQL. Always write a migration file, then run `migrate.sh`.
+Never run DDL directly against DSQL. Always write a migration file, then run `boa migrate`.
 
 This ensures every schema change is recorded, version-controlled, and replayable on new environments.
 
@@ -55,10 +55,10 @@ See [DSQL-PATTERNS.md](DSQL-PATTERNS.md) for the full constraints table.
 ## Running Migrations
 
 ```bash
-bash $(dirname ${CLAUDE_SKILL_DIR})/scripts/migrate.sh
+boa migrate
 ```
 
-The script is also called automatically by `bootstrap.sh` and `deploy.sh` when a `migrations/` directory exists.
+This is also called automatically by `boa init` and `boa deploy` when a `migrations/` directory exists.
 
 ## How the Runner Works
 
