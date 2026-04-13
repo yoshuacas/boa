@@ -1,11 +1,11 @@
 # Authorization and Access Policies
 
-Authorization controls who can read and write what. BOA uses Cedar, a policy language that evaluates in microseconds. Every table needs at least one policy -- without policies, the REST API returns empty results for that table.
+Authorization controls who can read and write what. Every table needs at least one access policy -- without policies, the REST API returns empty results for that table.
 
 ## How it works
 
-1. Every request passes through the BOA Authorizer, which validates the JWT and extracts the user's role, ID, and email.
-2. pgrest-lambda evaluates your Cedar policies against the request.
+1. Every request hits a single Lambda running pgrest-lambda, which validates the JWT and extracts the user's role, ID, and email.
+2. pgrest-lambda evaluates your access policies against the request.
 3. Row-level conditions in policies become SQL WHERE clauses -- filtering happens in the database, not application code.
 4. If no policy permits the request, it is denied. Default deny.
 
@@ -37,7 +37,7 @@ All `.cedar` files are loaded together. A request is permitted if **any** policy
 
 After writing or updating policies, run `boa deploy` to bundle them with the Lambda. Changes take effect on the next cold start or within 5 minutes via the policy cache TTL.
 
-## Cedar entity model
+## Policy entity model
 
 ### Principals
 
@@ -65,7 +65,7 @@ The principal ID for `User` is the user's UUID from the JWT `sub` claim.
 | `PgrestLambda::Table` | A database table | Table name as entity ID |
 | `PgrestLambda::Row` | A specific row | All columns, auto-mapped from PostgreSQL types |
 
-Row attributes are auto-mapped: `text`/`varchar`/`uuid` become Cedar `String`, `integer`/`bigint` become `Long`, `boolean` becomes `Boolean`.
+Row attributes are auto-mapped: `text`/`varchar`/`uuid` become `String`, `integer`/`bigint` become `Long`, `boolean` becomes `Boolean`.
 
 Use `resource in PgrestLambda::Table::"tablename"` to scope a policy to a specific table.
 
@@ -212,9 +212,9 @@ permit(
 
 ## How policies become SQL
 
-Cedar conditions with row attributes are partially evaluated and translated into SQL WHERE clauses at query time:
+Policy conditions with row attributes are partially evaluated and translated into SQL WHERE clauses at query time:
 
-| Cedar condition | SQL WHERE clause |
+| Policy condition | SQL WHERE clause |
 |----------------|------------------|
 | `resource.user_id == principal` | `user_id = $1` (user's UUID) |
 | `resource.status == "active"` | `status = 'active'` |
@@ -222,11 +222,11 @@ Cedar conditions with row attributes are partially evaluated and translated into
 | `cond1 && cond2` | `cond1 AND cond2` |
 | `resource has col` | `col IS NOT NULL` |
 
-This means filtering happens in the database. DSQL only returns rows the user is authorized to see -- there's no post-query filtering in application code.
+This means filtering happens in the database, which only returns rows the request is authorized to see -- there's no post-query filtering in application code.
 
 ## Supported operators
 
-| Operator | Cedar syntax | SQL translation |
+| Operator | Policy syntax | SQL translation |
 |----------|-------------|-----------------|
 | Equality | `resource.col == "value"` | `col = 'value'` |
 | Inequality | `resource.col != "value"` | `col != 'value'` |

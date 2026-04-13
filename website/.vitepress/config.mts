@@ -6,7 +6,7 @@ export default defineConfig({
   description: 'Backend on AWS, without the complexity. A complete backend in under a minute. Built for agents. Free until your users show up.',
   base: '/boa/',
 
-  appearance: 'dark',
+  appearance: false,
 
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
@@ -128,10 +128,6 @@ export default defineConfig({
     footer: {
       message: 'BOA is an open-source project from AWS.',
       copyright: 'Released under the Apache 2.0 License.',
-    },
-
-    search: {
-      provider: 'local'
     },
 
     editLink: {

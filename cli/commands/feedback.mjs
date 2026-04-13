@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
+import { REPO_URL } from '../lib/constants.mjs';
 
-const BOA_REPO = 'yoshuacas/boa';
+const BOA_REPO = REPO_URL.replace('https://github.com/', '');
 
 async function prompt(question) {
   const rl = createInterface({

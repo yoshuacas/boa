@@ -1,6 +1,6 @@
 # Deploying
 
-Run `boa deploy`. That's it. BOA packages your Lambda functions, updates your infrastructure, applies pending migrations, and refreshes the API schema. A typical deploy takes 2-3 minutes.
+Run `boa deploy`. That's it. BOA packages your functions, updates your backend, applies pending migrations, and refreshes the API schema. A typical deploy takes 2-3 minutes.
 
 ## What happens during deploy
 
@@ -22,7 +22,7 @@ mkdir my-app && cd my-app
 boa init --region us-east-1
 ```
 
-This creates the SAM template, deploys the full stack, runs initial migrations, and verifies everything. First deploy takes 3-5 minutes because CloudFormation creates all resources from scratch.
+This creates the SAM template, deploys the full backend, runs initial migrations, and verifies everything. First deploy takes 3-5 minutes because CloudFormation creates all resources from scratch.
 
 After init, `.boa/config.json` contains your API URL, keys, and connection details.
 
@@ -32,7 +32,7 @@ After init, `.boa/config.json` contains your API URL, keys, and connection detai
 boa deploy
 ```
 
-CloudFormation detects what changed in your template and applies only the delta. If you only changed Lambda code, the deploy is faster (under 2 minutes). If you added new infrastructure (a new S3 bucket, a new function), it takes longer.
+CloudFormation detects what changed in your template and applies only the delta. If you only changed function code, the deploy is faster (under 2 minutes). If you added new resources (a new S3 bucket, a new function), it takes longer.
 
 ## When a deploy fails
 
@@ -66,7 +66,7 @@ Common failure causes:
 |-------------|-------------|
 | Lambda code only | 1-2 minutes |
 | New Lambda function | 2-3 minutes |
-| New infrastructure resource | 3-5 minutes |
+| New resource | 3-5 minutes |
 | First deploy (`boa init`) | 3-5 minutes |
 | Database migration (schema change) | Seconds (runs after infra deploy) |
 
@@ -85,7 +85,7 @@ boa init --region us-east-1 --stack-name myapp-staging
 boa init --region us-east-1 --stack-name myapp-prod
 ```
 
-Each environment has its own DSQL cluster, Cognito user pool, API Gateway, S3 bucket, and Lambda functions. They share nothing. You can deploy to dev without affecting production.
+Each environment has its own database, authentication, API endpoint, file storage, and functions. They share nothing. You can deploy to dev without affecting production.
 
 ## CI/CD with GitHub Actions
 
@@ -131,11 +131,11 @@ boa verify
 
 This checks:
 - CloudFormation stack status
-- DSQL cluster connectivity
-- Cognito user pool health
-- API Gateway endpoint accessibility
-- Lambda function health
-- S3 bucket existence
+- Database connectivity
+- Authentication health
+- API endpoint accessibility
+- Function health
+- File storage bucket existence
 
 Run this after every deploy, or add it to your CI pipeline as a post-deploy step.
 
@@ -193,7 +193,7 @@ Add a custom domain to your API Gateway or Amplify app through the AWS Console o
 boa teardown
 ```
 
-Destroys all resources in the stack. Requires confirmation. This is irreversible -- data is deleted. DSQL clusters and S3 buckets with data have deletion protection enabled and will need manual removal if the teardown can't delete them.
+Destroys all resources in the backend. Requires confirmation. This is irreversible -- data is deleted. Databases and storage buckets with data have deletion protection enabled and will need manual removal if the teardown can't delete them.
 
 ## Next step
 

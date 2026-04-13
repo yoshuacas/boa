@@ -11,13 +11,13 @@ const lines = [
   { type: 'cmd', prompt: '$', text: 'npm install -g boa-cli' },
   { type: 'cmd', prompt: '$', text: 'boa init my-app --region us-east-1' },
   { type: 'blank' },
-  { type: 'output', icon: '\u2713', color: 'green', text: 'Aurora DSQL cluster created' },
-  { type: 'output', icon: '\u2713', color: 'green', text: 'Cognito user pool deployed' },
-  { type: 'output', icon: '\u2713', color: 'green', text: 'Lambda functions ready' },
-  { type: 'output', icon: '\u2713', color: 'green', text: 'API Gateway configured' },
-  { type: 'output', icon: '\u2713', color: 'green', text: 'S3 bucket created' },
+  { type: 'output', icon: '\u2713', color: 'green', text: 'Database ready         (PostgreSQL)' },
+  { type: 'output', icon: '\u2713', color: 'green', text: 'Auth ready             (sign-up, sign-in, JWT)' },
+  { type: 'output', icon: '\u2713', color: 'green', text: 'REST API ready         (PostgREST-compatible)' },
+  { type: 'output', icon: '\u2713', color: 'green', text: 'File storage ready     (presigned uploads)' },
+  { type: 'output', icon: '\u2713', color: 'green', text: 'Frontend hosting ready' },
   { type: 'blank' },
-  { type: 'result', text: 'Backend live at ', highlight: 'https://abc123.execute-api.us-east-1.amazonaws.com' },
+  { type: 'result', text: 'Backend live at ', highlight: 'https://my-app.boa.dev' },
 ]
 
 async function typeTerminal() {
@@ -52,36 +52,34 @@ function wait(ms) { return new Promise(r => setTimeout(r, ms)) }
 // --- Static data ---
 const howSteps = [
   { title: 'Describe your app', desc: 'Build a todo app with user accounts and file attachments' },
-  { title: 'BOA deploys the stack', desc: 'Database, auth, APIs, storage \u2014 all created in your AWS account with one command.' },
+  { title: 'BOA deploys your backend', desc: 'Database, auth, APIs, storage \u2014 created in your AWS account with one command.' },
   { title: 'Connect your frontend', desc: 'Use @supabase/supabase-js as a drop-in client. Every table is a REST endpoint.' },
   { title: 'Evolve with migrations', desc: 'Add tables, change schemas, track every change in numbered SQL files. No surprises.' },
 ]
 
-const stackServices = [
-  { label: 'Database', name: 'Aurora DSQL', desc: 'Serverless PostgreSQL. SQL you already know. Scales to zero. 100K DPUs free.' },
-  { label: 'Auth', name: 'Amazon Cognito', desc: 'Sign-up, sign-in, MFA, social login. JWT tokens. 10,000 MAU free.' },
-  { label: 'Compute', name: 'AWS Lambda', desc: 'Node.js 20.x handlers. No servers. 1M requests/month free.' },
-  { label: 'API', name: 'API Gateway', desc: 'REST API with Cognito authorization. 1M requests/month free.' },
-  { label: 'Storage', name: 'Amazon S3', desc: 'Presigned URLs. Never public. 5 GB free storage.' },
-  { label: 'Hosting', name: 'AWS Amplify', desc: 'Frontend CI/CD from Git. Custom domains. Auto SSL.' },
-  { label: 'IaC', name: 'SAM / CloudFormation', desc: 'One template defines everything. Repeatable, version-controlled deploys.' },
+const capabilities = [
+  { name: 'PostgreSQL Database', desc: 'Write SQL you already know. No connection strings to manage, no clusters to size. Scales to zero when idle.', link: '/boa/docs/database/overview' },
+  { name: 'Authentication', desc: 'Sign up, sign in, MFA, social providers. Works the moment you deploy. No auth code to write.', link: '/boa/docs/auth/overview' },
+  { name: 'REST API', desc: 'Auto-generated CRUD for every table. Filtering, sorting, pagination, resource embedding. No routes to write.', link: '/boa/docs/api/overview' },
+  { name: 'File Storage', desc: 'Upload and download files. Private by default, organized by user. No public buckets, no access mistakes.', link: '/boa/docs/storage/overview' },
+  { name: 'Functions', desc: 'Business logic that runs on deploy. Webhooks, scheduled jobs, background work. Write the code, BOA runs it.', link: '/boa/docs/functions/overview' },
+  { name: 'One-Command Deploy', desc: '`boa deploy` and your backend is live. Update a table, add a function, change a policy \u2014 deploy again. Same command.', link: '/boa/docs/deployment/overview' },
 ]
 
-const comparisonRows = [
-  { feature: 'You own the infrastructure', boa: { text: '\u2713', cls: 'check' }, supa: { text: '\u2715', cls: 'cross' }, fire: { text: '\u2715', cls: 'cross' }, amp: { text: 'Partial', cls: 'partial' } },
-  { feature: 'Scales to zero ($0 idle)', boa: { text: '\u2713', cls: 'check' }, supa: { text: '$25/mo min', cls: 'cross' }, fire: { text: 'Partial', cls: 'partial' }, amp: { text: '\u2713', cls: 'check' } },
-  { feature: 'PostgreSQL', boa: { text: 'Aurora DSQL', cls: 'check' }, supa: { text: '\u2713', cls: 'check' }, fire: { text: 'Firestore', cls: 'cross' }, amp: { text: 'DynamoDB', cls: 'cross' } },
-  { feature: 'Agent-ready skill', boa: { text: '\u2713', cls: 'check' }, supa: { text: '\u2715', cls: 'cross' }, fire: { text: '\u2715', cls: 'cross' }, amp: { text: '\u2715', cls: 'cross' } },
-  { feature: 'One-command deploy', boa: { text: '\u2713', cls: 'check' }, supa: { text: 'Managed', cls: 'na' }, fire: { text: 'Managed', cls: 'na' }, amp: { text: '\u2713', cls: 'check' } },
-  { feature: 'No vendor lock-in', boa: { text: '\u2713', cls: 'check' }, supa: { text: '\u2715', cls: 'cross' }, fire: { text: '\u2715', cls: 'cross' }, amp: { text: 'AWS only', cls: 'partial' } },
-  { feature: 'Supabase-JS compatible', boa: { text: 'Drop-in', cls: 'check' }, supa: { text: 'Native', cls: 'check' }, fire: { text: '\u2715', cls: 'cross' }, amp: { text: '\u2715', cls: 'cross' } },
+const whyBoaCards = [
+  { title: 'You own it', desc: 'Every resource lives in your AWS account. No vendor holds your data.' },
+  { title: '$0 to start', desc: 'The AWS Free Tier covers your entire backend. No monthly minimums.' },
+  { title: 'PostgreSQL', desc: 'Real SQL. Not a proprietary query language. Not a document store.' },
+  { title: 'No re-architecture', desc: 'The backend you prototype on is the backend you scale on.' },
+  { title: 'Supabase-JS compatible', desc: 'Use @supabase/supabase-js as your client library. Zero learning curve.' },
+  { title: 'Agent-native', desc: 'The BOA skill works with Claude Code, Kiro, Copilot, and Codex.' },
 ]
 
 const pricingTiers = [
-  { name: 'Prototype', users: '50 users', price: '$0', sub: '/mo', note: 'Free tier covers everything', free: true },
-  { name: 'Startup', users: '1,000 users', price: '$0', sub: '/mo', note: 'Still within free tier', free: true },
-  { name: 'Growth', users: '100K users', price: '~$500', sub: '/mo', note: 'vs $1,300+ on Supabase', free: false },
-  { name: 'Scale', users: '2M users', price: 'Pay-as-you-go', sub: '', note: 'Same stack, no re-architecture', free: false, highlighted: true },
+  { name: 'Prototype', users: '50 customers', price: '$0', sub: '/mo', note: 'Free tier covers everything', free: true },
+  { name: 'Startup', users: '1,000 customers', price: '$0', sub: '/mo', note: 'Still within free tier', free: true },
+  { name: 'Growth', users: '100K customers', price: '~$500', sub: '/mo', note: 'Pay-as-you-go AWS pricing', free: false },
+  { name: 'Scale', users: '2M customers', price: 'Pay-as-you-go', sub: '', note: 'Same backend, no re-architecture', free: false, highlighted: true },
 ]
 
 const agents = [
@@ -129,7 +127,7 @@ onUnmounted(() => {
         <h1 class="hero-title">Backend on AWS</h1>
         <p class="hero-subtitle">Without the complexity</p>
         <p class="hero-tagline">
-          A complete backend on AWS in under a minute. Built for agents. Free until your users show up. No ceiling when they do.
+          A complete backend on AWS in under a minute. Built for agents. Free until you have paying customers. Same architecture at a million customers.
         </p>
         <div class="hero-actions">
           <a href="/boa/docs/getting-started" class="btn btn-primary">Get Started</a>
@@ -173,7 +171,7 @@ onUnmounted(() => {
     <section class="announcement">
       <div class="container">
         <span class="announcement-badge">New</span>
-        April 28, 2026 — BOA is now available. Install the CLI, add the skill to your agent, and deploy your first backend.
+        April 28, 2026 — BOA is live. Deploy your first backend in under a minute.
         <a href="/boa/install">Install now &rarr;</a>
       </div>
     </section>
@@ -192,7 +190,7 @@ onUnmounted(() => {
               </svg>
             </div>
             <h3>Serverless Backend</h3>
-            <p>Database, auth, APIs, storage on AWS. Scales to zero when idle, scales to millions under load. You own every resource.</p>
+            <p>Database, auth, APIs, storage — all in your AWS account. Scales to zero when idle. Scales to millions under load.</p>
           </div>
 
           <div class="pillar">
@@ -232,7 +230,7 @@ onUnmounted(() => {
               </svg>
             </div>
             <h3>Safe by Default</h3>
-            <p>Opinionated guardrails prevent the mistakes that kill projects. Data protected, schema tracked, infrastructure can't be accidentally destroyed.</p>
+            <p>Opinionated guardrails prevent the mistakes that kill projects. Data protected, schema tracked, your backend can't be accidentally destroyed.</p>
           </div>
 
         </div>
@@ -256,62 +254,31 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <!-- ============ THE STACK ============ -->
-    <section class="stack reveal">
+    <!-- ============ CAPABILITIES ============ -->
+    <section class="capabilities reveal">
       <div class="container">
-        <h2 class="section-title">Seven AWS services. One opinionated stack.</h2>
-        <p class="section-subtitle">Every service is serverless. No servers to manage, no capacity planning, pay only for what you use.</p>
+        <h2 class="section-title">Everything you need to build a backend</h2>
+        <p class="section-subtitle">Costs nothing when idle. Scales automatically. No servers to manage.</p>
 
-        <div class="stack-grid">
-          <div class="stack-card" v-for="svc in stackServices" :key="svc.label">
-            <div class="stack-card-header">
-              <span class="stack-label">{{ svc.label }}</span>
-            </div>
-            <h4>{{ svc.name }}</h4>
-            <p>{{ svc.desc }}</p>
-          </div>
+        <div class="capabilities-grid">
+          <a v-for="cap in capabilities" :key="cap.name" :href="cap.link" class="capability-card">
+            <h4>{{ cap.name }}</h4>
+            <p>{{ cap.desc }}</p>
+            <span class="capability-link">Learn more &rarr;</span>
+          </a>
         </div>
       </div>
     </section>
 
-    <!-- ============ COMPARISON ============ -->
-    <section class="comparison reveal">
-      <div class="container">
-        <h2 class="section-title">How BOA compares</h2>
-        <p class="section-subtitle">BOA gives you the Supabase developer experience on infrastructure you own.</p>
-
-        <div class="comparison-table-wrap">
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th class="highlight-col">BOA</th>
-                <th>Supabase</th>
-                <th>Firebase</th>
-                <th>Amplify Gen 2</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in comparisonRows" :key="row.feature">
-                <td class="feature-name">{{ row.feature }}</td>
-                <td class="highlight-col"><span :class="row.boa.cls">{{ row.boa.text }}</span></td>
-                <td><span :class="row.supa.cls">{{ row.supa.text }}</span></td>
-                <td><span :class="row.fire.cls">{{ row.fire.text }}</span></td>
-                <td><span :class="row.amp.cls">{{ row.amp.text }}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    <!-- why-boa section removed -->
 
     <!-- ============ PRICING PREVIEW ============ -->
     <section class="pricing-preview reveal">
       <div class="container">
-        <h2 class="section-title">$0/month for your first 1,000 users</h2>
+        <h2 class="section-title">BOA is free. Here's what AWS costs.</h2>
         <p class="section-subtitle">
-          The AWS Free Tier covers the entire BOA stack for most prototypes and early-stage apps.
-          No credit card traps, no surprise bills.
+          BOA is open source — no fees, no tiers, no paid plans. You only pay AWS, and only when you outgrow their free tier.
+          A typical app with 1,000 customers costs $0/month.
         </p>
 
         <div class="pricing-tiers">
@@ -347,8 +314,8 @@ onUnmounted(() => {
     <!-- ============ CTA ============ -->
     <section class="cta reveal">
       <div class="container">
-        <h2 class="cta-title">Build your first backend in 10 minutes</h2>
-        <p class="cta-subtitle">Open source. Apache 2.0. Free forever.</p>
+        <h2 class="cta-title">From install to a working backend in under a minute</h2>
+        <p class="cta-subtitle">Free and open source. Apache 2.0. No BOA fees, ever — you only pay AWS.</p>
         <div class="cta-actions">
           <a href="/boa/docs/getting-started" class="btn btn-primary btn-lg">Get Started</a>
           <a href="https://github.com/yoshuacas/boa" target="_blank" rel="noopener" class="btn btn-outline btn-lg">
@@ -392,7 +359,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="footer-bottom">
-          <p>BOA is an open-source project from AWS. Released under the Apache 2.0 License.</p>
+          <p>BOA is open source, released under the Apache 2.0 License.</p>
         </div>
       </div>
     </footer>
@@ -782,14 +749,14 @@ onUnmounted(() => {
   font-size: 0.8rem; color: #FF9900; font-family: 'JetBrains Mono', monospace;
 }
 
-/* --- THE STACK --- */
-.stack {
+/* --- CAPABILITIES --- */
+.capabilities {
   padding: 80px 24px;
   background: #0A0A0A;
   position: relative;
 }
 
-.stack::before {
+.capabilities::before {
   content: '';
   position: absolute;
   top: 0; left: 50%;
@@ -798,46 +765,48 @@ onUnmounted(() => {
   background: linear-gradient(90deg, transparent, #FF9900, transparent);
 }
 
-.stack-grid {
+.capabilities-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   margin-top: 48px;
 }
 
-.stack-card {
+.capability-card {
   background: #111111;
   border: 1px solid #2A2A2A;
   border-radius: 10px;
-  padding: 24px;
+  padding: 28px 24px;
+  text-decoration: none;
+  display: block;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.stack-card:hover {
+.capability-card:hover {
   border-color: #FF9900;
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(255, 153, 0, 0.08);
 }
 
-.stack-card-header { margin-bottom: 12px; }
+.capability-card h4 { font-size: 1.05rem; font-weight: 700; color: #FFFFFF; margin: 0 0 8px; }
+.capability-card p { font-size: 0.88rem; color: #888888; line-height: 1.6; margin: 0 0 12px; }
 
-.stack-label {
-  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.08em; color: #FF9900;
-  background: rgba(255, 153, 0, 0.1); padding: 3px 8px; border-radius: 4px;
+.capability-link {
+  font-size: 0.82rem; font-weight: 600; color: #FF9900;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
-.stack-card h4 { font-size: 1rem; font-weight: 700; color: #FFFFFF; margin: 0 0 6px; }
-.stack-card p { font-size: 0.85rem; color: #888888; line-height: 1.5; margin: 0; }
+.capability-card:hover .capability-link { opacity: 1; }
 
-/* --- COMPARISON --- */
-.comparison {
+/* --- WHY BOA --- */
+.why-boa {
   padding: 80px 24px;
   background: #111111;
   position: relative;
 }
 
-.comparison::before {
+.why-boa::before {
   content: '';
   position: absolute;
   top: 0; left: 50%;
@@ -846,33 +815,34 @@ onUnmounted(() => {
   background: linear-gradient(90deg, transparent, #FF9900, transparent);
 }
 
-.comparison-table-wrap { margin-top: 48px; overflow-x: auto; }
-
-.comparison-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-
-.comparison-table th {
-  padding: 14px 20px; text-align: center;
-  font-size: 0.85rem; font-weight: 700; color: #888888;
-  border-bottom: 2px solid #2A2A2A;
-  text-transform: uppercase; letter-spacing: 0.04em;
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 48px;
 }
 
-.comparison-table th.highlight-col { color: #FF9900; background: rgba(255, 153, 0, 0.04); }
-
-.comparison-table td {
-  padding: 14px 20px; text-align: center;
-  border-bottom: 1px solid #1A1A1A; color: #CCCCCC;
+.why-card {
+  background: #161616;
+  border: 1px solid #2A2A2A;
+  border-radius: 10px;
+  padding: 28px 24px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.comparison-table td.highlight-col { background: rgba(255, 153, 0, 0.04); }
-.comparison-table td.feature-name { text-align: left; font-weight: 600; color: #FFFFFF; }
-.comparison-table tbody tr { transition: background 0.2s ease; }
-.comparison-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+.why-card:hover {
+  border-color: rgba(255, 153, 0, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(255, 153, 0, 0.06);
+}
 
-.check { color: #28C840; font-weight: 700; }
-.cross { color: #555555; }
-.partial { color: #FEBC2E; font-size: 0.82rem; }
-.na { color: #555555; font-size: 0.82rem; }
+.why-card h4 {
+  font-size: 1.05rem; font-weight: 700; color: #FF9900; margin: 0 0 8px;
+}
+
+.why-card p {
+  font-size: 0.9rem; color: #888888; line-height: 1.6; margin: 0;
+}
 
 /* --- PRICING PREVIEW --- */
 .pricing-preview {
@@ -1019,7 +989,7 @@ onUnmounted(() => {
 /* --- RESPONSIVE --- */
 @media (max-width: 960px) {
   .hero-title { font-size: 4rem; }
-  .pillars-grid, .how-grid, .stack-grid, .pricing-tiers, .agents-grid { grid-template-columns: repeat(2, 1fr); }
+  .pillars-grid, .how-grid, .capabilities-grid, .pricing-tiers, .agents-grid, .why-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
@@ -1028,11 +998,10 @@ onUnmounted(() => {
   .hero-subtitle { font-size: 1.3rem; }
   .hero-tagline { font-size: 1rem; }
   .hero-actions { flex-direction: column; align-items: center; }
-  .pillars-grid, .how-grid, .stack-grid, .pricing-tiers, .agents-grid { grid-template-columns: 1fr; }
+  .pillars-grid, .how-grid, .capabilities-grid, .pricing-tiers, .agents-grid { grid-template-columns: 1fr; }
   .section-title { font-size: 1.6rem; }
   .cta-title { font-size: 1.8rem; }
-  .comparison-table { font-size: 0.8rem; }
-  .comparison-table th, .comparison-table td { padding: 10px 12px; }
+  .why-grid { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
 }
 </style>

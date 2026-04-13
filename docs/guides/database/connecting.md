@@ -4,7 +4,7 @@ Most of the time, you don't connect to the database directly. Your frontend uses
 
 ## From the Frontend (Supabase Client)
 
-This is the recommended path for all frontend operations. The Supabase client talks to the REST API, which pgrest-lambda translates into SQL queries against DSQL:
+This is the recommended path for all frontend operations. The Supabase client talks to the REST API, which pgrest-lambda translates into SQL queries against your database:
 
 ```javascript
 import { createClient } from '@supabase/supabase-js'
@@ -114,16 +114,16 @@ export async function handler(event) {
 ### Key details
 
 - **Pool outside the handler** — Lambda reuses the execution environment across invocations. The pool is created once and reused.
-- **`max: 5`** — keep the pool small. Lambda functions are short-lived; too many connections waste DSQL resources.
+- **`max: 5`** — keep the pool small. Lambda functions are short-lived; too many connections waste database resources.
 - **`REGION_NAME`** — never use `AWS_REGION` as an environment variable name. It is reserved by Lambda. Use `REGION_NAME` instead.
 
-**If the connection times out:** Check that your Lambda function has network access to the DSQL endpoint (VPC configuration or public endpoint) and that `connectionTimeoutMillis` is set high enough for cold starts.
+**If the connection times out:** Check that your Lambda function has network access to the database endpoint (VPC configuration or public endpoint) and that `connectionTimeoutMillis` is set high enough for cold starts.
 
 **If you see "password authentication failed":** The IAM token has expired. This happens when a Lambda instance sits idle for more than 15 minutes and then receives a request. The `setInterval` refresh prevents this for active instances. For infrequently invoked functions, regenerate the token on each invocation instead of caching it.
 
 ## Connection Limits
 
-DSQL does not have a fixed connection limit like RDS, but each Lambda invocation should use a small pool (`max: 1-5`). At high concurrency, hundreds of Lambda instances may each hold connections. DSQL handles this, but keep per-function pools small.
+Your database does not have a fixed connection limit, but each Lambda invocation should use a small pool (`max: 1-5`). At high concurrency, hundreds of Lambda instances may each hold connections. Your database handles this, but keep per-function pools small.
 
 ## Environment Variables
 
@@ -131,7 +131,7 @@ Every BOA Lambda function gets these automatically:
 
 | Variable | Description |
 |----------|-------------|
-| `DSQL_ENDPOINT` | Aurora DSQL cluster hostname |
+| `DSQL_ENDPOINT` | Database cluster hostname |
 | `REGION_NAME` | AWS region (use this, not `AWS_REGION`) |
 | `API_URL` | BOA REST API endpoint |
 | `ANON_KEY` | Public API key |

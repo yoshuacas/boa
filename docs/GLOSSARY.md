@@ -40,6 +40,15 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 | **roles** | The concept of request identity levels | Three values: anon, authenticated, service role |
 | **Cedar** | The implementation engine | Technical docs only, never developer-facing |
 
+## Database
+
+| Term | Usage | Notes |
+|------|-------|-------|
+| **database** | The developer-facing term | "your database", "create a table in your database" |
+| **PostgreSQL** | Only when explaining technical details | "your database is PostgreSQL under the hood" |
+| **Aurora DSQL** | Only in the architecture document | Never in getting-started, tutorials, or general docs |
+| **DSQL** | Never in developer-facing text | Internal/technical docs only |
+
 ## Schema & Data
 
 | Term | Usage | Notes |

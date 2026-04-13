@@ -1,144 +1,31 @@
 /* ============================================================
-   BOA — Dark Theme Foundation
-   AWS Colors: Orange #FF9900, Yellow #FFAD33, White #FFFFFF
-   Inspired by Cedar Policy (cedarpolicy.com)
+   BOA — Homepage dark, Docs light
+   Homepage uses HomeLayout.vue (self-contained dark styles).
+   Doc pages use VitePress default light theme with orange accents.
    ============================================================ */
 
-/* --- Color System --- */
+/* --- Brand Colors --- */
 :root {
-  /* AWS Brand */
   --boa-orange: #FF9900;
   --boa-orange-dark: #EC7211;
   --boa-orange-light: #FFAD33;
-  --boa-yellow: #FFCC00;
-  --boa-white: #FFFFFF;
 
-  /* Dark Surfaces */
-  --boa-bg: #0A0A0A;
-  --boa-surface: #111111;
-  --boa-surface-2: #161616;
-  --boa-surface-3: #1A1A1A;
-  --boa-surface-4: #222222;
-  --boa-border: #2A2A2A;
-  --boa-border-light: #333333;
+  --vp-c-brand-1: #EC7211;
+  --vp-c-brand-2: #FF9900;
+  --vp-c-brand-3: #FFAD33;
+  --vp-c-brand-soft: rgba(255, 153, 0, 0.12);
 
-  /* Text */
-  --boa-text: #FFFFFF;
-  --boa-text-2: #CCCCCC;
-  --boa-text-3: #888888;
-  --boa-text-muted: #666666;
-
-  /* Semantic */
-  --boa-green: #27AE60;
-  --boa-green-soft: rgba(39, 174, 96, 0.12);
-  --boa-orange-soft: rgba(255, 153, 0, 0.12);
-
-  /* VitePress Overrides — force dark */
-  --vp-c-bg: #0A0A0A;
-  --vp-c-bg-alt: #111111;
-  --vp-c-bg-elv: #161616;
-  --vp-c-bg-soft: #1A1A1A;
-
-  --vp-c-brand-1: #FF9900;
-  --vp-c-brand-2: #EC7211;
-  --vp-c-brand-3: #FF9900;
-  --vp-c-brand-soft: rgba(255, 153, 0, 0.14);
-
-  --vp-c-text-1: #FFFFFF;
-  --vp-c-text-2: #CCCCCC;
-  --vp-c-text-3: #888888;
-
-  --vp-c-divider: #2A2A2A;
-  --vp-c-gutter: #111111;
-
-  --vp-c-default-1: #333333;
-  --vp-c-default-2: #2A2A2A;
-  --vp-c-default-3: #222222;
-  --vp-c-default-soft: rgba(255, 255, 255, 0.04);
-
-  --vp-sidebar-bg-color: #0A0A0A;
-
-  --vp-code-block-bg: #111111;
-  --vp-code-tab-divider: #2A2A2A;
-  --vp-code-copy-code-bg: #1A1A1A;
-  --vp-code-copy-code-hover-bg: #222222;
-  --vp-code-copy-code-active-text: #FF9900;
-
-  --vp-c-tip-1: #FF9900;
-  --vp-c-tip-2: rgba(255, 153, 0, 0.14);
-  --vp-c-tip-3: rgba(255, 153, 0, 0.08);
-
-  --vp-c-warning-1: #FFCC00;
-  --vp-c-warning-2: rgba(255, 204, 0, 0.14);
-  --vp-c-warning-3: rgba(255, 204, 0, 0.08);
-
-  /* Fonts */
   --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-  /* Navigation */
-  --vp-nav-bg-color: rgba(10, 10, 10, 0.85);
-  --vp-nav-screen-bg-color: #0A0A0A;
-
-  /* Sidebar */
-  --vp-sidebar-bg-color: #0A0A0A;
 }
 
-/* Force dark mode — override light mode entirely */
-.dark {
-  --vp-c-bg: #0A0A0A;
-  --vp-c-bg-alt: #111111;
-  --vp-c-bg-elv: #161616;
-  --vp-c-bg-soft: #1A1A1A;
-
-  --vp-c-brand-1: #FF9900;
-  --vp-c-brand-2: #FFAD33;
-  --vp-c-brand-3: #FF9900;
-  --vp-c-brand-soft: rgba(255, 153, 0, 0.16);
-
-  --vp-c-text-1: #FFFFFF;
-  --vp-c-text-2: #CCCCCC;
-  --vp-c-text-3: #888888;
-
-  --vp-c-divider: #2A2A2A;
-  --vp-c-gutter: #111111;
-
-  --vp-code-block-bg: #111111;
+/* --- Doc Pages: Orange accents on default light theme --- */
+.vp-doc a {
+  color: var(--boa-orange-dark);
 }
 
-/* --- Global Body --- */
-html {
-  background-color: #0A0A0A !important;
-  color-scheme: dark;
-}
-
-body {
-  background-color: #0A0A0A;
-}
-
-/* --- Navigation Bar --- */
-.VPNavBar {
-  background-color: rgba(10, 10, 10, 0.9) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--boa-border) !important;
-}
-
-.VPNavBarTitle .title {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--boa-orange) !important;
-  font-size: 1.1rem;
-}
-
-.VPNavBarMenu .VPNavBarMenuLink.active {
-  color: var(--boa-orange) !important;
-}
-
-/* --- Sidebar --- */
-.VPSidebar {
-  background-color: #0A0A0A !important;
-  border-right: 1px solid var(--boa-border) !important;
+.vp-doc a:hover {
+  color: var(--boa-orange);
 }
 
 .VPSidebarItem.is-active > .item > .indicator {
@@ -146,143 +33,71 @@ body {
 }
 
 .VPSidebarItem.is-active > .item .link > .text {
-  color: var(--boa-orange) !important;
-}
-
-/* --- Content Area --- */
-.VPContent {
-  background-color: #0A0A0A !important;
-}
-
-.VPDoc {
-  background-color: #0A0A0A !important;
-}
-
-/* --- Code Blocks --- */
-div[class*='language-'] {
-  background-color: #111111 !important;
-  border: 1px solid var(--boa-border);
-  border-radius: 8px;
-}
-
-div[class*='language-'] code {
-  color: #e6e6e6;
-}
-
-.vp-code-group .tabs {
-  background-color: #0A0A0A !important;
-  border-bottom: 1px solid var(--boa-border);
-}
-
-/* --- Tables --- */
-.vp-doc table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.vp-doc table th {
-  background-color: var(--boa-surface-2);
-  color: var(--boa-text-2);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.75rem 1rem;
-  border-bottom: 2px solid var(--boa-border);
-}
-
-.vp-doc table td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--boa-border);
-}
-
-.vp-doc table tr:hover {
-  background-color: var(--boa-surface);
-}
-
-/* --- Custom Containers (tips, warnings) --- */
-.vp-doc .custom-block {
-  border-radius: 8px;
-  background-color: var(--boa-surface);
-  border-color: var(--boa-border);
+  color: var(--boa-orange-dark) !important;
 }
 
 .vp-doc .custom-block.tip {
   border-color: var(--boa-orange);
-  background-color: var(--boa-orange-soft);
 }
 
-.vp-doc .custom-block.warning {
-  border-color: var(--boa-yellow);
-}
-
-/* --- Links --- */
-.vp-doc a {
-  color: var(--boa-orange);
-  text-decoration: none;
-}
-
-.vp-doc a:hover {
-  color: var(--boa-orange-light);
-  text-decoration: underline;
-}
-
-/* --- Footer --- */
-.VPFooter {
-  background-color: #0A0A0A !important;
-  border-top: 1px solid var(--boa-border) !important;
-}
-
-/* --- Scrollbar --- */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0A0A0A;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* --- Search --- */
-.VPLocalSearchBox {
-  --vp-local-search-bg: #111111 !important;
-}
-
-/* --- Hero (VitePress default - used as fallback) --- */
-.VPHero .name .clip {
-  background: linear-gradient(135deg, #FF9900, #EC7211);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* --- Homepage Overrides ---
-   When HomeLayout is used inside layout:page, remove VitePress page chrome */
+/* --- Homepage Overrides --- */
 .vp-doc .home-layout {
   margin: 0;
   padding: 0;
   max-width: none;
 }
 
-/* Hide VitePress default footer when our custom HomeLayout footer is present */
 .VPContent:has(.home-layout) ~ .VPFooter {
   display: none !important;
 }
 
-/* Hide the VPLocalNav "Return to top" bar on homepage */
 body:has(.home-layout) .VPLocalNav {
   display: none !important;
 }
 
-/* --- Utility Classes --- */
-.boa-orange { color: var(--boa-orange); }
-.boa-yellow { color: var(--boa-yellow); }
-.boa-white { color: var(--boa-white); }
-.boa-muted { color: var(--boa-text-3); }
+body:has(.home-layout) {
+  background-color: #0A0A0A !important;
+}
+
+body:has(.home-layout) .VPContent {
+  background-color: #0A0A0A !important;
+}
+
+/* Dark nav only on homepage */
+body:has(.home-layout) .VPNav,
+body:has(.home-layout) .VPNavBar {
+  background-color: rgba(10, 10, 10, 0.95) !important;
+  border-bottom-color: #2A2A2A !important;
+}
+
+body:has(.home-layout) .VPNavBarTitle .title {
+  color: #FF9900 !important;
+}
+
+body:has(.home-layout) .VPNavBarMenuLink {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPNavBarMenuLink:hover,
+body:has(.home-layout) .VPNavBarMenuLink.active {
+  color: #FF9900 !important;
+}
+
+body:has(.home-layout) .VPSocialLink {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPFlyout .button .text {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPNavBar .divider-line {
+  background-color: #2A2A2A !important;
+}
+
+/* --- Hero fallback --- */
+.VPHero .name .clip {
+  background: linear-gradient(135deg, #FF9900, #EC7211);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

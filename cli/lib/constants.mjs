@@ -1,3 +1,6 @@
+export const REPO_URL = 'https://github.com/yoshuacas/boa';
+export const REPO_RAW_URL = 'https://raw.githubusercontent.com/yoshuacas/boa/main';
+
 export const DSQL_REGIONS = ['us-east-1', 'us-east-2'];
 
 export const TOOLS = [

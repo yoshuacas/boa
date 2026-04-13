@@ -1,6 +1,6 @@
 # Email and Password Auth
 
-The default. Users sign up with an email and password, and can sign in immediately — no verification email required.
+The default. Customers sign up with an email and password, and can sign in immediately — no verification email required.
 
 ## Sign up
 
@@ -13,8 +13,8 @@ const { data, error } = await supabase.auth.signUp({
 if (error) {
   console.error('Sign-up failed:', error.message)
 } else {
-  console.log('User created:', data.user.id)
-  // User is confirmed and signed in — no email verification step
+  console.log('Customer created:', data.user.id)
+  // Customer is confirmed and signed in — no email verification step
 }
 ```
 
@@ -39,7 +39,7 @@ const { data, error } = await supabase.auth.signInWithPassword({
 })
 
 if (data.session) {
-  // User is signed in — all subsequent requests are authenticated automatically
+  // Customer is signed in — all subsequent requests are authenticated automatically
 }
 ```
 
@@ -88,9 +88,9 @@ curl -s "$API_URL/auth/v1/user" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Why users can sign in immediately
+## Why customers can sign in immediately
 
-BOA deploys a pre-signup Lambda trigger that auto-confirms every new user:
+BOA deploys a pre-signup Lambda trigger that auto-confirms every new customer:
 
 ```javascript
 export const handler = async (event) => {
@@ -102,7 +102,7 @@ export const handler = async (event) => {
 };
 ```
 
-This skips the email verification step entirely. If your app needs email verification (finance, healthcare, anything where you must prove the user owns the email), remove this trigger and configure SES to send verification emails.
+This skips the email verification step entirely. If your app needs email verification (finance, healthcare, anything where you must prove the customer owns the email), remove this trigger and configure SES to send verification emails.
 
 ## Password reset
 
@@ -114,7 +114,7 @@ Password reset sends an email with a reset link. This requires Amazon SES to be 
 const { error } = await supabase.auth.resetPasswordForEmail('user@example.com')
 ```
 
-**Complete the reset (after the user clicks the email link):**
+**Complete the reset (after the customer clicks the email link):**
 
 ```javascript
 const { error } = await supabase.auth.updateUser({

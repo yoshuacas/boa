@@ -10,11 +10,11 @@ You pay only for the AWS services your backend uses, and each one has a generous
 
 | Service | Free tier |
 |---------|-----------|
-| Aurora DSQL | 100K DPUs/month |
-| Cognito | 10,000 MAU |
-| Lambda | 1M requests/month |
-| API Gateway | 1M requests/month |
-| S3 | 5 GB storage |
+| Database (Aurora DSQL) | 100K DPUs/month |
+| Authentication (Cognito) | 10,000 MAU |
+| Functions (Lambda) | 1M requests/month |
+| API endpoint (API Gateway) | 1M requests/month |
+| File storage (S3) | 5 GB storage |
 
 Most apps stay within free tier through early growth. When you do exceed it, costs scale linearly -- there is no cliff where you jump to a $25/month or $100/month paid plan.
 
@@ -25,11 +25,11 @@ Use the [pricing calculator](/pricing) to estimate costs at your specific scale.
 Both are solid choices. Pick based on what matters to you:
 
 - **Client code is identical.** BOA uses `@supabase/supabase-js` as its client library. Switching between them requires changing one URL and one key.
-- **Infrastructure ownership.** BOA deploys to your AWS account. You own and control everything. Supabase is a managed service where your data lives on their infrastructure.
+- **Ownership.** BOA deploys to your AWS account. You own and control everything. With Supabase, your data lives on their servers.
 - **Cost model.** BOA scales to true zero -- every service is serverless and costs nothing when idle. Supabase requires a $25/month Pro plan once you exceed free tier limits (0.5 GB database, 50 concurrent connections).
-- **Scaling path.** The same BOA stack that runs your prototype handles millions of users. AWS services scale automatically. With Supabase, scaling may require upgrading compute tiers or migrating plans.
+- **Scaling path.** The same BOA backend that runs your prototype handles millions of customers. With Supabase, scaling may require upgrading compute tiers or migrating plans.
 - **AWS ecosystem.** Since BOA runs in your AWS account, you can integrate with any AWS service (SQS, SNS, Step Functions, EventBridge, etc.) directly.
-- **Managed convenience.** Supabase gives you a dashboard, realtime subscriptions, and edge functions out of the box. BOA requires more setup but gives you full control.
+- **Convenience.** Supabase gives you a dashboard, realtime subscriptions, and edge functions out of the box. BOA requires more setup but gives you full control.
 
 ## Why PostgreSQL (DSQL) instead of DynamoDB?
 
@@ -57,7 +57,7 @@ aws sso login        # authenticate with AWS
 boa init my-app      # deploy the full backend
 ```
 
-The CLI handles prerequisite checks, stack deployment, migrations, and verification. The agent skill calls the same CLI under the hood, so you get identical results either way.
+The CLI handles prerequisite checks, deployment, migrations, and verification. The agent skill calls the same CLI under the hood, so you get identical results either way.
 
 ## What is pgrest-lambda?
 
@@ -66,7 +66,7 @@ The CLI handles prerequisite checks, stack deployment, migrations, and verificat
 What this gives you:
 
 - **Every database table becomes a REST endpoint automatically.** Create a `todos` table, and `/rest/v1/todos` is immediately available with full CRUD, filtering, sorting, and pagination.
-- **Auth endpoints match the Supabase auth API.** Sign-up, sign-in, and token refresh at `/auth/v1/*` work with `@supabase/supabase-js` out of the box.
+- **Auth endpoints match the Supabase auth API.** Sign up, sign in, and token refresh at `/auth/v1/*` work with `@supabase/supabase-js` out of the box.
 - **Lambda handlers are thin wrappers.** The actual handlers are ~20 lines that delegate to pgrest-lambda. All the logic lives in the package.
 
 This is what makes BOA Supabase-compatible at the API level while running entirely on AWS.
@@ -75,9 +75,9 @@ This is what makes BOA Supabase-compatible at the API level while running entire
 
 Yes. It is your AWS account. Add anything you want.
 
-BOA deploys a specific set of services because they cover the most common backend needs. But there is nothing stopping you from adding SQS queues, Step Functions, EventBridge rules, DynamoDB tables for specific use cases, or any other AWS service alongside your BOA stack.
+BOA deploys a specific set of services because they cover the most common backend needs. But there is nothing stopping you from adding SQS queues, Step Functions, EventBridge rules, DynamoDB tables for specific use cases, or any other AWS service alongside your BOA backend.
 
-The SAM template is standard CloudFormation. You can extend it directly, or manage additional resources in a separate stack.
+The SAM template is standard CloudFormation. You can extend it directly, or manage additional resources in a separate template.
 
 ## What happens if I outgrow BOA?
 

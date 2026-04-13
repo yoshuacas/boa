@@ -18,18 +18,16 @@ These endpoints exist the moment you create a table and run `boa deploy`. No Lam
 
 ```
 Client (@supabase/supabase-js or fetch)
-  → API Gateway (REST)
-    → BOA Authorizer (validates JWT, extracts role + user ID)
-      → Lambda (pgrest-lambda engine)
-        → Aurora DSQL (serverless PostgreSQL)
+  → Lambda Function URL
+    → pgrest-lambda (JWT validation + access policies + REST engine)
+      → your database (PostgreSQL)
 ```
 
-1. **API Gateway** receives the HTTP request and routes it to the authorizer.
-2. **BOA Authorizer** checks the `apikey` header and optional `Authorization: Bearer` token. It passes the user's role, ID, and email downstream as flat keys.
-3. **pgrest-lambda** translates the REST request into SQL, applies access policies as WHERE clauses, and executes against DSQL.
-4. DSQL returns rows. pgrest-lambda sends JSON back through the chain.
+1. Your request goes directly to a **Lambda Function URL** — no API Gateway, no separate authorizer.
+2. **pgrest-lambda** handles everything inside that single Lambda: validates the JWT, checks the `apikey` header, evaluates access policies, translates the REST request into SQL, and executes against your database.
+3. The database returns rows. pgrest-lambda sends JSON back.
 
-The full round trip adds roughly 50-100ms of overhead on cold starts. Warm requests (the common case) add 10-20ms over raw database latency.
+The full round trip adds roughly 50–100ms on cold starts. Warm requests (the common case) add 10–20ms over raw database latency.
 
 ## Using the API
 
@@ -103,7 +101,7 @@ API Gateway enforces a default throttle of 10,000 requests per second with a bur
 
 **Getting 401 Unauthorized?** Check that you're passing the `apikey` header. With `@supabase/supabase-js` this happens automatically, but raw `fetch` calls need it explicitly.
 
-**Getting 403 Forbidden?** Your access policies exist but deny the request. Check that the user's role and the resource match your policy conditions.
+**Getting 403 Forbidden?** Your access policies exist but deny the request. Check that the role and the resource match your policy conditions.
 
 ## Next step
 

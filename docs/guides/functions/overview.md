@@ -228,7 +228,7 @@ Every function gets these when you include them in the template:
 | `API_URL` | The BOA REST API endpoint |
 | `ANON_KEY` | Public API key (respects policies) |
 | `SERVICE_ROLE_KEY` | Admin API key (bypasses policies) |
-| `DSQL_ENDPOINT` | Aurora DSQL hostname |
+| `DSQL_ENDPOINT` | Database hostname |
 | `BUCKET_NAME` | S3 storage bucket |
 | `REGION_NAME` | AWS region (**never use `AWS_REGION`** -- it's reserved by Lambda and will cause conflicts) |
 
@@ -281,7 +281,7 @@ Create a test event file:
 }
 ```
 
-Note: `sam local invoke` requires Docker. It simulates the Lambda environment locally but does not connect to your deployed DSQL cluster unless you set the environment variables.
+Note: `sam local invoke` requires Docker. It simulates the Lambda environment locally but does not connect to your deployed database unless you set the environment variables.
 
 ## Function defaults
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-Deploy a serverless backend to your AWS account in one command. At the end of this guide, you'll have a live database, authentication, REST API, and file storage — all callable from your frontend with `@supabase/supabase-js`.
+Deploy a backend to your AWS account in one command. At the end of this guide, you'll have a live database, authentication, REST API, and file storage — all callable from your frontend with `@supabase/supabase-js`.
 
 **Time:** ~5 minutes with tools installed, ~10 minutes from scratch.
 
@@ -13,17 +13,17 @@ Your frontend (React, Next.js, Vue, etc.)
 @supabase/supabase-js  ──  same client you'd use with Supabase
     │
     ▼
-Lambda Function URL (free)  ──  BOA Authorizer (validates tokens)
+API Gateway  ──  BOA Authorizer (validates tokens)
     │
     ▼
 Lambda  ──  pgrest-lambda (auto-generates REST API from your tables)
     │
-    ├──▶ PostgreSQL (Aurora DSQL)  ──  your database
+    ├──▶ PostgreSQL  ──  your database
     ├──▶ S3  ──  private file storage
-    └──▶ Cognito  ──  user sign-up and sign-in
+    └──▶ Cognito  ──  sign up and sign in
 ```
 
-Everything is serverless. It costs nothing when idle and scales automatically. You own every resource in your AWS account.
+It costs nothing when idle and handles traffic increases automatically. You own every resource in your AWS account.
 
 ## Check prerequisites
 
@@ -75,7 +75,7 @@ The fastest path for most developers:
 aws sso login
 ```
 
-This opens your browser for sign-in. Credentials last 12 hours.
+This opens your browser to sign in. Credentials last 12 hours.
 
 If you don't have an AWS account, [create one free](https://aws.amazon.com/free/). The free tier covers everything BOA uses for development.
 
@@ -90,7 +90,7 @@ mkdir my-app && cd my-app
 boa init my-app --region us-east-1
 ```
 
-This takes 3–5 minutes. BOA creates a PostgreSQL database, user pool, REST API, file storage bucket, and the infrastructure-as-code template to manage it all.
+This takes 3–5 minutes. BOA creates your database, authentication, the REST API, file storage, and a SAM template to manage it all.
 
 **If this fails:** The most common causes are an expired AWS session (`aws sso login` to fix), SAM CLI not installed, or using a region that doesn't support DSQL (stick to `us-east-1` or `us-east-2`).
 
@@ -100,7 +100,7 @@ BOA created a `.boa/config.json` file in your project with everything you need t
 
 ```json
 {
-  "apiUrl": "https://abc123.lambda-url.us-east-1.on.aws",
+  "apiUrl": "https://abc123.execute-api.us-east-1.amazonaws.com/prod",
   "anonKey": "eyJhbGciOiJIUzI...",
   "serviceRoleKey": "eyJhbGciOiJIUzI...",
   "region": "us-east-1",
@@ -110,14 +110,12 @@ BOA created a `.boa/config.json` file in your project with everything you need t
 
 | What was created | What it does |
 |------------------|-------------|
-| Aurora DSQL cluster | Your PostgreSQL database (empty, ready for tables) |
-| Cognito user pool | User sign-up and sign-in (works immediately) |
-| Lambda functions | pgrest-lambda — turns your tables into REST endpoints |
-| Lambda Function URL | Free public HTTPS endpoint with authorization |
-| S3 bucket | Private file storage with presigned URL access |
+| PostgreSQL database | Your database (empty, ready for tables) |
+| Authentication | Sign up and sign in (works immediately) |
+| Functions | pgrest-lambda — turns your tables into REST endpoints |
+| API endpoint | Public HTTPS endpoint with authorization |
+| File storage | Private storage with presigned URL access |
 | SAM template | `template.yaml` — your entire backend as code |
-
-> **Need rate limiting, WAF, or custom domains?** Run `boa extend api-gateway` to add API Gateway as an extension. See [Extensions](#extensions) below.
 
 ## Verify it works
 
@@ -126,18 +124,6 @@ boa verify
 ```
 
 This checks every component and reports its status. You should see all green.
-
-## Extensions {#extensions}
-
-The default backend uses Lambda Function URLs — free, no API Gateway needed. If your app grows and you need rate limiting, WAF, or custom domains, add extensions:
-
-```bash
-boa extend api-gateway    # Add API Gateway in front of your Lambda
-boa extensions            # List active extensions
-boa remove api-gateway    # Remove an extension
-```
-
-Extensions modify your SAM template and redeploy. Your `apiUrl` in `.boa/config.json` updates automatically.
 
 ## Sign up your first user
 
@@ -148,7 +134,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Values from .boa/config.json
 const supabase = createClient(
-  'https://abc123.lambda-url.us-east-1.on.aws',
+  'https://abc123.execute-api.us-east-1.amazonaws.com/prod',
   'eyJhbGciOiJIUzI...'  // anonKey
 )
 
@@ -167,7 +153,7 @@ const { data: session } = await supabase.auth.signInWithPassword({
 console.log('Signed in:', session.user.email)
 ```
 
-Users can sign in the moment they sign up — no email verification step.
+Customers can sign in the moment they sign up -- no email verification step.
 
 ## Create your first table
 

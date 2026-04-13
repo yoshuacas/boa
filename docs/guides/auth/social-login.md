@@ -2,18 +2,18 @@
 
 Add Google, Apple, or any OAuth provider as a sign-in option. This is the most complex auth feature — expect 15-20 minutes for the first provider.
 
-The complexity comes from three systems that need to agree: the OAuth provider (Google, Apple), your Cognito user pool, and your frontend. Once the first provider works, adding a second one takes five minutes.
+The complexity comes from three systems that need to agree: the OAuth provider (Google, Apple), your auth configuration, and your frontend. Once the first provider works, adding a second one takes five minutes.
 
 ## How it works
 
-1. Your frontend redirects the user to Cognito's hosted UI
-2. Cognito redirects to the OAuth provider (Google, Apple, etc.)
-3. The user authenticates with the provider
-4. The provider redirects back to Cognito with an authorization code
-5. Cognito exchanges the code for user info and creates a Cognito account
-6. Cognito redirects back to your app with a session
+1. Your frontend redirects the customer to the hosted sign-in page
+2. The auth service redirects to the OAuth provider (Google, Apple, etc.)
+3. The customer authenticates with the provider
+4. The provider redirects back to the auth service with an authorization code
+5. The auth service exchanges the code for customer info and creates an account
+6. The auth service redirects back to your app with a session
 
-Social login users get a Cognito account just like email/password users. They appear in the same user pool, get the same JWTs, and work with the same access policies. The only difference is how they authenticate.
+Social login customers get an account just like email/password customers. They appear in the same user pool, get the same JWTs, and work with the same access policies. The only difference is how they authenticate.
 
 ## Adding Google login
 
@@ -89,7 +89,7 @@ Include `http://localhost:3000/callback` in `CallbackURLs` so you can test local
 boa deploy
 ```
 
-### 6. Redirect the user to sign in
+### 6. Redirect the customer to sign in
 
 ```javascript
 function signInWithGoogle() {
@@ -104,7 +104,7 @@ function signInWithGoogle() {
 
 ### 7. Handle the callback
 
-When the user comes back from Google, Cognito redirects to your callback URL with an authorization code. Exchange it for tokens:
+When the customer comes back from Google, Cognito redirects to your callback URL with an authorization code. Exchange it for tokens:
 
 ```javascript
 // /callback page
@@ -152,7 +152,7 @@ async function handleCallback() {
 handleCallback();
 ```
 
-If the token exchange fails with `invalid_grant`, the authorization code has already been used or has expired (codes are single-use and valid for 5 minutes). Redirect the user to sign in again.
+If the token exchange fails with `invalid_grant`, the authorization code has already been used or has expired (codes are single-use and valid for 5 minutes). Redirect the customer to sign in again.
 
 ## Adding Apple login
 
@@ -176,11 +176,11 @@ CognitoUserPoolIdentityProviderApple:
       username: sub
 ```
 
-Apple requires a paid Apple Developer account ($99/year). You will also need to register a Services ID and configure the Sign In with Apple capability in the Apple Developer portal. Apple only sends the user's name on the first sign-in — store it immediately.
+Apple requires a paid Apple Developer account ($99/year). You will also need to register a Services ID and configure the Sign In with Apple capability in the Apple Developer portal. Apple only sends the customer's name on the first sign-in — store it immediately.
 
 ## Supported providers
 
-Cognito supports these identity providers:
+The auth API supports these identity providers:
 
 | Provider | ProviderType | Notes |
 |----------|-------------|-------|
@@ -191,7 +191,7 @@ Cognito supports these identity providers:
 | SAML | `SAML` | Enterprise SSO |
 | OIDC | `OIDC` | Any OpenID Connect provider |
 
-For SAML and OIDC, the configuration is more involved. Refer to the [AWS Cognito documentation](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-identity-provider.html) for those providers.
+For SAML and OIDC, the configuration is more involved. Refer to the [Cognito documentation](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-identity-provider.html) for those providers.
 
 ## Testing locally
 

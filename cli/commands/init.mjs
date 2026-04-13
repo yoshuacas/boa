@@ -9,7 +9,9 @@ import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { generateKeys } from '../lib/keys.mjs';
 import { ok, header } from '../lib/output.mjs';
-import { TOOLS, DSQL_REGIONS, getOutputValue } from '../lib/constants.mjs';
+import {
+  TOOLS, DSQL_REGIONS, getOutputValue, REPO_URL, REPO_RAW_URL,
+} from '../lib/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
@@ -43,6 +45,206 @@ function parseArgs(args) {
   }
 
   return { name, region };
+}
+
+function generateClaudeMd(stackName, cfg) {
+  return `# BOA Backend — ${stackName}
+
+This project has a BOA backend deployed on AWS. Use the \`boa\` CLI for all backend operations.
+
+## Full Skill Reference
+
+For detailed patterns (REST API filtering, auth flows, storage, migrations, access policies, DSQL constraints, pitfalls), fetch the full BOA skill and docs from the repository:
+
+- **Skill**: ${REPO_RAW_URL}/plugin/skills/boa/SKILL.md
+- **REST API**: ${REPO_RAW_URL}/plugin/docs/REST-API.md
+- **Access Policies**: ${REPO_RAW_URL}/plugin/docs/POLICIES.md
+- **Auth Patterns**: ${REPO_RAW_URL}/plugin/docs/AUTH-PATTERNS.md
+- **DSQL Patterns**: ${REPO_RAW_URL}/plugin/docs/DSQL-PATTERNS.md
+- **Migrations**: ${REPO_RAW_URL}/plugin/docs/MIGRATIONS.md
+- **Storage**: ${REPO_RAW_URL}/plugin/docs/STORAGE-PATTERNS.md
+- **Functions**: ${REPO_RAW_URL}/plugin/docs/FUNCTIONS.md
+- **Architecture**: ${REPO_RAW_URL}/plugin/docs/ARCHITECTURE.md
+- **Pitfalls**: ${REPO_RAW_URL}/plugin/docs/PITFALLS.md
+
+Load these on demand when you need detailed patterns for a specific area.
+
+## Communication Style
+
+You are a confident backend engineer pair-programming with the developer.
+- **Narrate, don't dump.** Before running a command, explain what you're doing in one plain sentence. After it finishes, summarize the outcome.
+- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster."
+- **Hide backend plumbing.** Show outcomes, not IAM tokens or CloudFormation IDs.
+- **Be brief and direct.** One sentence before an action, one sentence after.
+- **When something fails, explain the fix — not the internals.**
+- **Never open HTML via \`file://\`.** Always start a local dev server (\`npx vite\`, \`npx serve\`).
+
+## Architecture
+
+\`\`\`
+Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
+    │
+    ▼
+Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
+    │
+    ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
+    ├──▶ Amazon S3 ─── File storage (presigned URLs only)
+    └──▶ Cognito ─── User management (GoTrue-compatible auth)
+\`\`\`
+
+Everything is serverless. No servers to manage. Scales to zero, scales to millions.
+
+The REST API and auth engine are provided by [\`pgrest-lambda\`](${REPO_URL.replace('boa', 'pgrest-lambda')}) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. \`@supabase/supabase-js\` works as a drop-in client.
+
+## BOA CLI
+
+All operations go through the \`boa\` CLI. The developer can also run these commands directly.
+
+| Command | What it does |
+|---------|-------------|
+| \`boa deploy\` | Rebuild + redeploy (SAM build/deploy, bundle policies) |
+| \`boa migrate\` | Apply pending SQL migrations to DSQL |
+| \`boa verify\` | Check all backend components are correct |
+| \`boa status\` | Show backend info, tables, pending migrations |
+| \`boa check\` | Check required tools + AWS credentials |
+| \`boa extend <name>\` | Add an optional extension (e.g., api-gateway) |
+| \`boa remove <name>\` | Remove an extension |
+| \`boa teardown\` | Destroy everything (with confirmation) |
+
+## Critical Rules
+
+These come from hundreds of real AI-built backends. Every rule prevents a real failure.
+
+1. **Cognito self-sign-up**: Always set \`AllowAdminCreateUserOnly: false\`
+2. **Pre-signup trigger**: Always deploy a Lambda that auto-confirms users
+3. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures)
+4. **Reserved env vars**: Never set \`AWS_REGION\` as Lambda env var — use \`REGION_NAME\`
+5. **S3 security**: Never make buckets public — always use presigned URLs
+6. **Vite polyfill**: Always add \`global: 'globalThis'\` in Vite config for Cognito SDK
+7. **Amplify redirects**: Never use \`/<*>\` as SPA redirect — use regex excluding static assets
+8. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
+9. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
+10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. \`boa teardown\` destroys the database, user accounts, and uploaded files — all irreplaceable.
+11. **Deletion protection on stateful resources**: DSQL cluster, Cognito user pool, and S3 bucket have \`DeletionPolicy: Retain\`. Never disable these protections.
+12. **Extensions are optional**: The default backend works without any extensions.
+
+## Adding Tables and Policies
+
+### Write migrations in \`migrations/\`
+
+**DSQL constraints:**
+- No \`REFERENCES\` (foreign keys) — document relationships in comments
+- No \`SERIAL\` / \`BIGSERIAL\` — use \`TEXT DEFAULT gen_random_uuid()::text\`
+- \`CREATE INDEX ASYNC\` — DSQL requires ASYNC for all index creation
+- No triggers, stored procedures, or functions
+- Name foreign key columns with \`_id\` suffix for automatic resource embedding
+
+\`\`\`sql
+-- migrations/001_create_todos.sql
+CREATE TABLE IF NOT EXISTS todos (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,  -- references users(id)
+  title TEXT NOT NULL,
+  completed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+\`\`\`
+
+### Write access policies in \`policies/\`
+
+**Every table needs an access policy.** Without one, all requests return 403.
+
+\`\`\`cedar
+// policies/default.cedar — standard ownership-based access
+permit(
+    principal is PgrestLambda::User,
+    action in [PgrestLambda::Action::"select", PgrestLambda::Action::"update", PgrestLambda::Action::"delete"],
+    resource is PgrestLambda::Row
+) when { resource has user_id && resource.user_id == principal };
+
+permit(principal is PgrestLambda::User, action == PgrestLambda::Action::"insert", resource is PgrestLambda::Table);
+permit(principal is PgrestLambda::ServiceRole, action, resource);
+\`\`\`
+
+### Deploy changes
+
+\`\`\`bash
+boa deploy    # bundles policies into Lambda and applies pending migrations
+\`\`\`
+
+## REST API
+
+Every table is automatically available after deploying migrations:
+
+\`\`\`
+GET    /rest/v1/<table>                — list rows (with filtering, ordering, pagination)
+POST   /rest/v1/<table>                — insert rows
+PATCH  /rest/v1/<table>?id=eq.<value>  — update rows
+DELETE /rest/v1/<table>?id=eq.<value>  — delete rows
+\`\`\`
+
+All requests require an \`apikey\` header. Authenticated requests also include \`Authorization: Bearer <token>\`.
+
+**Resource embedding** — fetch related data in one request using \`select\` with parentheses (works automatically with \`_id\` columns):
+
+\`\`\`javascript
+const { data } = await supabase
+  .from('games')
+  .select('*, game_stats(goals, assists, players(name, position))');
+\`\`\`
+
+## Authentication
+
+Auth endpoints work immediately — no tables or policies needed.
+
+\`\`\`
+POST /auth/v1/signup                         — sign up
+POST /auth/v1/token?grant_type=password      — sign in
+POST /auth/v1/token?grant_type=refresh_token — refresh
+GET  /auth/v1/user                           — current user
+POST /auth/v1/logout                         — sign out
+\`\`\`
+
+## Frontend Configuration
+
+\`\`\`bash
+npm install @supabase/supabase-js
+\`\`\`
+
+\`\`\`javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  '${cfg.apiUrl}',
+  '${cfg.anonKey}'
+);
+
+// Auth
+await supabase.auth.signUp({ email, password });
+await supabase.auth.signInWithPassword({ email, password });
+
+// Data
+const { data } = await supabase.from('todos').select('*');
+await supabase.from('todos').insert({ title: 'Buy milk', user_id: userId });
+\`\`\`
+
+For Vite: add \`define: { global: 'globalThis' }\` to \`vite.config.js\` (required for Cognito SDK).
+
+## Configuration
+
+Backend configuration is in \`.boa/config.json\`:
+- **apiUrl**: ${cfg.apiUrl}
+- **anonKey**: Public key for client-side access
+- **serviceRoleKey**: Admin key (server-side only, bypasses authorization)
+- **userPoolId**: ${cfg.userPoolId}
+- **bucketName**: ${cfg.bucketName}
+- **dsqlEndpoint**: ${cfg.dsqlEndpoint}
+- **region**: ${cfg.region}
+
+## Repository
+
+BOA source, templates, and docs: ${REPO_URL}
+`;
 }
 
 export default async function init(args) {
@@ -208,7 +410,34 @@ export default async function init(args) {
     }
   }
 
-  // 16. Print summary
+  // 16. Write CLAUDE.md for Claude Code skill discovery
+  if (!existsSync('CLAUDE.md')) {
+    writeFileSync('CLAUDE.md', generateClaudeMd(name, {
+      apiUrl, anonKey, serviceRoleKey, userPoolId, userPoolClientId,
+      bucketName, dsqlEndpoint, region,
+    }));
+    ok('CLAUDE.md written (Claude Code will load the BOA skill automatically)');
+  }
+
+  // 17. Write .claude/settings.json for auto-approved tools
+  const claudeSettingsDir = join(process.cwd(), '.claude');
+  const claudeSettingsPath = join(claudeSettingsDir, 'settings.json');
+  if (!existsSync(claudeSettingsPath)) {
+    mkdirSync(claudeSettingsDir, { recursive: true });
+    writeFileSync(claudeSettingsPath, JSON.stringify({
+      permissions: {
+        allow: [
+          'Bash(boa *)',
+          'Bash(npm install*)',
+          'Bash(npx vite*)',
+          'Bash(npx serve*)',
+        ],
+      },
+    }, null, 2) + '\n');
+    ok('.claude/settings.json written (boa commands auto-approved)');
+  }
+
+  // 18. Print summary
   console.log('');
   header('BOA deployment complete');
   console.log('');

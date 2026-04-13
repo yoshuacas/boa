@@ -2,11 +2,11 @@
 
 Every schema change is a numbered SQL file. Write the file, run `boa migrate`, done. BOA tracks which migrations have been applied and prevents accidental modifications.
 
-> **One SQL statement per file.** DSQL does not support multi-statement batching. If you put two statements in one file, the second one will fail silently or error. Split every `CREATE TABLE`, `ALTER TABLE`, and `CREATE INDEX` into its own file.
+> **One SQL statement per file.** Your database does not support multi-statement batching. If you put two statements in one file, the second one will fail silently or error. Split every `CREATE TABLE`, `ALTER TABLE`, and `CREATE INDEX` into its own file.
 
 ## The Rule
 
-Never run DDL directly against DSQL. Always write a migration file, then run `boa migrate`.
+Never run DDL directly against your database. Always write a migration file, then run `boa migrate`.
 
 This ensures every schema change is recorded, version-controlled, and replayable on new environments.
 
@@ -42,12 +42,12 @@ Examples:
 
 ## Content Rules
 
-1. **One SQL statement per file** — DSQL does not support multi-statement batching
+1. **One SQL statement per file** — your database does not support multi-statement batching
 2. **One logical change per file** — don't combine table creation with unrelated index changes
-3. **Use `IF NOT EXISTS` / `IF EXISTS`** — DDL is auto-committed in DSQL; this makes re-runs safe
+3. **Use `IF NOT EXISTS` / `IF EXISTS`** — DDL is auto-committed; this makes re-runs safe
 4. **No `SERIAL` / `BIGSERIAL`** — use `TEXT DEFAULT gen_random_uuid()::text` for primary keys
-5. **No `REFERENCES` (foreign keys)** — DSQL doesn't support foreign key constraints; use the `_id` naming convention for resource embedding
-6. **`CREATE INDEX ASYNC`** — DSQL requires ASYNC for index creation
+5. **No `REFERENCES` (foreign keys)** — your database doesn't support foreign key constraints; use the `_id` naming convention for resource embedding
+6. **`CREATE INDEX ASYNC`** — your database requires ASYNC for index creation
 7. **No triggers, stored procedures, or functions** — implement in Lambda handlers
 
 ## Running Migrations
@@ -60,7 +60,7 @@ This is also called automatically by `boa init` and `boa deploy` when a `migrati
 
 ## How the Runner Works
 
-1. Reads `.boa/config.json` for DSQL endpoint and region
+1. Reads `.boa/config.json` for database endpoint and region
 2. Generates an IAM auth token (valid 15 minutes)
 3. Creates `_boa_migrations` tracking table if it doesn't exist
 4. Reads `migrations/*.sql` files in sort order
@@ -126,7 +126,7 @@ ALTER TABLE todos RENAME COLUMN title TO name;
 
 ## What Happens When a Migration Fails
 
-DDL in DSQL is auto-committed. If a `CREATE TABLE` executes successfully but a subsequent migration in the same deploy fails, the first table exists and cannot be rolled back.
+DDL is auto-committed. If a `CREATE TABLE` executes successfully but a subsequent migration in the same deploy fails, the first table exists and cannot be rolled back.
 
 **Consequences:**
 - The `_boa_migrations` table records only the migrations that completed successfully.
@@ -174,7 +174,7 @@ boa init --region us-east-1 --stack-name myapp-prod
 boa migrate
 ```
 
-Each environment has its own DSQL cluster and its own `_boa_migrations` table, so the same migration files apply independently.
+Each environment has its own database and its own `_boa_migrations` table, so the same migration files apply independently.
 
 ## Checking Migration State
 
@@ -195,7 +195,7 @@ PGPASSWORD="$TOKEN" psql \
 
 ## Multi-Environment Deployments
 
-Each environment (dev, staging, prod) has its own DSQL cluster, so the same migration files apply independently. The migration runner tracks state per cluster in the `_boa_migrations` table.
+Each environment (dev, staging, prod) has its own database, so the same migration files apply independently. The migration runner tracks state per database in the `_boa_migrations` table.
 
 ```bash
 # Deploy to staging

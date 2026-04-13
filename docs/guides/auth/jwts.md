@@ -1,6 +1,6 @@
 # Sessions and Tokens
 
-When a user signs in, they get a session. `@supabase/supabase-js` manages sessions automatically — you don't need to think about tokens unless you're debugging or building a custom client.
+When a customer signs in, they get a session. `@supabase/supabase-js` manages sessions automatically — you don't need to think about tokens unless you're debugging or building a custom client.
 
 ## How sessions work
 
@@ -26,8 +26,8 @@ A session contains three tokens:
 
 | Token | What it does | Expires |
 |-------|-------------|---------|
-| **Access token** | Sent with every API request to prove who the user is | 1 hour |
-| **ID token** | Contains user claims (email, sub, custom attributes) | 1 hour |
+| **Access token** | Sent with every API request to prove who the customer is | 1 hour |
+| **ID token** | Contains customer claims (email, sub, custom attributes) | 1 hour |
 | **Refresh token** | Exchanged for new access and ID tokens when they expire | 30 days |
 
 The Supabase client uses the access token for API requests and the refresh token to get new tokens silently. You rarely interact with the ID token directly.
@@ -36,7 +36,7 @@ The Supabase client uses the access token for API requests and the refresh token
 
 The Supabase client handles refresh automatically. When the access token is close to expiring, the client sends the refresh token to get a new pair. This happens in the background — your code does not need to handle it.
 
-**When the refresh token expires (after 30 days of inactivity):** the user must sign in again. There is no way to extend a refresh token. If your app has users who return after long gaps, handle the session expiry gracefully:
+**When the refresh token expires (after 30 days of inactivity):** the customer must sign in again. There is no way to extend a refresh token. If your app has customers who return after long gaps, handle the session expiry gracefully:
 
 ```javascript
 const { data: { session } } = await supabase.auth.getSession()
@@ -97,9 +97,9 @@ Paste an access token into [jwt.io](https://jwt.io) to inspect its contents. You
 }
 ```
 
-- `sub` is the user's unique ID (same as `data.user.id` from sign-in)
+- `sub` is the customer's unique ID (same as `data.user.id` from sign-in)
 - `exp` is the expiry time as a Unix timestamp — check if the token is expired
-- `iss` is the Cognito user pool that issued it — useful for verifying you are hitting the right backend
+- `iss` is the user pool that issued it — useful for verifying you are hitting the right backend
 
 If a request fails with `401 Unauthorized`, decode the token first. Most auth issues are expired tokens, tokens from the wrong user pool, or the ID token being sent instead of the access token.
 
@@ -113,7 +113,7 @@ event.requestContext.authorizer.userId   // user UUID or '' for anon
 event.requestContext.authorizer.email    // user email or ''
 ```
 
-Do **not** use `event.requestContext.authorizer.claims.sub` — that is the Cognito-native authorizer format. BOA uses a custom authorizer with flat keys.
+Do **not** use `event.requestContext.authorizer.claims.sub` — that is the default Cognito authorizer format. BOA uses a custom authorizer with flat keys.
 
 ## Anonymous access
 
@@ -125,9 +125,9 @@ event.requestContext.authorizer.userId   // ''
 event.requestContext.authorizer.email    // ''
 ```
 
-Use anonymous access when your app has public content that anyone can read — a product catalog, public blog posts, a landing page that loads data from your API. The user does not need to sign in, but you still control what they can see through access policies.
+Use anonymous access when your app has public content that anyone can read — a product catalog, public blog posts, a landing page that loads data from your API. The customer does not need to sign in, but you still control what they can see through access policies.
 
-For example, you might allow anonymous users to read published posts but require authentication to create or edit them. The access policy controls this, not your application code.
+For example, you might allow anonymous customers to read published posts but require authentication to create or edit them. The access policy controls this, not your application code.
 
 Anonymous requests still need the `apikey` header. Requests with no headers at all are rejected.
 

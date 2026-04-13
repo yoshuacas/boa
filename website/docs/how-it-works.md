@@ -1,25 +1,23 @@
 # How BOA Works
 
-BOA deploys one opinionated stack to your AWS account: PostgreSQL database, managed auth, auto-generated REST API, and private file storage. You own everything. It scales to zero when idle and handles millions of users without changing a line of code.
+BOA deploys one opinionated backend to your AWS account: a database, authentication, an auto-generated REST API, and private file storage. You own everything. It scales to zero when idle and handles millions of customers without changing a line of code.
 
-## The Stack
+## The Backend
 
 | Layer | Service | Why |
 |-------|---------|-----|
 | Database | Aurora DSQL | Serverless PostgreSQL. SQL you know. Scales to zero, pay per operation. |
-| Auth | Amazon Cognito | Managed sign-up/sign-in. 10,000 MAU free tier. |
+| Auth | Amazon Cognito | Sign up and sign in. 10,000 MAU free tier. |
 | Engine | pgrest-lambda (npm) | Auto-generates REST + auth endpoints on Lambda. Supabase-compatible. |
 | Compute | AWS Lambda (Node.js 20.x) | No servers. Sub-second cold starts. 1M free requests/month. |
-| API | Lambda Function URLs | Free HTTPS endpoints. No API Gateway needed by default. |
+| API | API Gateway (REST) | Routes requests, validates tokens via Lambda authorizer. |
 | Storage | Amazon S3 | Private buckets, presigned URLs for all access. Never public. |
 | Hosting | AWS Amplify | Frontend CI/CD from your Git repo. |
 | IaC | SAM / CloudFormation | One-command deploys. Repeatable, version-controlled. |
 
-> **Extensions:** The default backend uses Lambda Function URLs -- free, no API Gateway needed. If you need rate limiting, WAF, or custom domains, run `boa extend api-gateway` to add API Gateway as an extension. Run `boa extensions` to see what is active.
-
 ## The Supabase-Compatible API
 
-BOA's headline feature: your frontend talks to your AWS backend using `@supabase/supabase-js`. Same client, same syntax, different infrastructure.
+BOA's headline feature: your frontend talks to your AWS backend using `@supabase/supabase-js`. Same client, same syntax, different backend.
 
 **Supabase (their cloud):**
 ```javascript
@@ -70,17 +68,37 @@ curl -X POST "$BOA_API_URL/rest/v1/todos" \
 
 ## How a Request Flows
 
-![BOA Architecture](./architecture-diagram.png)
+```
+Frontend (@supabase/supabase-js)
+  │
+  │  HTTPS (Lambda Function URL)
+  ▼
+┌──────────────────────────────────────┐
+│  Lambda — pgrest-lambda engine       │
+│                                      │
+│  ┌──────────────┐ ┌───────────────┐  │
+│  │JWT Validation│ │Access Policies│  │
+│  └──────────────┘ └───────────────┘  │
+│  ┌──────────────┐ ┌───────────────┐  │
+│  │  REST API    │ │ GoTrue Auth   │  │
+│  └──────────────┘ └───────────────┘  │
+│                                      │
+│  One function handles everything     │
+└───────┬──────────┬──────────┬────────┘
+        │          │          │
+        ▼          ▼          ▼
+  Aurora DSQL   Cognito    Amazon S3
+  (PostgreSQL)  (Users)    (Files)
+```
 
 1. Your frontend calls `supabase.from('todos').select('*')`.
-2. The client library sends an HTTP request to the Lambda Function URL with the JWT in the `Authorization` header.
-3. The BOA authorizer validates the token and extracts the user identity (role, userId, email).
-4. pgrest-lambda translates the PostgREST query into SQL, applies access policies as WHERE clauses, and executes against DSQL.
-5. The response flows back as JSON.
+2. The request goes directly to a Lambda Function URL — no API Gateway, no separate authorizer.
+3. pgrest-lambda handles everything inside that single Lambda: validates the JWT, evaluates access policies, translates the PostgREST query into SQL, and executes against DSQL.
+4. The response flows back as JSON.
 
-Auth requests (`/auth/v1/*`) follow the same path but hit the GoTrue-compatible auth handler, which manages Cognito user pools behind the scenes. Storage requests generate presigned URLs for direct S3 access.
+Auth requests (`/auth/v1/*`) hit the GoTrue-compatible handler in the same Lambda, which manages Cognito user pools behind the scenes. Storage requests generate presigned URLs for direct S3 access.
 
-If you add the API Gateway extension (`boa extend api-gateway`), requests route through API Gateway before reaching the Lambda, adding rate limiting, WAF, and custom domain support.
+There is no API Gateway. There is no separate authorizer Lambda. One function does it all.
 
 ## The CLI
 
@@ -89,18 +107,15 @@ Every BOA operation runs through the CLI. Humans and agents use the same command
 | Command | What it does |
 |---------|-------------|
 | `boa check` | Verify prerequisites (AWS CLI, SAM CLI, Node.js, credentials) |
-| `boa init <name>` | Create project, deploy the full backend stack, write `.boa/config.json` |
+| `boa init <name>` | Create project, deploy the full backend, write `.boa/config.json` |
 | `boa deploy` | Rebuild and redeploy (SAM build/deploy, bundle policies) |
 | `boa migrate` | Apply pending SQL migrations to DSQL |
 | `boa verify` | Confirm all backend components are running correctly |
 | `boa status` | Show backend info, tables, pending migrations |
-| `boa extend <name>` | Add an extension (e.g., `api-gateway`) to the backend |
-| `boa remove <name>` | Remove an extension |
-| `boa extensions` | List active extensions |
 | `boa feedback` | Submit feedback or bug reports |
-| `boa teardown` | Destroy everything (requires confirmation). Irreversible -- deletes database, users, files. |
+| `boa teardown` | Destroy everything (requires confirmation). Irreversible -- deletes database, customer accounts, files. |
 
-`boa teardown` is intentionally destructive. If something is broken, diagnose and fix it. Do not tear down and rebuild -- you will lose all data, user accounts, and uploaded files.
+`boa teardown` is intentionally destructive. If something is broken, diagnose and fix it. Do not tear down and rebuild -- you will lose all data, customer accounts, and uploaded files.
 
 ## The Agent Skill
 
@@ -117,9 +132,9 @@ The agent reads the BOA skill to understand the architecture, patterns, and know
 
 You do not need an agent to use BOA. The CLI works on its own.
 
-## Why One Stack
+## Why One Backend
 
-Because choice is what breaks AI agent builds. After observing hundreds of AI-built backends, the most common failures come from agents choosing the wrong service, the wrong configuration, or the wrong integration pattern. BOA eliminates those choices. One stack, one way to wire it up, every known failure already solved.
+Because choice is what breaks AI agent builds. After observing hundreds of AI-built backends, the most common failures come from agents choosing the wrong service, the wrong configuration, or the wrong integration pattern. BOA eliminates those choices. One backend, one way to wire it up, every known failure already solved.
 
 This also means every BOA project looks the same. New developers can onboard instantly. Agents can reason about the architecture without guessing. And every improvement to BOA benefits every project that uses it.
 
