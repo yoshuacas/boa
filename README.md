@@ -29,10 +29,10 @@ This installs the `boa` command globally.
 
 ### 2. Add the skill to your agent
 
-**Claude Code:**
+**Claude Code** (from your project directory):
 
 ```bash
-claude --plugin-dir ./boa/plugin
+claude --plugin-dir /path/to/boa/plugin
 ```
 
 **Kiro:**

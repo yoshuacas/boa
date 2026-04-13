@@ -23,17 +23,23 @@ boa --version
 
 ### Claude Code
 
-Load the plugin directly from the cloned repo:
+From your project directory, start Claude Code with the BOA plugin:
 
 ```bash
-claude --plugin-dir ./boa/plugin
+claude --plugin-dir /path/to/boa/plugin
 ```
 
-Or, to load it every time you start Claude Code from a specific project, add it to your project's `.claude/settings.json`:
+Replace `/path/to/boa` with wherever you cloned the repo. For example, if you cloned into `~/boa`:
+
+```bash
+claude --plugin-dir ~/boa/plugin
+```
+
+To load it automatically every time, add it to your project's `.claude/settings.json`:
 
 ```json
 {
-  "plugins": ["path/to/boa/plugin"]
+  "plugins": ["/path/to/boa/plugin"]
 }
 ```
 
