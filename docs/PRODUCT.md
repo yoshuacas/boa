@@ -57,7 +57,7 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | Authorization | Cedar policies | "access policies" |
 | Engine | pgrest-lambda (npm) | "the REST API" |
 | Compute | AWS Lambda (Node.js 20.x) | "functions" |
-| API | API Gateway (REST) | "your API" |
+| API | Lambda Function URLs (free) | "your API" |
 | Storage | Amazon S3 | "file storage" |
 | Hosting | AWS Amplify | "frontend hosting" |
 | IaC | SAM / CloudFormation | "deploy" / "your backend" |
@@ -88,10 +88,11 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | Scales to zero ($0 idle) | Yes | No ($25/mo min) | Partial | Yes |
 | PostgreSQL | Yes (DSQL) | Yes | No (Firestore) | No (DynamoDB) |
 | Agent-ready skill | Yes | No | No | No |
-| Supabase-JS compatible | Drop-in | Native | No | No |
 | No vendor lock-in | Yes | No | No | AWS only |
 
-**We do not position against Supabase on the homepage.** Supabase is a valid choice. The comparison exists in the docs (FAQ) for developers evaluating their options. The homepage focuses on what BOA gives you, not what others don't.
+**We do not position against Supabase.** Supabase is a valid choice. We don't claim to be a Supabase alternative or replacement. The comparison exists in the docs (FAQ) for developers evaluating their options. The homepage and pricing page focus on what BOA costs on AWS — developers can compare on their own.
+
+**On Supabase compatibility:** BOA's REST API is PostgREST-compatible and the auth API is GoTrue-compatible, which means `@supabase/supabase-js` works as a client library. This is a convenience for developers who already know the Supabase SDK — not a value proposition. We do not promise full Supabase compatibility, we do not track Supabase API changes, and we do not position this compatibility as a reason to choose BOA. It is an implementation detail that makes the developer experience familiar, nothing more.
 
 ## Nomenclature
 
