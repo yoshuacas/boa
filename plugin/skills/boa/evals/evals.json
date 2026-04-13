@@ -158,6 +158,55 @@
         "Each function has the correct SAM event type matching its trigger (Api, Api with Auth:NONE, ScheduleV2)",
         "No function uses Python runtime"
       ]
+    },
+    {
+      "id": 9,
+      "prompt": "Build me a simple app where people can sign up with their email and password, create a profile with their name and bio, and browse other people's profiles. Everyone can see all profiles but only edit their own. Deploy to us-east-1.",
+      "expected_output": "The agent builds a standard app with Cognito auth. The critical checks are that AllowAdminCreateUserOnly is false, the pre-signup auto-confirm trigger is attached, and Cedar policies enforce profile ownership.",
+      "files": [],
+      "expectations": [
+        "SAM template sets AllowAdminCreateUserOnly to false (not omitted, explicitly false)",
+        "SAM template includes a pre-signup Lambda trigger that auto-confirms users",
+        "The pre-signup Lambda sets event.response.autoConfirmUser = true",
+        "The pre-signup Lambda is wired to the UserPool via LambdaConfig.PreSignUp",
+        "Creates a profiles table with user_id column for ownership",
+        "Cedar policy allows authenticated users to select all profiles (public read)",
+        "Cedar policy restricts update/delete to rows where user_id matches the principal",
+        "Frontend uses @supabase/supabase-js auth.signUp() for registration",
+        "Does NOT use aws cognito-idp admin-create-user for user creation",
+        "Calls bootstrap.sh, deploy.sh, and migrate.sh"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Users are complaining they can't sign up for my BOA app. When they try to register, they get an error. I checked and the Cognito user pool has AllowAdminCreateUserOnly set to true. Can you fix it? The stack is called my-app in us-east-1.",
+      "expected_output": "The agent fixes the Cognito config through CloudFormation/SAM (not direct CLI), warns about the update-user-pool pitfall, and verifies the pre-signup trigger is still attached after the fix.",
+      "files": [],
+      "expectations": [
+        "Identifies AllowAdminCreateUserOnly: true as the root cause",
+        "Fixes it by updating the SAM template (not by running aws cognito-idp update-user-pool directly)",
+        "If it does use update-user-pool CLI, includes --lambda-config to preserve the pre-signup trigger",
+        "Warns about or avoids the update-user-pool pitfall (wiping Lambda triggers)",
+        "Verifies the pre-signup trigger is still attached after the fix",
+        "Deploys the fix via deploy.sh or sam deploy (not just a CLI tweak)",
+        "Tests that signup works after the fix (curl to /auth/v1/signup or similar)",
+        "Does NOT hardcode AllowAdminCreateUserOnly to true anywhere"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I need to add Cognito user pool settings to my deployed BOA app — specifically I want to require a minimum password length of 12 characters and enable MFA. Can you update the Cognito configuration?",
+      "expected_output": "The agent modifies the SAM template to change the password policy and MFA settings, then redeploys. It does NOT use aws cognito-idp update-user-pool directly, and it preserves existing settings (AllowAdminCreateUserOnly: false, pre-signup trigger).",
+      "files": [],
+      "expectations": [
+        "Modifies the SAM template UserPool resource to change MinimumLength to 12",
+        "Modifies the SAM template to add MfaConfiguration (OPTIONAL or ON)",
+        "Does NOT run aws cognito-idp update-user-pool directly",
+        "Preserves AllowAdminCreateUserOnly: false in the template",
+        "Preserves the pre-signup Lambda trigger (LambdaConfig.PreSignUp) in the template",
+        "Deploys via deploy.sh or sam deploy",
+        "Does NOT remove or modify existing working auth configuration while adding new settings"
+      ]
     }
   ]
 }
