@@ -1,6 +1,8 @@
 # API Patterns
 
-API Gateway + Lambda patterns for the BOA stack.
+API Gateway + Lambda patterns for the BOA backend.
+
+> **Note:** The default backend uses Lambda Function URLs (free). The API Gateway patterns below only apply when you enable the API Gateway extension with `boa extend api-gateway`. Use this extension when you need rate limiting, WAF, or custom domains.
 
 ---
 
@@ -22,7 +24,7 @@ ApiGateway:
           UserPoolArn: !GetAtt CognitoUserPool.Arn
 ```
 
-Always use REST API (not HTTP API) for Cognito authorizer support.
+When the `api-gateway` extension is enabled, always use REST API (not HTTP API) for Cognito authorizer support.
 
 ## Lambda Handler Structure
 
@@ -148,7 +150,7 @@ async function listItems(userId, cursor, limit = 20) {
 
 ## Rate Limiting
 
-API Gateway REST API supports usage plans:
+Requires the `api-gateway` extension (`boa extend api-gateway`). API Gateway REST API supports usage plans:
 
 ```yaml
 UsagePlan:

@@ -11,7 +11,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 2 | Users stuck in UNCONFIRMED (missing pre-signup trigger) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 3 | `update-user-pool` CLI wipes all Lambda triggers | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #7 |
-| 5 | Wrong API Gateway type — HTTP API instead of REST API | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
+| 5 | Wrong API Gateway type — HTTP API instead of REST API (only when `api-gateway` extension is enabled) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 6 | Wrong authorizer context path (`claims.sub` vs `authorizer.userId`) | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | **Database** | | | |
 | 7 | Hardcoded database credentials instead of IAM auth | CRITICAL | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |

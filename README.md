@@ -15,10 +15,12 @@ BOA is four things:
 | Auth | Amazon Cognito |
 | Authorization | Access policies (deny by default) |
 | Compute | AWS Lambda (Node.js 20.x) |
-| API | API Gateway (REST) |
+| API | Lambda Function URLs (free) |
 | Storage | Amazon S3 |
 | Hosting | AWS Amplify |
 | IaC | SAM / CloudFormation |
+
+API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
 
 ## The BOA CLI
 
@@ -32,6 +34,9 @@ boa verify          Check deployment health
 boa status          Show backend info, tables, pending migrations
 boa check           Verify prerequisites and AWS credentials
 boa teardown        Destroy everything (with confirmation)
+boa extend <name>   Add an optional extension (e.g., api-gateway)
+boa remove <name>   Remove an extension
+boa extensions      List available and enabled extensions
 boa feedback        Report a bug to improve BOA
 ```
 
@@ -49,6 +54,9 @@ Every migration is checksummed and recorded in your migration history. Modified 
 
 **Your data is private by default.**
 Access policies enforce deny by default. Tables without access policies return 403 on every request. Storage blocks all public access. The REST API returns 401 for any request without valid credentials.
+
+**Your backend works without extensions.**
+The default backend is complete — database, auth, APIs, storage. Extensions like API Gateway are optional and additive. You add them when you need rate limiting, WAF, or custom domains. You remove them when you don't.
 
 **Your secrets never leak.**
 JWT secrets live in SSM Parameter Store, not in code. `.boa/config.json` is gitignored from the start. IAM auth tokens connect to the database — never passwords.

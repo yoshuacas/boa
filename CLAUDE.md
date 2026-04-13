@@ -62,22 +62,24 @@ boa/
 | Authorization | Cedar | Policy-as-code, deny-by-default, ~5μs per eval |
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
-| API | API Gateway (REST) | Not HTTP API — required for REQUEST-type Lambda authorizer |
+| API | Lambda Function URLs (free) | No API Gateway in default backend |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
 | IaC | SAM / CloudFormation | One-command deploy |
+
+API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
 
 ## Critical Rules
 
 1. `AllowAdminCreateUserOnly: false` for Cognito self-signup
 2. Deploy pre-signup Lambda that auto-confirms users
-3. REST API Gateway, not HTTP API (Cognito authorizers)
-4. Node.js for Lambda, never Python
-5. `REGION_NAME` env var, never `AWS_REGION` (reserved)
-6. S3: never public, always presigned URLs
-7. Vite: `define: { global: 'globalThis' }` for Cognito SDK
-8. Amplify: no `/<*>` redirect, use regex excluding static assets
-9. DSQL: IAM auth tokens, never hardcoded credentials
+3. Node.js for Lambda, never Python
+4. `REGION_NAME` env var, never `AWS_REGION` (reserved)
+5. S3: never public, always presigned URLs
+6. Vite: `define: { global: 'globalThis' }` for Cognito SDK
+7. Amplify: no `/<*>` redirect, use regex excluding static assets
+8. DSQL: IAM auth tokens, never hardcoded credentials
+9. Extensions are optional. The default backend works without any extensions.
 
 ## Plan Execution with rring
 

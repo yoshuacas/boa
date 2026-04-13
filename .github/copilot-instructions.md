@@ -1,6 +1,6 @@
 # BOA — Backend on AWS
 
-BOA is an open-source skill that teaches coding agents to build production-ready, serverless backends on AWS. The backend uses Aurora DSQL (serverless PostgreSQL), Amazon Cognito, AWS Lambda (Node.js 20.x), API Gateway (REST), Amazon S3, AWS Amplify, and SAM/CloudFormation.
+BOA is an open-source skill that teaches coding agents to build production-ready, serverless backends on AWS. The backend uses Aurora DSQL (serverless PostgreSQL), Amazon Cognito, AWS Lambda (Node.js 20.x) with Function URLs, Amazon S3, AWS Amplify, and SAM/CloudFormation.
 
 ## Critical Rules
 
@@ -8,13 +8,13 @@ Follow these rules when building BOA backends. They come from real failures obse
 
 1. **Always `AllowAdminCreateUserOnly: false`** for Cognito self-signup
 2. **Always deploy a pre-signup Lambda** that auto-confirms users
-3. **Always use REST API Gateway** (not HTTP API) — required for Cognito authorizers
-4. **Always use Node.js for Lambda** — never Python (binary dependency failures)
-5. **Never set `AWS_REGION` as a Lambda env var** — it is reserved; use `REGION_NAME`
-6. **Never make S3 buckets public** — always use presigned URLs
-7. **Always add `global: 'globalThis'` polyfill** to Vite config for Cognito SDK browser compatibility
-8. **Never use `/<*>` as Amplify SPA redirect** — use regex excluding static assets
-9. **DSQL requires IAM auth tokens** for connections — never hardcode credentials
+3. **Always use Node.js for Lambda** — never Python (binary dependency failures)
+4. **Never set `AWS_REGION` as a Lambda env var** — it is reserved; use `REGION_NAME`
+5. **Never make S3 buckets public** — always use presigned URLs
+6. **Always add `global: 'globalThis'` polyfill** to Vite config for Cognito SDK browser compatibility
+7. **Never use `/<*>` as Amplify SPA redirect** — use regex excluding static assets
+8. **DSQL requires IAM auth tokens** for connections — never hardcode credentials
+9. **Extensions are optional** — the default backend works without any extensions
 
 ## Backend
 
@@ -24,10 +24,12 @@ Follow these rules when building BOA backends. They come from real failures obse
 | Auth | Amazon Cognito |
 | Authorization | Access policies (deny-by-default) |
 | Compute | Lambda (Node.js 20.x) |
-| API | API Gateway (REST) |
+| API | Lambda Function URLs (free) |
 | Storage | Amazon S3 |
 | Hosting | AWS Amplify |
 | IaC | SAM / CloudFormation |
+
+API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
 
 ## References
 

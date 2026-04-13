@@ -4,9 +4,9 @@ Common questions about BOA, what it costs, and how it compares.
 
 ## What does it cost?
 
-A productivity app with 1,000 users costs **$0/month** on BOA.
+BOA is free and open source. It costs nothing to use — no fees, no tiers, no paid plans.
 
-BOA itself is free and open source (Apache 2.0). You pay only for the AWS services it deploys, and each one has a generous free tier:
+You pay only for the AWS services your backend uses, and each one has a generous free tier. A typical app with 1,000 customers costs **$0/month** on AWS:
 
 | Service | Free tier |
 |---------|-----------|

@@ -106,5 +106,8 @@ The CLI and skill both update in place — no reinstall needed.
 | `boa verify` | Check deployment health |
 | `boa status` | Show backend info and tables |
 | `boa check` | Check prerequisites |
+| `boa extend <name>` | Add an extension (e.g., `api-gateway`) |
+| `boa remove <name>` | Remove an extension |
+| `boa extensions` | List active extensions |
 | `boa teardown` | Destroy everything |
 | `boa feedback` | Submit feedback to improve BOA |

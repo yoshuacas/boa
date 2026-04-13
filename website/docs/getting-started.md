@@ -13,7 +13,7 @@ Your frontend (React, Next.js, Vue, etc.)
 @supabase/supabase-js  ──  same client you'd use with Supabase
     │
     ▼
-API Gateway  ──  BOA Authorizer (validates tokens)
+Lambda Function URL (free)  ──  BOA Authorizer (validates tokens)
     │
     ▼
 Lambda  ──  pgrest-lambda (auto-generates REST API from your tables)
@@ -100,7 +100,7 @@ BOA created a `.boa/config.json` file in your project with everything you need t
 
 ```json
 {
-  "apiUrl": "https://abc123.execute-api.us-east-1.amazonaws.com/prod",
+  "apiUrl": "https://abc123.lambda-url.us-east-1.on.aws",
   "anonKey": "eyJhbGciOiJIUzI...",
   "serviceRoleKey": "eyJhbGciOiJIUzI...",
   "region": "us-east-1",
@@ -113,9 +113,11 @@ BOA created a `.boa/config.json` file in your project with everything you need t
 | Aurora DSQL cluster | Your PostgreSQL database (empty, ready for tables) |
 | Cognito user pool | User sign-up and sign-in (works immediately) |
 | Lambda functions | pgrest-lambda — turns your tables into REST endpoints |
-| API Gateway | Public HTTPS endpoint with authorization |
+| Lambda Function URL | Free public HTTPS endpoint with authorization |
 | S3 bucket | Private file storage with presigned URL access |
 | SAM template | `template.yaml` — your entire backend as code |
+
+> **Need rate limiting, WAF, or custom domains?** Run `boa extend api-gateway` to add API Gateway as an extension. See [Extensions](#extensions) below.
 
 ## Verify it works
 
@@ -124,6 +126,18 @@ boa verify
 ```
 
 This checks every component and reports its status. You should see all green.
+
+## Extensions {#extensions}
+
+The default backend uses Lambda Function URLs — free, no API Gateway needed. If your app grows and you need rate limiting, WAF, or custom domains, add extensions:
+
+```bash
+boa extend api-gateway    # Add API Gateway in front of your Lambda
+boa extensions            # List active extensions
+boa remove api-gateway    # Remove an extension
+```
+
+Extensions modify your SAM template and redeploy. Your `apiUrl` in `.boa/config.json` updates automatically.
 
 ## Sign up your first user
 
@@ -134,7 +148,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // Values from .boa/config.json
 const supabase = createClient(
-  'https://abc123.execute-api.us-east-1.amazonaws.com/prod',
+  'https://abc123.lambda-url.us-east-1.on.aws',
   'eyJhbGciOiJIUzI...'  // anonKey
 )
 

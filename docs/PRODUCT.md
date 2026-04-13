@@ -14,7 +14,15 @@ This is the canonical product definition for BOA. All materials — website, doc
 
 ## Tagline
 
-A complete backend on AWS in under a minute. Built for agents. Free until your users show up. No ceiling when they do.
+A complete backend on AWS in under a minute. Built for agents. Free until you have paying customers. Same architecture at a million customers.
+
+## Pricing Model
+
+BOA is free and open source. It costs nothing to use — no fees, no tiers, no paid plans. Developers pay only for the AWS services their backend uses, and only when they outgrow the AWS Free Tier.
+
+The BOA website, documentation, and agent skill help developers estimate and understand their AWS costs. The pricing calculator shows exact costs by app type and scale so developers know what to expect before they deploy.
+
+**Key distinction:** BOA is not a service. It is a tool. There is no BOA bill. The only bill is from AWS, and the developer controls it because they own the infrastructure.
 
 ## Value Proposition
 
@@ -23,9 +31,9 @@ BOA is for developers who want AWS but find it too complex. It removes the need 
 - **Easy to use** — one command to deploy a full backend. No AWS console, no YAML wrestling, no service selection.
 - **A companion agent** — the BOA skill teaches any coding agent (Claude Code, Kiro, Copilot, Codex) to build and evolve backends. The agent knows every best practice and pitfall.
 - **Serverless** — costs nothing when idle, scales automatically with your customers. No capacity planning, no servers.
-- **Free to start** — AWS Free Tier covers the entire stack for prototypes and early-stage apps. A productivity app with 1,000 users costs $0/month.
-- **Grows without limits** — the same stack that runs your prototype handles millions of users. No re-architecture, no plan upgrades, no migration.
-- **Safe by default** — opinionated guardrails prevent the mistakes that kill projects. Data protected, schema changes tracked, infrastructure can't be accidentally destroyed.
+- **Free and open source** — BOA itself has no cost. Developers pay only for AWS services, which include generous free tiers. A productivity app with 1,000 customers costs $0/month on AWS.
+- **Grows without limits** — the same architecture that runs your prototype handles millions of customers. No re-architecture, no plan upgrades, no migration.
+- **Safe by default** — opinionated guardrails prevent the mistakes that kill projects. Data protected, schema changes tracked, your backend can't be accidentally destroyed.
 
 ## Core Problem
 

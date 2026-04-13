@@ -10,10 +10,12 @@ BOA deploys one opinionated stack to your AWS account: PostgreSQL database, mana
 | Auth | Amazon Cognito | Managed sign-up/sign-in. 10,000 MAU free tier. |
 | Engine | pgrest-lambda (npm) | Auto-generates REST + auth endpoints on Lambda. Supabase-compatible. |
 | Compute | AWS Lambda (Node.js 20.x) | No servers. Sub-second cold starts. 1M free requests/month. |
-| API | API Gateway (REST) | Routes requests, validates tokens via Lambda authorizer. |
+| API | Lambda Function URLs | Free HTTPS endpoints. No API Gateway needed by default. |
 | Storage | Amazon S3 | Private buckets, presigned URLs for all access. Never public. |
 | Hosting | AWS Amplify | Frontend CI/CD from your Git repo. |
 | IaC | SAM / CloudFormation | One-command deploys. Repeatable, version-controlled. |
+
+> **Extensions:** The default backend uses Lambda Function URLs -- free, no API Gateway needed. If you need rate limiting, WAF, or custom domains, run `boa extend api-gateway` to add API Gateway as an extension. Run `boa extensions` to see what is active.
 
 ## The Supabase-Compatible API
 
@@ -68,23 +70,17 @@ curl -X POST "$BOA_API_URL/rest/v1/todos" \
 
 ## How a Request Flows
 
-```
-┌──────────┐     ┌──────────────┐     ┌──────────────┐     ┌────────┐     ┌──────┐
-│  Client   │────▶│ API Gateway  │────▶│  Authorizer  │────▶│ Lambda │────▶│ DSQL │
-│ (browser) │     │   (REST)     │     │  (validates  │     │ pgrest │     │  DB  │
-│           │◀────│              │◀────│   JWT/key)   │◀────│-lambda │◀────│      │
-└──────────┘     └──────────────┘     └──────────────┘     └────────┘     └──────┘
-     @supabase/                         BOA JWT or           PostgREST       Aurora
-     supabase-js                        anon key             engine          DSQL
-```
+![BOA Architecture](./architecture-diagram.png)
 
 1. Your frontend calls `supabase.from('todos').select('*')`.
-2. The client library sends an HTTP request to API Gateway with the JWT in the `Authorization` header.
-3. The BOA authorizer Lambda validates the token and extracts the user identity.
-4. The pgrest-lambda handler translates the PostgREST query into SQL and executes it against DSQL.
+2. The client library sends an HTTP request to the Lambda Function URL with the JWT in the `Authorization` header.
+3. The BOA authorizer validates the token and extracts the user identity (role, userId, email).
+4. pgrest-lambda translates the PostgREST query into SQL, applies access policies as WHERE clauses, and executes against DSQL.
 5. The response flows back as JSON.
 
-Auth requests (`/auth/v1/*`) follow the same path but hit the GoTrue-compatible auth handler, which manages Cognito user pools behind the scenes.
+Auth requests (`/auth/v1/*`) follow the same path but hit the GoTrue-compatible auth handler, which manages Cognito user pools behind the scenes. Storage requests generate presigned URLs for direct S3 access.
+
+If you add the API Gateway extension (`boa extend api-gateway`), requests route through API Gateway before reaching the Lambda, adding rate limiting, WAF, and custom domain support.
 
 ## The CLI
 
@@ -98,6 +94,9 @@ Every BOA operation runs through the CLI. Humans and agents use the same command
 | `boa migrate` | Apply pending SQL migrations to DSQL |
 | `boa verify` | Confirm all backend components are running correctly |
 | `boa status` | Show backend info, tables, pending migrations |
+| `boa extend <name>` | Add an extension (e.g., `api-gateway`) to the backend |
+| `boa remove <name>` | Remove an extension |
+| `boa extensions` | List active extensions |
 | `boa feedback` | Submit feedback or bug reports |
 | `boa teardown` | Destroy everything (requires confirmation). Irreversible -- deletes database, users, files. |
 

@@ -68,23 +68,15 @@ curl -X POST "$BOA_API_URL/rest/v1/todos" \
 
 ## How a Request Flows
 
-```
-┌──────────┐     ┌──────────────┐     ┌──────────────┐     ┌────────┐     ┌──────┐
-│  Client   │────▶│ API Gateway  │────▶│  Authorizer  │────▶│ Lambda │────▶│ DSQL │
-│ (browser) │     │   (REST)     │     │  (validates  │     │ pgrest │     │  DB  │
-│           │◀────│              │◀────│   JWT/key)   │◀────│-lambda │◀────│      │
-└──────────┘     └──────────────┘     └──────────────┘     └────────┘     └──────┘
-     @supabase/                         BOA JWT or           PostgREST       Aurora
-     supabase-js                        anon key             engine          DSQL
-```
+![BOA Architecture](./architecture-diagram.png)
 
 1. Your frontend calls `supabase.from('todos').select('*')`.
 2. The client library sends an HTTP request to API Gateway with the JWT in the `Authorization` header.
-3. The BOA authorizer Lambda validates the token and extracts the user identity.
-4. The pgrest-lambda handler translates the PostgREST query into SQL and executes it against DSQL.
+3. The BOA authorizer Lambda validates the token and extracts the user identity (role, userId, email).
+4. pgrest-lambda translates the PostgREST query into SQL, applies access policies as WHERE clauses, and executes against DSQL.
 5. The response flows back as JSON.
 
-Auth requests (`/auth/v1/*`) follow the same path but hit the GoTrue-compatible auth handler, which manages Cognito user pools behind the scenes.
+Auth requests (`/auth/v1/*`) follow the same path but hit the GoTrue-compatible auth handler, which manages Cognito user pools behind the scenes. Storage requests generate presigned URLs for direct S3 access.
 
 ## The CLI
 

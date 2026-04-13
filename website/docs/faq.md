@@ -4,16 +4,16 @@ Common questions about BOA, what it costs, and how it compares.
 
 ## What does it cost?
 
-A productivity app with 1,000 users costs **$0/month** on BOA.
+BOA is free and open source. It costs nothing to use — no fees, no tiers, no paid plans.
 
-BOA itself is free and open source (Apache 2.0). You pay only for the AWS services it deploys, and each one has a generous free tier:
+You pay only for the AWS services your backend uses, and each one has a generous free tier. A typical app with 1,000 customers costs **$0/month** on AWS:
 
 | Service | Free tier |
 |---------|-----------|
 | Aurora DSQL | 100K DPUs/month |
 | Cognito | 10,000 MAU |
 | Lambda | 1M requests/month |
-| API Gateway | 1M requests/month |
+| Lambda Function URLs | Free (included with Lambda) |
 | S3 | 5 GB storage |
 
 Most apps stay within free tier through early growth. When you do exceed it, costs scale linearly -- there is no cliff where you jump to a $25/month or $100/month paid plan.
@@ -71,19 +71,31 @@ What this gives you:
 
 This is what makes BOA Supabase-compatible at the API level while running entirely on AWS.
 
+## What are extensions?
+
+Extensions add optional capabilities to your backend without changing application code. The default backend uses Lambda Function URLs -- free, no API Gateway needed. When you need more, add an extension:
+
+```bash
+boa extend api-gateway    # Adds rate limiting, WAF, custom domains
+boa extensions            # List active extensions
+boa remove api-gateway    # Remove an extension
+```
+
+Extensions modify your SAM template and redeploy automatically. Your `apiUrl` in `.boa/config.json` updates so your frontend keeps working.
+
 ## Can I add AWS services BOA doesn't include?
 
 Yes. It is your AWS account. Add anything you want.
 
-BOA deploys a specific set of services because they cover the most common backend needs. But there is nothing stopping you from adding SQS queues, Step Functions, EventBridge rules, DynamoDB tables for specific use cases, or any other AWS service alongside your BOA stack.
+BOA deploys a specific set of services because they cover the most common backend needs. But there is nothing stopping you from adding SQS queues, Step Functions, EventBridge rules, DynamoDB tables for specific use cases, or any other AWS service alongside your BOA backend.
 
-The SAM template is standard CloudFormation. You can extend it directly, or manage additional resources in a separate stack.
+For common additions like API Gateway, BOA has built-in extensions (`boa extend api-gateway`). For anything else, the SAM template is standard CloudFormation -- you can extend it directly, or manage additional resources in a separate stack.
 
 ## What happens if I outgrow BOA?
 
 You stop using the CLI. That is it.
 
-BOA deploys standard AWS services using standard SAM/CloudFormation templates. There is no proprietary runtime, no custom abstraction layer, no vendor lock-in. Your database is PostgreSQL. Your auth is Cognito. Your compute is Lambda. Your API is API Gateway.
+BOA deploys standard AWS services using standard SAM/CloudFormation templates. There is no proprietary runtime, no custom abstraction layer, no vendor lock-in. Your database is PostgreSQL. Your auth is Cognito. Your compute is Lambda. Your API is a Lambda Function URL (or API Gateway if you added that extension).
 
 If you reach a point where you need a different architecture -- containers, custom VPCs, a dedicated database instance -- you can evolve the CloudFormation stack directly, migrate specific services, or continue using parts of BOA while replacing others. Nothing is locked in.
 
@@ -91,4 +103,4 @@ If you reach a point where you need a different architecture -- containers, cust
 
 No. BOA is an open-source project built by AWS developers. It is not an AWS service, does not have an SLA, and is not covered by AWS Support.
 
-It uses AWS services (DSQL, Cognito, Lambda, API Gateway, S3, Amplify) and encodes best practices for combining them into a backend. But BOA itself is a community project under the Apache 2.0 license.
+It uses AWS services (DSQL, Cognito, Lambda, S3, Amplify) and encodes best practices for combining them into a backend. API Gateway is available as an optional extension. BOA itself is a community project under the Apache 2.0 license.

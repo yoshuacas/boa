@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda, API Gateway, and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (Function URLs), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -33,10 +33,7 @@ These rules shape every interaction:
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-API Gateway (REST) ─── BOA Authorizer (JWT dual-layer validation)
-    │
-    ▼
-Lambda (Node.js 20.x) ─── pgrest-lambda engine
+Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)
@@ -60,6 +57,9 @@ All operations go through the `boa` CLI. The developer can also run these comman
 | `boa teardown` | Destroy everything (with confirmation) |
 | `boa status` | Show backend info, tables, pending migrations |
 | `boa check` | Check required tools + AWS credentials |
+| `boa extend <name>` | Add an optional extension (e.g., api-gateway) |
+| `boa remove <name>` | Remove an extension |
+| `boa extensions` | List available and enabled extensions |
 | `boa feedback` | Submit feedback to improve BOA |
 
 ## Quick Start
@@ -93,16 +93,16 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 
 1. **Cognito self-sign-up**: Always set `AllowAdminCreateUserOnly: false`
 2. **Pre-signup trigger**: Always deploy a Lambda that auto-confirms users
-3. **API Gateway type**: Always use REST (not HTTP API) — required for REQUEST-type Lambda authorizer
-4. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
-5. **Reserved env vars**: Never set `AWS_REGION` as Lambda env var — use `REGION_NAME`
-6. **S3 security**: Never make buckets public — always use presigned URLs
-7. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
-8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
-9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
-10. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
-11. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
-12. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
+3. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
+4. **Reserved env vars**: Never set `AWS_REGION` as Lambda env var — use `REGION_NAME`
+5. **S3 security**: Never make buckets public — always use presigned URLs
+6. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
+7. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
+8. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
+9. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
+10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
+11. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
+12. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
 
 ## Step 1: Setup
 
