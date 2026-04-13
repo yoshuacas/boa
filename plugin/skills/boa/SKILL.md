@@ -341,6 +341,7 @@ Load these on demand when you need detailed patterns:
 - [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
 - [API-PATTERNS.md](../../docs/API-PATTERNS.md) — API Gateway + Lambda patterns
 - [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
+- [FUNCTIONS.md](../../docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs
 - [MIGRATIONS.md](../../docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
 
 ## Teardown

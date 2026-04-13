@@ -4,9 +4,9 @@ outline: deep
 
 # How BOA Works
 
-## BOA is a skill plugin for coding agents
+## BOA is an opinionated, lightweight backend on AWS
 
-BOA is not a framework, a CLI tool, or an SDK. It is a **skill file** — a structured document that your AI coding agent reads to learn how to build serverless backends on AWS.
+BOA is not a framework, a CLI tool, or an SDK. It is an opinionated backend that takes apps from prototype to millions of users — fully serverless, scales to zero, scales to millions. BOA is agent-ready: the BOA skill works with any coding agent to help developers create their apps and evolve them.
 
 When you install BOA, your agent gains knowledge about:
 - Which AWS services to use (and which to avoid)
@@ -36,7 +36,7 @@ BOA teaches one specific way to build a backend on AWS:
 
 The core of BOA is `plugin/skills/boa/SKILL.md`. This is what your coding agent reads. It contains:
 
-- Architecture patterns for six app types (productivity, social, real-time, e-commerce, SaaS, IoT)
+- Architecture patterns and schema examples for common app types
 - SAM/CloudFormation templates
 - Lambda handler templates
 - 9 critical rules that prevent the most common deployment failures

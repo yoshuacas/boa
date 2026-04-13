@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Is BOA?
 
-**BOA (Backend on AWS)** is a community-driven open-source skill plugin from AWS. Developers install it with their coding agent (Claude Code, Kiro, VS Code Copilot, Codex) to build serverless backends on AWS with Supabase-equivalent capabilities.
+**BOA (Backend on AWS)** is an opinionated, lightweight backend on AWS that takes apps from prototype to millions of users. BOA is agent-ready — the BOA skill works with any coding agent (Claude Code, Kiro, VS Code Copilot, Codex) to help developers create their apps and evolve them.
 
 **Core problem:** AI coding agents default to Supabase/Firebase because building backends on AWS is too complex. BOA fixes that with battle-tested patterns from hundreds of real agent builds.
 

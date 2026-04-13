@@ -1,6 +1,8 @@
 # BOA — Backend on AWS
 
-BOA is an open-source skill plugin that teaches AI coding agents to build production-ready, serverless backends on AWS. Install it in your agent, describe your app, and get a fully wired backend — PostgreSQL database, auth, APIs, storage — deployed to your AWS account. No servers to manage, scales to zero, runs on the AWS free tier for most prototypes.
+BOA is an opinionated, lightweight backend on AWS that takes apps from prototype to millions of users. PostgreSQL database, auth, APIs, storage — fully serverless, scales to zero, scales to millions. No servers to manage.
+
+BOA is agent-ready. The BOA skill works with any coding agent — install it, describe your app, and your agent builds and deploys the entire backend to your AWS account.
 
 ## The Stack
 
@@ -33,15 +35,6 @@ Then tell your agent what to build:
 BOA guides your agent through the right architecture and deploys everything to your AWS account.
 
 > **Coming soon:** `claude plugin install boa` will be available once the plugin is published to the marketplace.
-
-## Supported App Types
-
-- **Productivity** — todo lists, notes, project management
-- **Social** — feeds, posts, likes, media sharing
-- **Real-time** — chat, collaboration, live updates
-- **E-commerce** — catalogs, carts, orders, payments
-- **SaaS** — multi-tenant apps, CRM, analytics dashboards
-- **IoT** — device tracking, telemetry, health monitoring
 
 ## Project Structure
 

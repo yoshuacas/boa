@@ -1,6 +1,6 @@
 # BOA Architecture Patterns
 
-Schema and architecture patterns for different application types using the BOA stack (Aurora DSQL + Cognito + Lambda + API Gateway + S3).
+Example schema and architecture patterns using the BOA stack (Aurora DSQL + Cognito + Lambda + API Gateway + S3). These are starting points — BOA works for any app that needs a serverless backend, not just these examples.
 
 ---
 
