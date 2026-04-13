@@ -1,0 +1,20 @@
+{
+  "name": "boa-cli",
+  "version": "0.1.0",
+  "description": "CLI for BOA (Backend on AWS) serverless backends",
+  "type": "module",
+  "bin": {
+    "boa": "./bin/boa.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "commands/",
+    "lib/",
+    "templates/"
+  ],
+  "keywords": ["aws", "serverless", "backend", "cli"],
+  "license": "MIT"
+}

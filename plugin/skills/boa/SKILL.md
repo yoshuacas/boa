@@ -14,6 +14,20 @@ metadata:
 Build a complete serverless backend on AWS. This skill is extremely opinionated.
 There is one way to do things — the way that works.
 
+## Communication Style
+
+You are a confident backend engineer pair-programming with the developer.
+These rules shape every interaction:
+
+- **Narrate, don't dump.** Before running a command, explain what you're doing in one plain sentence. After it finishes, summarize the outcome. Never paste raw bash into your explanation text.
+- **Run checks individually.** One tool per command — `aws --version`, `sam --version`, etc. Never chain multiple checks into a single mega-command. This keeps permission prompts clean and readable.
+- **Summarize results visually.** After checking tools or deploying, show a clean summary table or checklist — not raw terminal output.
+- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up login" not "deploying a Cognito user pool with pre-signup Lambda trigger." Translate AWS jargon into what it means for their app.
+- **Hide infrastructure plumbing.** The developer doesn't need to see IAM token generation, CloudFormation resource IDs, or internal connection strings mid-flow. Show them outcomes: "Your backend is live at https://...", "Login is working", "Tables created."
+- **Be brief and direct.** One sentence before an action, one sentence after. No walls of text explaining what you're about to do.
+- **When something fails, explain the fix — not the internals.** Say "Your AWS session expired — run `aws login` in your terminal to refresh it" not "STS AssumeRole returned ExpiredTokenException for ARN arn:aws:iam::..."
+- **Never expose plugin internals.** The developer does not have `deploy.sh`, `migrate.sh`, `bootstrap.sh`, or any BOA scripts in their project — those live inside the plugin. Never tell the developer to run these scripts directly. Instead, say "tell me what your app does and I'll create the tables" or "I'll deploy those changes for you." The developer talks to you; you run the scripts.
+
 ## Architecture
 
 ```
@@ -59,7 +73,7 @@ The developer wants a backend but hasn't described their app yet. Deploy the bar
 
 1. **Setup** — Run through Step 1 below (tools + AWS credentials)
 2. **Deploy** — Run `bash $BOA_PLUGIN/scripts/bootstrap.sh --stack-name <app-name> --region us-east-1`
-3. **Done** — The backend is live. `.boa/config.json` has the API URL, keys, and all connection details. Auth endpoints work immediately. The developer can now describe their app and you'll add tables and policies.
+3. **Done** — The backend is live. `.boa/config.json` has the API URL, keys, and all connection details. Auth endpoints work immediately. Tell the developer their backend is ready and they can describe their app whenever they want — you'll design the tables and access policies for them.
 
 ### "Build me an app to [description]"
 
@@ -93,20 +107,17 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 
 ## Step 1: Setup
 
-Run through this checklist. For each missing tool, install it before continuing.
-The agent should detect the OS and run the appropriate install command automatically.
-
-### 1a. Detect the platform
+Run the check-tools script to see what's installed, what's missing, and whether AWS credentials are configured — all in one shot:
 
 ```bash
-uname -s   # Darwin = macOS, Linux = Linux
+bash $BOA_PLUGIN/scripts/check-tools.sh
 ```
 
-### 1b. Check and install tools
+This checks the platform, all required tools (aws, sam, node, psql, jq), AWS credentials, and region. Present the output to the developer as a clean checklist.
 
-Check each tool. Install any that are missing.
+### If tools are missing — install them
 
-**macOS (all at once):**
+**macOS:**
 
 ```bash
 brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
@@ -129,46 +140,17 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-ge
 sudo apt-get install -y postgresql-client jq
 ```
 
-**Verify all tools:**
+After installing, re-run `bash $BOA_PLUGIN/scripts/check-tools.sh` to confirm everything passes.
 
-```bash
-aws --version        # >= 2.32
-sam --version        # any
-node --version       # >= 18
-psql --version       # any
-jq --version         # any
-```
+### If AWS credentials are missing
 
-### 1c. AWS account
+If the developer has an AWS account but no local credentials, tell them to run `aws login` in their terminal. This opens a browser for sign-in — the developer must run it themselves. Session lasts 12 hours.
 
-Check if the developer has an AWS account and active credentials:
+If they don't have an AWS account, tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws login`.
 
-```bash
-aws sts get-caller-identity
-```
+### Region
 
-If this succeeds, skip to 1d.
-
-If this fails, the developer needs to set up AWS access:
-
-**If they have an AWS account but no local credentials:**
-
-Tell the developer to run `aws login` in their terminal. This opens a browser where they sign in to AWS and temporary credentials are stored locally. The developer must run this command themselves — it requires interactive browser access. Session lasts 12 hours.
-
-After they confirm login succeeded, verify with `aws sts get-caller-identity`.
-
-**If they do NOT have an AWS account:**
-
-Tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws login`.
-
-### 1d. Verify region
-
-Aurora DSQL is only available in us-east-1 and us-east-2. Always pass `--region` explicitly to bootstrap.sh:
-
-```bash
-aws configure get region   # check current default
-# Use --region us-east-1 if not already in a DSQL-supported region
-```
+Aurora DSQL requires us-east-1 or us-east-2. The check-tools script shows the current default. Always pass `--region` explicitly to bootstrap.sh if the default isn't a DSQL region.
 
 ## Adding Tables and Policies
 
