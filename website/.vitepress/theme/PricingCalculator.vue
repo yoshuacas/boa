@@ -123,27 +123,27 @@ const services = [
   <!-- Free tier note row -->
   <div class="grid-label note-label"></div>
   <div v-for="r in rows" :key="'n-' + r.workload.sizeKey" class="grid-note">
-    <span v-if="r.boa.total === 0 && r.boa.freeTier.s3 > 0" class="note-text">
-      Always free<br><span class="note-sub">(S3 free tier: 12 months)</span>
-    </span>
-    <span v-else-if="r.boa.total === 0" class="note-text">Always free</span>
-    <span v-else-if="r.boa.freeTier.total > 0" class="note-text note-sub">
-      Saves {{ fmt(r.boa.freeTier.total) }}/mo<br>(always free)
-    </span>
+    <!-- Fully covered by free tier -->
+    <template v-if="r.boa.total === 0">
+      <span class="note-text">Covered by free tier</span>
+      <span v-if="r.boa.freeTier.s3 > 0" class="note-sub">S3 free tier expires after 12 months (adds {{ fmt(r.boa.gross.s3) }}/mo)</span>
+    </template>
+    <!-- Partially covered -->
+    <template v-else-if="r.boa.freeTier.total > 0">
+      <span class="note-sub">Free tier saves {{ fmt(r.boa.freeTier.total) }}/mo</span>
+      <span class="note-sub">Database, auth, compute: always free</span>
+    </template>
   </div>
 
 </div>
 
-<!-- Free tier legend -->
-<div class="ft-legend">
-  <div class="ft-legend-item">
-    <span class="ft-dot ft-always"></span>
-    <span><strong>Always Free:</strong> Database, Auth, Compute — no expiration</span>
-  </div>
-  <div class="ft-legend-item">
-    <span class="ft-dot ft-12mo"></span>
-    <span><strong>12 Months Free:</strong> Storage (S3) — for new AWS accounts</span>
-  </div>
+<!-- Free tier explanation -->
+<div class="ft-explain">
+  <p>
+    <strong>How the AWS Free Tier works:</strong>
+    Database (DSQL), Auth (Cognito), and Compute (Lambda) have <strong>always-free tiers</strong> that never expire — these savings apply to every account, forever.
+    Storage (S3) has a <strong>12-month free tier</strong> for new AWS accounts. After 12 months, S3 storage and requests are billed at standard rates.
+  </p>
 </div>
 
 <p class="calc-footer">
@@ -319,33 +319,25 @@ const services = [
 .val-normal { color: var(--vp-c-text-2); }
 .val-dim { color: var(--vp-c-text-3); }
 
-/* Free tier legend */
-.ft-legend {
-  display: flex;
-  gap: 1.5rem;
+/* Free tier explanation */
+.ft-explain {
   margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
 }
 
-.ft-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+.ft-explain p {
+  font-size: 0.82rem;
   color: var(--vp-c-text-3);
+  line-height: 1.7;
+  margin: 0;
 }
 
-.ft-legend-item strong { color: var(--vp-c-text-2); }
-
-.ft-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.ft-explain strong {
+  color: var(--vp-c-text-2);
 }
-
-.ft-always { background: #16a34a; }
-.ft-12mo { background: #EC7211; }
 
 /* Footer */
 .calc-footer {
