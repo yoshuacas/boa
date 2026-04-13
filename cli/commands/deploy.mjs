@@ -6,6 +6,16 @@ import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 import { resolveTemplate } from '../lib/extensions.mjs';
 
+export function needsMigrationWarning(cfg) {
+  const extensions = cfg.extensions || [];
+  return (
+    cfg.apiUrl &&
+    cfg.apiUrl.includes('execute-api.') &&
+    cfg.apiUrl.includes('.amazonaws.com') &&
+    !extensions.includes('api-gateway')
+  );
+}
+
 export default async function deploy(_args) {
   // 1. Load config (exits if missing)
   const cfg = config.requireConfig();
@@ -20,13 +30,7 @@ export default async function deploy(_args) {
   console.log('');
 
   // Warn if upgrading from API Gateway to Function URLs
-  const existingExtensions = cfg.extensions || [];
-  if (
-    cfg.apiUrl &&
-    cfg.apiUrl.includes('execute-api.') &&
-    cfg.apiUrl.includes('.amazonaws.com') &&
-    !existingExtensions.includes('api-gateway')
-  ) {
+  if (needsMigrationWarning(cfg)) {
     console.log(
       '  \u26a0 This version of boa uses Lambda Function URLs by default.'
     );
