@@ -16,10 +16,12 @@ BOA is an open-source skill plugin that teaches AI coding agents to build produc
 
 ## Quick Start
 
-Install the BOA plugin in your coding agent:
+Add the BOA plugin to Claude Code from GitHub:
 
-```
-claude plugin install boa
+```bash
+# In Claude Code, run:
+/plugin marketplace add https://github.com/aws/boa.git
+/plugin install boa@aws-boa
 ```
 
 Then tell your agent what to build:
@@ -29,6 +31,8 @@ Then tell your agent what to build:
 ```
 
 BOA guides your agent through the right architecture and deploys everything to your AWS account.
+
+> **Coming soon:** `claude plugin install boa` will be available once the plugin is published to the marketplace.
 
 ## Supported App Types
 

@@ -8,13 +8,26 @@ BOA works with Claude Code, Kiro, VS Code Copilot, and Codex. Pick your agent be
 
 ## Claude Code (recommended)
 
-BOA is available as a native Claude Code plugin. One command installs the skill, templates, and scripts.
+Add the BOA plugin from the GitHub repository:
 
 ```bash
-claude plugin install boa
+# In Claude Code, add the GitHub repo as a plugin source
+/plugin marketplace add https://github.com/aws/boa.git
+
+# Install the plugin
+/plugin install boa@aws-boa
 ```
 
 After installing, tell Claude what to build. The skill guides the agent through database schema, auth, APIs, and deployment.
+
+**For development/testing**, you can also clone and load locally:
+
+```bash
+git clone https://github.com/aws/boa.git
+claude --plugin-dir ./boa/plugin
+```
+
+> **Coming soon:** `claude plugin install boa` will work once published to the marketplace.
 
 ## Kiro
 
