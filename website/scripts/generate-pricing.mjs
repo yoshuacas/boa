@@ -535,20 +535,10 @@ function calculateBOA(workload, rates) {
   const lambdaComputeCost = billableGBSeconds * lambda.gbSecondPrice;
   const lambdaCost = lambdaRequestCost + lambdaComputeCost;
 
-  // 4. API Gateway REST
-  const apigwRequests = workload.totalRequests;
-  const billableApigwReqs = Math.max(0, apigwRequests - apiGateway.freeTierRequests);
-  let apigwCost = 0;
-  let remaining = billableApigwReqs;
-  let prevTierLimit = 0;
-  for (const tier of apiGateway.tiers) {
-    const tierCapacity = tier.upTo - prevTierLimit;
-    const inThisTier = Math.min(remaining, tierCapacity);
-    if (inThisTier <= 0) break;
-    apigwCost += (inThisTier / 1000000) * tier.pricePerMillion;
-    remaining -= inThisTier;
-    prevTierLimit = tier.upTo;
-  }
+  // 4. API Gateway — NOT in default stack (Lambda Function URLs are free).
+  // Cost is $0 unless the api-gateway extension is enabled.
+  // We still calculate it for the "with extension" comparison.
+  const apigwCost = 0;
 
   // 5. Amazon S3
   // Only ~1% of requests involve file storage (uploads/downloads).

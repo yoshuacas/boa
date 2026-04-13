@@ -125,8 +125,7 @@ const generatedDate = computed(() => {
     <div class="line-item" v-for="svc in [
       { name: 'Aurora DSQL', cost: r.boa.dsql },
       { name: 'Cognito', cost: r.boa.cognito },
-      { name: 'Lambda', cost: r.boa.lambda },
-      { name: 'API Gateway', cost: r.boa.apiGateway },
+      { name: 'Lambda + Function URL', cost: r.boa.lambda },
       { name: 'S3', cost: r.boa.s3 },
     ]" :key="svc.name">
       <span>{{ svc.name }}</span>

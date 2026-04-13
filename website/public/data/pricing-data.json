@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T16:20:53.147Z",
+  "generatedAt": "2026-04-13T20:05:00.275Z",
   "region": "us-east-1",
   "regionName": "US East (N. Virginia)",
   "sources": {
@@ -365,9 +365,9 @@
           "dsql": 25.28,
           "cognito": 486,
           "lambda": 54.8,
-          "apiGateway": 346.5,
+          "apiGateway": 0,
           "s3": 2.22,
-          "total": 914.8
+          "total": 568.3
         },
         "supa": {
           "plan": "Pro",
@@ -379,7 +379,7 @@
           "mauOverage": 0,
           "total": 225
         },
-        "savingsPercent": -306.58
+        "savingsPercent": -152.58
       },
       {
         "workload": {
@@ -400,9 +400,9 @@
           "dsql": 523.77,
           "cognito": 7862.5,
           "lambda": 1226.47,
-          "apiGateway": 5410.72,
+          "apiGateway": 0,
           "s3": 46.97,
-          "total": 15070.43
+          "total": 9659.71
         },
         "supa": {
           "plan": "Pro",
@@ -414,7 +414,7 @@
           "mauOverage": 6175,
           "total": 10013.25
         },
-        "savingsPercent": -50.5
+        "savingsPercent": 3.53
       }
     ],
     "social": [
@@ -472,9 +472,9 @@
           "dsql": 0,
           "cognito": 0,
           "lambda": 0.4,
-          "apiGateway": 7,
+          "apiGateway": 0,
           "s3": 0.02,
-          "total": 7.42
+          "total": 0.42
         },
         "supa": {
           "plan": "Free",
@@ -507,9 +507,9 @@
           "dsql": 62.65,
           "cognito": 486,
           "lambda": 178.13,
-          "apiGateway": 1046.5,
+          "apiGateway": 0,
           "s3": 4.98,
-          "total": 1778.26
+          "total": 731.76
         },
         "supa": {
           "plan": "Pro",
@@ -521,7 +521,7 @@
           "mauOverage": 0,
           "total": 230.5
         },
-        "savingsPercent": -671.48
+        "savingsPercent": -217.47
       },
       {
         "workload": {
@@ -542,9 +542,9 @@
           "dsql": 1274.47,
           "cognito": 7862.5,
           "lambda": 3693.14,
-          "apiGateway": 14930.72,
+          "apiGateway": 0,
           "s3": 102.07,
-          "total": 27862.9
+          "total": 12932.18
         },
         "supa": {
           "plan": "Pro",
@@ -556,7 +556,7 @@
           "mauOverage": 6175,
           "total": 10438.48
         },
-        "savingsPercent": -166.92
+        "savingsPercent": -23.89
       }
     ],
     "realtime": [
@@ -614,9 +614,9 @@
           "dsql": 1.49,
           "cognito": 0,
           "lambda": 1.4,
-          "apiGateway": 24.5,
+          "apiGateway": 0,
           "s3": 0.2,
-          "total": 27.59
+          "total": 3.09
         },
         "supa": {
           "plan": "Free",
@@ -649,9 +649,9 @@
           "dsql": 228.66,
           "cognito": 486,
           "lambda": 486.47,
-          "apiGateway": 2470.3,
+          "apiGateway": 0,
           "s3": 21.7,
-          "total": 3693.12
+          "total": 1222.82
         },
         "supa": {
           "plan": "Pro",
@@ -663,7 +663,7 @@
           "mauOverage": 0,
           "total": 237.46
         },
-        "savingsPercent": -1455.26
+        "savingsPercent": -414.96
       },
       {
         "workload": {
@@ -684,9 +684,9 @@
           "dsql": 4594.67,
           "cognito": 7862.5,
           "lambda": 9859.81,
-          "apiGateway": 38730.72,
+          "apiGateway": 0,
           "s3": 436.47,
-          "total": 61484.17
+          "total": 22753.45
         },
         "supa": {
           "plan": "Pro",
@@ -698,7 +698,7 @@
           "mauOverage": 6175,
           "total": 10615.65
         },
-        "savingsPercent": -479.18
+        "savingsPercent": -114.34
       }
     ],
     "healthIot": [
@@ -756,9 +756,9 @@
           "dsql": 2.18,
           "cognito": 0,
           "lambda": 1.3,
-          "apiGateway": 22.75,
+          "apiGateway": 0,
           "s3": 0.34,
-          "total": 26.57
+          "total": 3.82
         },
         "supa": {
           "plan": "Free",
@@ -770,7 +770,7 @@
           "mauOverage": 0,
           "total": 0.63
         },
-        "savingsPercent": -4117.46
+        "savingsPercent": -506.35
       },
       {
         "workload": {
@@ -791,9 +791,9 @@
           "dsql": 313.03,
           "cognito": 486,
           "lambda": 455.63,
-          "apiGateway": 2330.3,
+          "apiGateway": 0,
           "s3": 46.8,
-          "total": 3631.76
+          "total": 1301.46
         },
         "supa": {
           "plan": "Pro",
@@ -805,7 +805,7 @@
           "mauOverage": 0,
           "total": 492.75
         },
-        "savingsPercent": -637.04
+        "savingsPercent": -164.12
       },
       {
         "workload": {
@@ -826,9 +826,9 @@
           "dsql": 6282.07,
           "cognito": 7862.5,
           "lambda": 9243.15,
-          "apiGateway": 36350.72,
+          "apiGateway": 0,
           "s3": 938.47,
-          "total": 60676.9
+          "total": 24326.18
         },
         "supa": {
           "plan": "Pro",
@@ -840,7 +840,7 @@
           "mauOverage": 6175,
           "total": 11348.75
         },
-        "savingsPercent": -434.66
+        "savingsPercent": -114.35
       }
     ],
     "ecommerce": [
@@ -898,9 +898,9 @@
           "dsql": 0,
           "cognito": 0,
           "lambda": 0.2,
-          "apiGateway": 3.5,
+          "apiGateway": 0,
           "s3": 0.02,
-          "total": 3.72
+          "total": 0.21
         },
         "supa": {
           "plan": "Free",
@@ -933,9 +933,9 @@
           "dsql": 43.97,
           "cognito": 486,
           "lambda": 116.47,
-          "apiGateway": 696.5,
+          "apiGateway": 0,
           "s3": 3.43,
-          "total": 1346.36
+          "total": 649.86
         },
         "supa": {
           "plan": "Pro",
@@ -947,7 +947,7 @@
           "mauOverage": 0,
           "total": 226.69
         },
-        "savingsPercent": -493.92
+        "savingsPercent": -186.67
       },
       {
         "workload": {
@@ -968,9 +968,9 @@
           "dsql": 900.77,
           "cognito": 7862.5,
           "lambda": 2459.8,
-          "apiGateway": 10170.72,
+          "apiGateway": 0,
           "s3": 71.07,
-          "total": 21464.86
+          "total": 11294.14
         },
         "supa": {
           "plan": "Pro",
@@ -982,7 +982,7 @@
           "mauOverage": 6175,
           "total": 10207.74
         },
-        "savingsPercent": -110.28
+        "savingsPercent": -10.64
       }
     ],
     "saas": [
@@ -1040,9 +1040,9 @@
           "dsql": 0.14,
           "cognito": 0,
           "lambda": 0.6,
-          "apiGateway": 10.5,
+          "apiGateway": 0,
           "s3": 0.05,
-          "total": 11.3
+          "total": 0.8
         },
         "supa": {
           "plan": "Free",
@@ -1075,9 +1075,9 @@
           "dsql": 94.76,
           "cognito": 486,
           "lambda": 239.8,
-          "apiGateway": 1350.3,
+          "apiGateway": 0,
           "s3": 7.68,
-          "total": 2178.54
+          "total": 828.24
         },
         "supa": {
           "plan": "Pro",
@@ -1089,7 +1089,7 @@
           "mauOverage": 0,
           "total": 229.91
         },
-        "savingsPercent": -847.56
+        "savingsPercent": -260.25
       },
       {
         "workload": {
@@ -1110,9 +1110,9 @@
           "dsql": 1916.67,
           "cognito": 7862.5,
           "lambda": 4926.47,
-          "apiGateway": 19690.72,
+          "apiGateway": 0,
           "s3": 156.07,
-          "total": 34552.43
+          "total": 14861.71
         },
         "supa": {
           "plan": "Pro",
@@ -1124,7 +1124,7 @@
           "mauOverage": 6175,
           "total": 10464.65
         },
-        "savingsPercent": -230.18
+        "savingsPercent": -42.02
       }
     ]
   }
