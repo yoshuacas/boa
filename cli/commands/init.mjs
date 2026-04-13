@@ -12,7 +12,8 @@ import { ok, header } from '../lib/output.mjs';
 import { TOOLS, DSQL_REGIONS, getOutputValue } from '../lib/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = join(__dirname, '..', 'templates', 'backend.yaml');
+const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
+  || join(__dirname, '..', 'templates', 'backend.yaml');
 
 export function validateStackName(name) {
   if (name.length === 1) return /^[a-z0-9]$/.test(name);

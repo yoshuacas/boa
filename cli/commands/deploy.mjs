@@ -7,7 +7,8 @@ import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = join(__dirname, '..', 'templates', 'backend.yaml');
+const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
+  || join(__dirname, '..', 'templates', 'backend.yaml');
 
 export default async function deploy(_args) {
   // 1. Load config (exits if missing)
