@@ -24,6 +24,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 13 | `AWS_REGION` as Lambda env var (reserved — use `REGION_NAME`) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
+| 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
 | **Functions** | | | |
 | 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
@@ -46,3 +47,39 @@ Some enterprises (including Amazon) run automated security scans that set `Allow
 **Workaround:** If this happens, tell the developer their corporate AWS account blocks self-sign-up. They can:
 1. Request a security exception for the user pool
 2. Use a personal AWS account for development (free tier covers everything BOA uses)
+
+## Function URL 403 — Missing Permission (October 2025)
+
+Since October 2025, AWS requires two resource-based policy
+statements for public Lambda Function URLs:
+
+1. `lambda:InvokeFunctionUrl` — all SAM versions generate
+2. `lambda:InvokeFunction` — SAM v1.101.0+ generates this;
+   older versions require an explicit `AWS::Lambda::Permission`
+
+Without both, the Function URL returns 403 Forbidden on
+every request. No Lambda logs are generated because the
+request never reaches the handler.
+
+**Symptoms:** Every API request returns
+`{"Message":"Forbidden"}` with HTTP 403. No CloudWatch
+logs for the Lambda function. `boa verify` fails the
+Function URL permission check.
+
+**Fix for new deployments:** Already handled — the BOA
+SAM template includes both permissions.
+
+**Fix for existing deployments created before this was
+fixed:** Run `boa deploy` to redeploy the stack with the
+updated template. The new permission is added
+automatically.
+
+**Manual fix (without redeploying):**
+```bash
+aws lambda add-permission \
+  --function-name <project-name>-api \
+  --statement-id FunctionURLInvokePermission \
+  --action lambda:InvokeFunction \
+  --principal "*" \
+  --invoked-via-function-url
+```
