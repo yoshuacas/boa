@@ -324,10 +324,10 @@ For Vite: add `define: { global: 'globalThis' }` to `vite.config.js` (required f
 if [[ ! -f .boa/dashboard/index.html ]]; then
   mkdir -p .boa/dashboard/css .boa/dashboard/js
   for f in index.html database.html auth.html functions.html api.html storage.html; do
-    curl -sL "https://raw.githubusercontent.com/aws/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
+    curl -sL "https://raw.githubusercontent.com/yoshuacas/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
   done
   for f in css/dashboard.css js/aws-cli-bridge.js js/dashboard-core.js; do
-    curl -sL "https://raw.githubusercontent.com/aws/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
+    curl -sL "https://raw.githubusercontent.com/yoshuacas/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
   done
 fi
 open .boa/dashboard/index.html

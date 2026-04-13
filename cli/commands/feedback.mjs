@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
 
-const BOA_REPO = 'aws/boa';
+const BOA_REPO = 'yoshuacas/boa';
 
 async function prompt(question) {
   const rl = createInterface({

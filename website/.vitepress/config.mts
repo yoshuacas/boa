@@ -49,7 +49,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/aws/boa' }
+      { icon: 'github', link: 'https://github.com/yoshuacas/boa' }
     ],
 
     footer: {
@@ -62,7 +62,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/aws/boa/edit/main/website/:path',
+      pattern: 'https://github.com/yoshuacas/boa/edit/main/website/:path',
       text: 'Edit this page on GitHub'
     },
   },

@@ -29,7 +29,7 @@ gh auth status
 Then create the issue:
 
 ```bash
-gh issue create --repo aws/boa \
+gh issue create --repo yoshuacas/boa \
   --title "<concise title>" \
   --label "agent-feedback" \
   --body "$(cat <<'EOF'

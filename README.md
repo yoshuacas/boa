@@ -22,7 +22,7 @@ Add the BOA plugin to Claude Code from GitHub:
 
 ```bash
 # In Claude Code, run:
-/plugin marketplace add https://github.com/aws/boa.git
+/plugin marketplace add https://github.com/yoshuacas/boa.git
 /plugin install boa@aws-boa
 ```
 

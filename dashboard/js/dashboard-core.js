@@ -93,7 +93,7 @@ const BOA = (() => {
         `).join('')}
       </nav>
       <div class="sidebar-footer">
-        BOA &mdash; <a href="https://github.com/aws/boa" target="_blank">GitHub</a>
+        BOA &mdash; <a href="https://github.com/yoshuacas/boa" target="_blank">GitHub</a>
       </div>
     `;
   }
