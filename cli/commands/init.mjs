@@ -9,22 +9,14 @@ import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { generateKeys } from '../lib/keys.mjs';
 import { ok, header } from '../lib/output.mjs';
+import { TOOLS, DSQL_REGIONS, getOutputValue } from '../lib/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(__dirname, '..', 'templates', 'backend.yaml');
 
-const DSQL_REGIONS = ['us-east-1', 'us-east-2'];
-
-const TOOLS = [
-  { name: 'aws',  cmd: 'aws --version' },
-  { name: 'sam',  cmd: 'sam --version' },
-  { name: 'node', cmd: 'node --version' },
-  { name: 'psql', cmd: 'psql --version' },
-  { name: 'jq',   cmd: 'jq --version' },
-];
-
 export function validateStackName(name) {
-  return /^[a-z0-9-]+$/.test(name);
+  if (name.length === 1) return /^[a-z0-9]$/.test(name);
+  return /^[a-z][a-z0-9-]*[a-z0-9]$/.test(name);
 }
 
 export function validateRegion(region) {
@@ -50,11 +42,6 @@ function parseArgs(args) {
   }
 
   return { name, region };
-}
-
-function getOutputValue(outputs, key) {
-  const entry = outputs.find((o) => o.OutputKey === key);
-  return entry ? entry.OutputValue : null;
 }
 
 export default async function init(args) {
@@ -127,7 +114,7 @@ export default async function init(args) {
   }
 
   // 5. Create project directory if name was provided
-  if (parsed.name && !existsSync(parsed.name)) {
+  if (parsed.name) {
     mkdirSync(parsed.name, { recursive: true });
     process.chdir(parsed.name);
   }
@@ -136,7 +123,9 @@ export default async function init(args) {
   mkdirSync('migrations', { recursive: true });
   mkdirSync('policies', { recursive: true });
   mkdirSync('.boa', { recursive: true });
-  writeFileSync('.gitignore', '.boa/\nnode_modules/\n');
+  if (!existsSync('.gitignore')) {
+    writeFileSync('.gitignore', '.boa/\nnode_modules/\n');
+  }
 
   // 7. Generate JWT secret
   console.log('Generating JWT secret...');

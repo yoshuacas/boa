@@ -40,7 +40,7 @@ export default async function migrate(args) {
 
   if (sqlFiles.length === 0) {
     console.log(
-      'No migrations/ directory found. Nothing to migrate.'
+      'No .sql files in migrations/. Nothing to migrate.'
     );
     return;
   }
@@ -78,6 +78,7 @@ export default async function migrate(args) {
   // 7. Apply pending migrations
   let applyCount = 0;
   let skipCount = 0;
+  let dryRunCount = 0;
 
   for (const file of sqlFiles) {
     const filePath = join(migrationsDir, file);
@@ -103,7 +104,7 @@ export default async function migrate(args) {
     // Dry run — show what would run
     if (dryRun) {
       console.log(`  [dry-run] ${file}`);
-      skipCount++;
+      dryRunCount++;
       continue;
     }
 
@@ -125,9 +126,11 @@ export default async function migrate(args) {
       process.exit(1);
     }
 
-    // Record migration
+    // Record migration (use dollar-quoting to prevent SQL injection from filenames)
+    const safeName = file.replace(/'/g, "''");
+    const safeChecksum = checksum.replace(/'/g, "''");
     aws.exec(
-      `psql "${connstr}" -q -c "INSERT INTO _boa_migrations (name, checksum) VALUES ('${file}', '${checksum}')"`,
+      `psql "${connstr}" -q -c "INSERT INTO _boa_migrations (name, checksum) VALUES ('${safeName}', '${safeChecksum}')"`,
       { env: psqlEnv }
     );
     console.log(`  [done] ${file}`);
@@ -153,7 +156,7 @@ export default async function migrate(args) {
 
   // 9. Summary
   console.log('');
-  console.log(
-    `Migration complete: ${applyCount} applied, ${skipCount} skipped.`
-  );
+  const parts = [`${applyCount} applied`, `${skipCount} skipped`];
+  if (dryRunCount > 0) parts.push(`${dryRunCount} would apply`);
+  console.log(`Migration complete: ${parts.join(', ')}.`);
 }

@@ -2,6 +2,7 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
+import { shellEscape } from '../lib/aws.mjs';
 import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { ok } from '../lib/output.mjs';
@@ -72,7 +73,7 @@ export default async function teardown(_args) {
     '║  If you\'re trying to FIX a problem, stop here.             ║'
   );
   console.log(
-    '║  Use deploy.sh to redeploy, or debug the specific issue.   ║'
+    '║  Use boa deploy to redeploy, or debug the specific issue.  ║'
   );
   console.log(
     '╚══════════════════════════════════════════════════════════════╝'
@@ -109,8 +110,8 @@ export default async function teardown(_args) {
   const dsqlClusterId = dsqlEndpoint.split('.')[0];
   try {
     aws.exec(
-      `aws dsql update-cluster --identifier ${dsqlClusterId}` +
-        ` --no-deletion-protection-enabled --region ${region}`
+      `aws dsql update-cluster --identifier ${shellEscape(dsqlClusterId)}` +
+        ` --no-deletion-protection-enabled --region ${shellEscape(region)}`
     );
   } catch {
     // Ignore errors
@@ -120,8 +121,8 @@ export default async function teardown(_args) {
   // 8. Disable Cognito deletion protection
   try {
     aws.exec(
-      `aws cognito-idp update-user-pool --user-pool-id ${userPoolId}` +
-        ` --deletion-protection INACTIVE --region ${region}`
+      `aws cognito-idp update-user-pool --user-pool-id ${shellEscape(userPoolId)}` +
+        ` --deletion-protection INACTIVE --region ${shellEscape(region)}`
     );
   } catch {
     // Ignore errors
@@ -133,7 +134,7 @@ export default async function teardown(_args) {
   console.log(`Emptying S3 bucket '${bucketName}'...`);
   try {
     aws.run(
-      `aws s3 rm s3://${bucketName} --recursive --region ${region}`
+      `aws s3 rm s3://${shellEscape(bucketName)} --recursive --region ${shellEscape(region)}`
     );
   } catch {
     // Ignore errors
@@ -151,16 +152,16 @@ export default async function teardown(_args) {
   console.log('Cleaning up SSM parameters...');
   try {
     const json = aws.exec(
-      `aws ssm get-parameters-by-path --path /${stackName}/` +
-        ` --region ${region} --query 'Parameters[*].Name'` +
+      `aws ssm get-parameters-by-path --path ${shellEscape('/' + stackName + '/')}` +
+        ` --region ${shellEscape(region)} --query 'Parameters[*].Name'` +
         ` --output json`
     );
     const params = JSON.parse(json);
     for (const param of params) {
       try {
         aws.exec(
-          `aws ssm delete-parameter --name "${param}"` +
-            ` --region ${region}`
+          `aws ssm delete-parameter --name ${shellEscape(param)}` +
+            ` --region ${shellEscape(region)}`
         );
       } catch {
         // Ignore errors

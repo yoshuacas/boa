@@ -1,5 +1,11 @@
 import { execSync, spawnSync } from 'node:child_process';
 
+// Shell-escape a value to prevent command injection.
+// Wraps in single quotes and escapes any embedded single quotes.
+export function shellEscape(val) {
+  return "'" + String(val).replace(/'/g, "'\\''") + "'";
+}
+
 // Run a command and return stdout (for queries)
 export function exec(cmd, opts = {}) {
   return execSync(cmd, {
@@ -21,26 +27,26 @@ export function run(cmd, opts = {}) {
   }
 }
 
-// Specific AWS wrappers
+// Specific AWS wrappers — all parameters are shell-escaped
 export function stsGetCallerIdentity() {
   return JSON.parse(exec('aws sts get-caller-identity'));
 }
 
 export function cfnDescribeStacks(stackName, region) {
   const json = exec(
-    `aws cloudformation describe-stacks --stack-name ${stackName} --region ${region} --query 'Stacks[0].Outputs' --output json`
+    `aws cloudformation describe-stacks --stack-name ${shellEscape(stackName)} --region ${shellEscape(region)} --query 'Stacks[0].Outputs' --output json`
   );
   return JSON.parse(json);
 }
 
 export function ssmPutParameter(name, value, region) {
   exec(
-    `aws ssm put-parameter --name "${name}" --value "${value}" --type String --overwrite --region ${region}`
+    `aws ssm put-parameter --name ${shellEscape(name)} --value ${shellEscape(value)} --type String --overwrite --region ${shellEscape(region)}`
   );
 }
 
 export function dsqlGenerateAuthToken(endpoint, region) {
   return exec(
-    `aws dsql generate-db-connect-admin-auth-token --hostname ${endpoint} --region ${region}`
+    `aws dsql generate-db-connect-admin-auth-token --hostname ${shellEscape(endpoint)} --region ${shellEscape(region)}`
   );
 }

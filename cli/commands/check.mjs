@@ -1,15 +1,6 @@
 import { exit } from 'node:process';
 import * as aws from '../lib/aws.mjs';
-
-const TOOLS = [
-  { name: 'aws',  cmd: 'aws --version' },
-  { name: 'sam',  cmd: 'sam --version' },
-  { name: 'node', cmd: 'node --version' },
-  { name: 'psql', cmd: 'psql --version' },
-  { name: 'jq',   cmd: 'jq --version' },
-];
-
-const DSQL_REGIONS = ['us-east-1', 'us-east-2'];
+import { TOOLS, DSQL_REGIONS } from '../lib/constants.mjs';
 
 function platformName() {
   switch (process.platform) {

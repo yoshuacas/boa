@@ -4,14 +4,10 @@ import { fileURLToPath } from 'node:url';
 import * as aws from '../lib/aws.mjs';
 import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
+import { getOutputValue } from '../lib/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = join(__dirname, '..', 'templates', 'backend.yaml');
-
-function getOutputValue(outputs, key) {
-  const entry = outputs.find((o) => o.OutputKey === key);
-  return entry ? entry.OutputValue : null;
-}
 
 export default async function deploy(_args) {
   // 1. Load config (exits if missing)
