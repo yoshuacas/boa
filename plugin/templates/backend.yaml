@@ -22,8 +22,10 @@ Resources:
   # -------------------------------------------------------
   DsqlCluster:
     Type: AWS::DSQL::Cluster
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
-      DeletionProtectionEnabled: false
+      DeletionProtectionEnabled: true
       Tags:
         - Key: Project
           Value: !Ref ProjectName
@@ -33,8 +35,11 @@ Resources:
   # -------------------------------------------------------
   UserPool:
     Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       UserPoolName: !Sub '${ProjectName}-user-pool'
+      DeletionProtection: ACTIVE
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: false
       AutoVerifiedAttributes:
@@ -189,6 +194,8 @@ Resources:
   # -------------------------------------------------------
   StorageBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub '${ProjectName}-storage-${AWS::AccountId}'
       PublicAccessBlockConfiguration:

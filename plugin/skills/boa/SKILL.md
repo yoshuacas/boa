@@ -88,6 +88,8 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
 9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
 10. **Cedar policies required with tables**: When creating tables, always write Cedar policies too — tables without policies return 403 on all requests
+11. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `teardown.sh` or deleting the CloudFormation stack destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
+12. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
 
 ## Step 1: Setup
 
