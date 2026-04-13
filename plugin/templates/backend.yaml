@@ -162,6 +162,20 @@ Resources:
             BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
+  # Function URL permission — required since October 2025
+  # SAM v1.101.0+ auto-generates this, but older versions
+  # do not. Explicit declaration is a safe no-op on new
+  # SAM and a fix on old SAM.
+  # -------------------------------------------------------
+  ApiFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ApiFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+
+  # -------------------------------------------------------
   # Storage — S3 bucket (private, CORS for presigned URLs)
   # -------------------------------------------------------
   StorageBucket:
