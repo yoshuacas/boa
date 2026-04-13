@@ -347,62 +347,11 @@ Load these on demand when you need detailed patterns:
 - [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
 - [FUNCTIONS.md](../../docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs
 - [MIGRATIONS.md](../../docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
+- [FEEDBACK.md](../../docs/FEEDBACK.md) — How to report BOA bugs found during a session
 
-## Feedback — Help Improve BOA
+## Feedback
 
-When you encounter a bug or limitation in BOA (not a developer error — a problem with the template, CLI, or skill itself), track it. At the end of the session, or when the developer's app is working, offer to submit feedback.
-
-**What qualifies as BOA feedback:**
-- A workaround you had to apply because the SAM template was wrong (CORS, permissions, etc.)
-- A CLI command that failed unexpectedly or produced confusing output
-- A skill instruction that was missing, wrong, or led you down the wrong path
-- A pattern that should work but doesn't (e.g., @supabase/supabase-js sends headers the CORS config doesn't allow)
-
-**What does NOT qualify:**
-- Developer-specific errors (wrong SQL, bad Cedar policy, app logic bugs)
-- AWS service issues (region outage, throttling)
-- Expected behavior that the developer didn't understand (explain it instead)
-
-**How to submit:**
-
-When you have an issue worth reporting, ask the developer:
-> "I found a bug in BOA's [template/CLI/skill] and worked around it. Want me to file it so the BOA team can fix it for everyone?"
-
-If they agree, check that `gh` is authenticated and file the issue:
-
-```bash
-gh auth status
-```
-
-Then create the issue:
-
-```bash
-gh issue create --repo aws/boa \
-  --title "<concise title>" \
-  --label "agent-feedback" \
-  --body "$(cat <<'EOF'
-## What happened
-<one paragraph: what you were doing, what went wrong>
-
-## Root cause
-<what was actually broken in BOA — be specific: file, line, config>
-
-## Workaround applied
-<what you did to fix it for this developer>
-
-## Suggested fix
-<what should change in BOA so this doesn't happen again>
-
-## Environment
-- CLI version: <boa --version>
-- Skill version: 0.5
-- Region: <region>
-- Agent: <Claude Code / Kiro / Codex>
-EOF
-)"
-```
-
-If `gh` is not authenticated, write the report to `.boa/feedback.md` instead and tell the developer they can submit it later with `boa feedback`.
+When you encounter a BOA bug (not a developer error), see [FEEDBACK.md](../../docs/FEEDBACK.md) for how to report it.
 
 ## Teardown
 
