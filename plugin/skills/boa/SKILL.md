@@ -185,6 +185,7 @@ mkdir -p migrations
 - No `SERIAL` / `BIGSERIAL` — use `TEXT DEFAULT gen_random_uuid()::text`
 - `CREATE INDEX ASYNC` — DSQL requires ASYNC for all index creation
 - No triggers, stored procedures, or functions
+- **Name foreign key columns with `_id` suffix** — this enables resource embedding (e.g., `player_id` auto-links to the `players` table, letting clients fetch `game_stats(*, players(*))` in one request)
 - See [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) for the full constraints table
 
 ```sql
@@ -258,7 +259,16 @@ GET    /rest/v1/_docs                  — interactive API docs
 
 All requests require an `apikey` header. Authenticated requests also include `Authorization: Bearer <token>`.
 
-For filtering syntax, headers, @supabase/supabase-js examples, and error handling, see [REST-API.md](../../docs/REST-API.md).
+**Resource embedding** — fetch related data in one request using `select` with parentheses. Works automatically when columns follow the `_id` naming convention:
+
+```javascript
+// Fetch games with player stats in one query
+const { data } = await supabase
+  .from('games')
+  .select('*, game_stats(goals, assists, players(name, position))');
+```
+
+For embedding patterns, filtering syntax, and @supabase/supabase-js examples, see [REST-API.md](../../docs/REST-API.md).
 
 ## Authentication
 

@@ -175,6 +175,126 @@ const { count } = await supabase
   .select('*', { count: 'exact', head: true });
 ```
 
+## Resource Embedding (fetching related data)
+
+Fetch related data in a single request instead of making multiple API calls. Use parenthetical syntax in the `select` parameter to embed related tables.
+
+### How relationships are detected
+
+BOA uses Aurora DSQL which doesn't support foreign key constraints. pgrest-lambda discovers relationships automatically through **column naming conventions**: any column ending in `_id` maps to the corresponding table.
+
+```
+player_id   → players table
+game_id     → games table
+category_id → categories table (y→ies)
+address_id  → addresses table (s→es)
+```
+
+No configuration needed — just follow the `_id` naming convention in your migrations.
+
+### Many-to-one (fetch parent)
+
+A game_stat row has a `player_id` — fetch the player data with it:
+
+```javascript
+const { data } = await supabase
+  .from('game_stats')
+  .select('goals, assists, players(name, jersey_number)')
+  .eq('game_id', gameId);
+
+// [{ goals: 2, assists: 1, players: { name: "Alice", jersey_number: 10 } }, ...]
+```
+
+### One-to-many (fetch children)
+
+A game has many game_stats — fetch them all:
+
+```javascript
+const { data: game } = await supabase
+  .from('games')
+  .select('*, game_stats(goals, assists, minutes_played)')
+  .eq('id', gameId)
+  .single();
+
+// { id: "abc", opponent: "City FC", game_stats: [{ goals: 2, ... }, { goals: 0, ... }] }
+```
+
+### Nested embedding (2+ levels)
+
+Fetch games with stats and each stat's player — one request:
+
+```javascript
+const { data: games } = await supabase
+  .from('games')
+  .select('opponent_name, home_score, away_score, game_stats(goals, assists, players(name, position))');
+```
+
+### Aliased embeds
+
+```javascript
+const { data } = await supabase
+  .from('game_stats')
+  .select('goals, scorer:players(name)')
+// [{ goals: 2, scorer: { name: "Alice" } }]
+```
+
+### Inner join (only rows with matches)
+
+```javascript
+// Only games that have at least one game_stat entry
+const { data } = await supabase
+  .from('games')
+  .select('*, game_stats!inner(goals)')
+```
+
+### Disambiguation (multiple _id columns to same table)
+
+When a table has two columns pointing to the same table, use `!hint`:
+
+```javascript
+const { data } = await supabase
+  .from('orders')
+  .select('*, billing:addresses!billing_address_id(*), shipping:addresses!shipping_address_id(*)')
+```
+
+### Full example (game detail page in one query)
+
+```javascript
+const { data: game } = await supabase
+  .from('games')
+  .select(`
+    id, opponent_name, game_date, location, home_score, away_score,
+    game_stats (
+      goals, assists, minutes_played, yellow_cards, red_cards,
+      players (name, jersey_number, position)
+    )
+  `)
+  .eq('id', gameId)
+  .single();
+```
+
+### Column naming convention (required for DSQL)
+
+For embedding to work, name foreign key columns with the `_id` suffix:
+
+```sql
+-- GOOD: _id suffix enables automatic relationship detection
+CREATE TABLE game_stats (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  game_id TEXT NOT NULL,      -- links to 'games' table
+  player_id TEXT NOT NULL,    -- links to 'players' table
+  goals INTEGER DEFAULT 0
+);
+
+-- BAD: these won't be detected as relationships
+CREATE TABLE game_stats (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  game TEXT NOT NULL,          -- no _id suffix, won't link
+  player TEXT NOT NULL,        -- no _id suffix, won't link
+  goals INTEGER DEFAULT 0
+);
+```
+
 ## Error Responses
 
 All errors follow PostgREST format:

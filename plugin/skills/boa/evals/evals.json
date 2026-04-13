@@ -239,6 +239,37 @@
         "Creates Cedar policies for the notes table",
         "Calls bootstrap.sh and deploy.sh"
       ]
+    },
+    {
+      "id": 14,
+      "prompt": "I have a soccer league app with games, players, and game_stats tables. I need a frontend page that shows a game detail view — the game info plus all player stats for that game, with each player's name and jersey number. Right now I'm making 3 separate API calls and it's slow. Can you help me fetch all this data in one request?",
+      "expected_output": "The agent uses resource embedding (select with parentheses) to fetch games with nested game_stats and players in a single query, instead of multiple separate queries.",
+      "files": [],
+      "expectations": [
+        "Uses supabase .select() with parenthetical embedding syntax (not multiple separate queries)",
+        "The select string includes game_stats(...) to embed stats within the game",
+        "The select string includes players(...) nested inside game_stats to embed player details",
+        "Does NOT make separate .from('game_stats') and .from('players') calls",
+        "Uses .single() or .eq('id', gameId) to fetch one game",
+        "The migration columns use _id suffix for foreign keys (game_id, player_id)",
+        "Explains that _id naming convention enables automatic relationship detection on DSQL"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Build me a blog platform with posts, comments, and user profiles. Each post belongs to a user, each comment belongs to both a post and a user. I want the post listing page to show the author name and comment count for each post, and the post detail page to show all comments with the commenter's name. Deploy to us-east-1.",
+      "expected_output": "The agent creates tables with _id suffix columns (user_id, post_id), uses resource embedding for the frontend queries, and does NOT create separate API calls for related data.",
+      "files": [],
+      "expectations": [
+        "Migration for posts table includes user_id column (not user or author)",
+        "Migration for comments table includes post_id and user_id columns (with _id suffix)",
+        "Frontend post listing uses embedding: .from('posts').select('*, users(name)') or similar",
+        "Frontend post detail uses nested embedding: .from('posts').select('*, comments(*, users(name))') or similar",
+        "Does NOT use multiple separate .from() calls where embedding would work",
+        "All _id columns use TEXT type (DSQL-compatible)",
+        "No SERIAL, BIGSERIAL, or REFERENCES in migrations",
+        "Creates Cedar policies for all three tables"
+      ]
     }
   ]
 }
