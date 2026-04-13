@@ -111,7 +111,7 @@ export default async function migrate(args) {
     // Apply migration
     console.log(`  [run]  ${file} ...`);
     try {
-      aws.exec(`psql "${connstr}" -q -f "${filePath}"`, {
+      aws.exec(`psql "${connstr}" -q -v ON_ERROR_STOP=1 -f "${filePath}"`, {
         env: psqlEnv,
       });
     } catch {
