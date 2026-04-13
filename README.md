@@ -18,26 +18,29 @@ BOA is agent-ready. The BOA skill works with any coding agent — install it, de
 
 ## Quick Start
 
-### 1. Clone the repo and install the CLI
+### 1. Clone and install
 
 ```bash
-git clone https://github.com/yoshuacas/boa.git
-cd boa/cli && npm link && cd ../..
+git clone https://github.com/yoshuacas/boa.git ~/boa
+cd ~/boa/cli && npm link && cd ~
 ```
-
-This installs the `boa` command globally.
 
 ### 2. Add the skill to your agent
 
-**Claude Code** (from your project directory):
+**Claude Code:**
 
 ```bash
-claude --plugin-dir /path/to/boa/plugin
+claude --plugin-dir ~/boa/plugin
 ```
 
-**Kiro:**
+**Kiro:** symlink the skill into your project:
 
-Copy `boa/plugin/skills/boa/SKILL.md` into your Kiro skills directory.
+```bash
+ln -s ~/boa/plugin/skills/boa .kiro/skills/boa
+ln -s ~/boa/plugin/docs .kiro/skills/boa-docs
+```
+
+See the [install guide](website/install.md) for all agents (Copilot, Codex).
 
 ### 3. Build something
 

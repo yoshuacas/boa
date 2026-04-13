@@ -4,16 +4,18 @@ outline: false
 
 # Install BOA
 
-Clone the repository, install the CLI, and add the skill to your coding agent.
+Clone the repository once, install the CLI, and point your coding agent at the plugin directory.
+
+> **Important:** Don't copy individual skill files out of the repo. The skill references 10+ documentation files via relative paths — these only resolve when the full `plugin/` directory is intact.
 
 ## 1. Clone and install the CLI
 
 ```bash
-git clone https://github.com/yoshuacas/boa.git
-cd boa/cli && npm link && cd ../..
+git clone https://github.com/yoshuacas/boa.git ~/boa
+cd ~/boa/cli && npm link && cd ~
 ```
 
-This builds the `boa` command and makes it available globally. Verify with:
+This clones BOA to `~/boa` and installs the `boa` command globally. Verify with:
 
 ```bash
 boa --version
@@ -21,55 +23,52 @@ boa --version
 
 ## 2. Add the skill to your agent
 
+The BOA skill lives at `~/boa/plugin`. Every agent needs the full directory — not just SKILL.md — because the skill loads pattern docs, pitfalls, and architecture references on demand.
+
 ### Claude Code
 
-From your project directory, start Claude Code with the BOA plugin:
-
-```bash
-claude --plugin-dir /path/to/boa/plugin
-```
-
-Replace `/path/to/boa` with wherever you cloned the repo. For example, if you cloned into `~/boa`:
+Start Claude Code with the BOA plugin from any project directory:
 
 ```bash
 claude --plugin-dir ~/boa/plugin
 ```
 
-To load it automatically every time, add it to your project's `.claude/settings.json`:
+To load it automatically for a specific project, add to your project's `.claude/settings.json`:
 
 ```json
 {
-  "plugins": ["/path/to/boa/plugin"]
+  "plugins": ["~/boa/plugin"]
 }
 ```
 
 ### Kiro
 
-Copy the skill file into your Kiro workspace:
+Symlink the BOA plugin into your project's `.kiro/skills/` directory:
 
 ```bash
-cp boa/plugin/skills/boa/SKILL.md /path/to/your/kiro/skills/boa/
+ln -s ~/boa/plugin/skills/boa .kiro/skills/boa
+ln -s ~/boa/plugin/docs .kiro/skills/boa-docs
 ```
 
-Kiro reads SKILL.md files from the skills directory automatically.
+This preserves the relative path references so Kiro can resolve `../../docs/*.md` from SKILL.md.
 
 ### VS Code Copilot
 
-Open the BOA repo in VS Code. Copilot automatically reads `AGENTS.md` and `.github/copilot-instructions.md`.
+Symlink the BOA instructions into your project:
 
 ```bash
-code boa
+ln -s ~/boa/plugin/AGENTS.md .github/copilot-instructions.md
 ```
 
-No manual configuration needed. Ask Copilot to build your backend and it will follow the BOA patterns.
+Copilot reads `.github/copilot-instructions.md` automatically. No other configuration needed.
 
 ### Codex
 
-Copy the BOA skill file into your project's agents directory:
+Symlink the BOA skill into your project's agents directory:
 
 ```bash
-mkdir -p .agents/skills/boa
-cp boa/plugin/skills/boa/SKILL.md .agents/skills/boa/
+mkdir -p .agents/skills
+ln -s ~/boa/plugin/skills/boa .agents/skills/boa
 ```
 
 ## 3. Build your first backend
@@ -86,6 +85,16 @@ Or use the CLI directly:
 mkdir my-app && cd my-app
 boa init --region us-east-1
 ```
+
+## Updating BOA
+
+Since BOA is installed from a git clone, updating is:
+
+```bash
+cd ~/boa && git pull
+```
+
+The CLI and skill both update in place — no reinstall needed.
 
 ## CLI Commands
 

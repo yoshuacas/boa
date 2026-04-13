@@ -44,8 +44,8 @@ This opens your browser. Sign in with your AWS account, and credentials are stor
 ### 4. Clone BOA and install the CLI
 
 ```bash
-git clone https://github.com/yoshuacas/boa.git
-cd boa/cli && npm link && cd ../..
+git clone https://github.com/yoshuacas/boa.git ~/boa
+cd ~/boa/cli && npm link && cd ~
 ```
 
 Verify everything is ready:
@@ -55,6 +55,14 @@ boa check
 ```
 
 This checks all tools, AWS credentials, and region in one shot.
+
+### 5. Add the skill to your agent
+
+See the [install page](/install) for instructions per agent. For Claude Code:
+
+```bash
+claude --plugin-dir ~/boa/plugin
+```
 
 ## Build Your First Backend
 
