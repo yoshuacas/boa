@@ -62,21 +62,50 @@ else
 fi
 
 # ------------------------------------------------------------------
-# Check 2: API returns 401 (unauthorized), not 500
+# Check 2: Function URL permissions
 # ------------------------------------------------------------------
-echo "Checking API Gateway..."
-HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$API_URL/items" 2>/dev/null || echo "000")
+echo "Checking Function URL permissions..."
+FUNCTION_NAME="${STACK_NAME}-api"
+POLICY=$(aws lambda get-policy \
+  --function-name "$FUNCTION_NAME" \
+  --region "$REGION" \
+  --query 'Policy' --output text 2>/dev/null || echo "")
 
-if [[ "$HTTP_CODE" == "401" ]]; then
-  check "API returns 401 Unauthorized (not 500)" "pass"
-elif [[ "$HTTP_CODE" == "403" ]]; then
-  check "API returns 403 Forbidden (Cognito authorizer active)" "pass"
+if [[ -n "$POLICY" ]]; then
+  HAS_INVOKE_URL=$(echo "$POLICY" | jq -r \
+    '[.Statement[] | select(.Effect=="Allow" and .Action=="lambda:InvokeFunctionUrl")] | length')
+  HAS_INVOKE_FN=$(echo "$POLICY" | jq -r \
+    '[.Statement[] | select(.Effect=="Allow" and .Action=="lambda:InvokeFunction")] | length')
+
+  if [[ "$HAS_INVOKE_URL" -gt 0 ]]; then
+    check "Function URL has lambda:InvokeFunctionUrl permission" "pass"
+  else
+    check "Function URL has lambda:InvokeFunctionUrl permission" "fail"
+  fi
+
+  if [[ "$HAS_INVOKE_FN" -gt 0 ]]; then
+    check "Function URL has lambda:InvokeFunction permission" "pass"
+  else
+    check "Function URL has lambda:InvokeFunction permission — missing since Oct 2025, redeploy to fix" "fail"
+  fi
 else
-  check "API returns 401/403 — got HTTP $HTTP_CODE" "fail"
+  check "Function URL resource policy exists" "fail"
 fi
 
 # ------------------------------------------------------------------
-# Check 3: S3 bucket exists and is private
+# Check 3: API endpoint is responding
+# ------------------------------------------------------------------
+echo "Checking API endpoint..."
+HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "$API_URL/rest/v1/" 2>/dev/null || echo "000")
+
+if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "401" || "$HTTP_CODE" == "404" ]]; then
+  check "API is responding (HTTP $HTTP_CODE)" "pass"
+else
+  check "API returns unexpected HTTP $HTTP_CODE (expected 200/401/404)" "fail"
+fi
+
+# ------------------------------------------------------------------
+# Check 4: S3 bucket exists and is private
 # ------------------------------------------------------------------
 echo "Checking S3 bucket..."
 BUCKET_EXISTS=$(aws s3api head-bucket --bucket "$BUCKET_NAME" --region "$REGION" 2>&1 && echo "yes" || echo "no")

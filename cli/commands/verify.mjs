@@ -50,7 +50,57 @@ export default async function verify(_args) {
     );
   }
 
-  // Check 2: API endpoint is responding (not 500)
+  // Check 2: Function URL permissions
+  console.log('Checking Function URL permissions...');
+  const functionName = `${stackName}-api`;
+  let policy;
+  try {
+    const policyJson = aws.exec(
+      `aws lambda get-policy` +
+        ` --function-name ${functionName}` +
+        ` --region ${region}` +
+        ` --query 'Policy' --output text`
+    );
+    policy = JSON.parse(policyJson);
+  } catch {
+    policy = null;
+  }
+
+  if (policy) {
+    const statements = policy.Statement || [];
+    const hasInvokeFunctionUrl = statements.some(
+      (s) => s.Effect === 'Allow'
+        && s.Action === 'lambda:InvokeFunctionUrl'
+    );
+    const hasInvokeFunction = statements.some(
+      (s) => s.Effect === 'Allow'
+        && s.Action === 'lambda:InvokeFunction'
+    );
+    check(
+      hasInvokeFunctionUrl,
+      'Function URL has lambda:InvokeFunctionUrl permission'
+    );
+    if (hasInvokeFunction) {
+      check(
+        true,
+        'Function URL has lambda:InvokeFunction permission'
+      );
+    } else {
+      check(
+        false,
+        'Function URL has lambda:InvokeFunction permission'
+          + " — missing since October 2025, run 'boa deploy'"
+          + ' to fix'
+      );
+    }
+  } else {
+    check(
+      false,
+      'Function URL resource policy exists'
+    );
+  }
+
+  // Check 3: API endpoint is responding (not 500)
   console.log('Checking API endpoint...');
   let httpCode;
   try {
@@ -60,14 +110,14 @@ export default async function verify(_args) {
   } catch {
     httpCode = '000';
   }
-  const validCodes = ['200', '401', '403', '404'];
+  const validCodes = ['200', '401', '404'];
   if (validCodes.includes(httpCode)) {
     check(true, `API is responding (HTTP ${httpCode})`);
   } else {
-    check(false, `API returns unexpected HTTP ${httpCode} (expected 200/401/403/404)`);
+    check(false, `API returns unexpected HTTP ${httpCode} (expected 200/401/404)`);
   }
 
-  // Check 3: S3 bucket exists
+  // Check 4: S3 bucket exists
   console.log('Checking S3 bucket...');
   let bucketExists;
   try {
@@ -80,7 +130,7 @@ export default async function verify(_args) {
   }
   check(bucketExists, 'S3 bucket exists');
 
-  // Check 4: S3 bucket private
+  // Check 5: S3 bucket private
   let publicAccess;
   try {
     publicAccess = aws.exec(
