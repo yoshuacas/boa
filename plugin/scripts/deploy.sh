@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-TEMPLATE_PATH="$PLUGIN_DIR/templates/backend.yaml"
+TEMPLATE_PATH="${BOA_TEMPLATE_OVERRIDE:-$PLUGIN_DIR/templates/backend.yaml}"
 PROJECT_DIR="$(pwd)"
 BOA_DIR="$PROJECT_DIR/.boa"
 CONFIG_FILE="$BOA_DIR/config.json"

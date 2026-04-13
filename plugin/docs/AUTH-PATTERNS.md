@@ -167,3 +167,38 @@ Frontend TOTP setup flow:
 1. Call `user.associateSoftwareToken(callbacks)` to get secret
 2. Show QR code with secret
 3. Call `user.verifySoftwareToken(code, friendlyName, callbacks)` to confirm
+
+## Common Mistakes
+
+### Self-signup disabled by default
+
+Cognito defaults `AllowAdminCreateUserOnly` to `true`. Users get "User is not authorized" when trying to sign up. Always set `AllowAdminCreateUserOnly: false` in the SAM template.
+
+### Users stuck in UNCONFIRMED state
+
+Without a pre-signup trigger, users must verify via email (requires SES). Deploy the pre-signup Lambda that auto-confirms: `event.response.autoConfirmUser = true`. The BOA template includes this automatically.
+
+### `update-user-pool` wipes all Lambda triggers
+
+The Cognito `update-user-pool` API is a **replace** operation, not a merge. If you run `aws cognito-idp update-user-pool` without passing `--lambda-config`, it removes ALL triggers — including the pre-signup auto-confirm.
+
+Never modify the user pool directly with the CLI. Use SAM/CloudFormation to make changes, or pass every field:
+```bash
+# WRONG — wipes triggers:
+aws cognito-idp update-user-pool --user-pool-id POOL_ID \
+  --admin-create-user-config AllowAdminCreateUserOnly=false
+
+# RIGHT — preserves triggers:
+aws cognito-idp update-user-pool --user-pool-id POOL_ID \
+  --admin-create-user-config AllowAdminCreateUserOnly=false \
+  --auto-verified-attributes email \
+  --lambda-config PreSignUp=arn:aws:lambda:REGION:ACCOUNT:function:NAME
+```
+
+### Wrong authorizer context path
+
+BOA uses a Lambda authorizer, not a Cognito authorizer. User info is at flat keys:
+```javascript
+event.requestContext.authorizer.userId   // correct (BOA)
+event.requestContext.authorizer.claims.sub  // wrong (Cognito authorizer format)
+```

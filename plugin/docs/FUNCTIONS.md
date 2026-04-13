@@ -161,20 +161,16 @@ ProcessOrderFunction:
     MemorySize: 256
     Environment:
       Variables:
-        API_URL: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-        ANON_KEY: !GetAtt GenerateKeys.AnonKey
-        SERVICE_ROLE_KEY: !GetAtt GenerateKeys.ServiceRoleKey
-        DSQL_ENDPOINT: !GetAtt DSQLCluster.Endpoint
+        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
+        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
+        DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
         BUCKET_NAME: !Ref StorageBucket
         REGION_NAME: !Ref AWS::Region
-    Policies:
-      - DynamoDBCrudPolicy:  # only if the function needs specific AWS permissions
-          TableName: !Ref SomeTable
     Events:
       Api:
         Type: Api
         Properties:
-          RestApiId: !Ref ServerlessRestApi
+          RestApiId: !Ref Api
           Path: /functions/v1/process-order
           Method: ANY
 ```
@@ -225,25 +221,25 @@ StripeWebhookFunction:
         # auto-injected vars plus function-specific secrets
         STRIPE_SECRET_KEY: !Sub "{{resolve:ssm:/${ProjectName}/stripe-secret-key}}"
         STRIPE_WEBHOOK_SECRET: !Sub "{{resolve:ssm:/${ProjectName}/stripe-webhook-secret}}"
-        API_URL: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-        SERVICE_ROLE_KEY: !GetAtt GenerateKeys.ServiceRoleKey
+        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
+        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
         REGION_NAME: !Ref AWS::Region
     Events:
       Api:
         Type: Api
         Properties:
-          RestApiId: !Ref ServerlessRestApi
+          RestApiId: !Ref Api
           Path: /functions/v1/stripe-webhook
           Method: POST
           Auth:
             Authorizer: NONE    # external services don't have a JWT
 ```
 
-**Store secrets in SSM Parameter Store:**
+**Store secrets in SSM Parameter Store (use `String` type, not `SecureString`):**
 
 ```bash
-aws ssm put-parameter --name "/<stack-name>/stripe-secret-key" --value "sk_live_..." --type SecureString
-aws ssm put-parameter --name "/<stack-name>/stripe-webhook-secret" --value "whsec_..." --type SecureString
+aws ssm put-parameter --name "/<stack-name>/stripe-secret-key" --value "sk_live_..." --type String --region $REGION
+aws ssm put-parameter --name "/<stack-name>/stripe-webhook-secret" --value "whsec_..." --type String --region $REGION
 ```
 
 ### 3. Scheduled Functions (cron jobs)
@@ -282,9 +278,9 @@ DailyReportFunction:
     Timeout: 60
     Environment:
       Variables:
-        API_URL: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-        SERVICE_ROLE_KEY: !GetAtt GenerateKeys.ServiceRoleKey
-        DSQL_ENDPOINT: !GetAtt DSQLCluster.Endpoint
+        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
+        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
+        DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
         REGION_NAME: !Ref AWS::Region
     Events:
       Schedule:
@@ -324,7 +320,7 @@ When the developer asks for custom logic:
 
 4. If the function needs secrets, store them in SSM:
    ```bash
-   aws ssm put-parameter --name "/<stack-name>/<secret-name>" --value "<value>" --type SecureString --region $REGION
+   aws ssm put-parameter --name "/<stack-name>/<secret-name>" --value "<value>" --type String --region $REGION
    ```
 
 5. Deploy:
@@ -341,3 +337,39 @@ When the developer asks for custom logic:
 | Memory | 256 MB | Good balance of cost vs. performance |
 | Architecture | arm64 | 20% cheaper, same performance |
 | Region | Same as the stack | Co-located with database and storage |
+
+## Common Mistakes
+
+### Circular dependency when referencing `${Api}` in function env vars
+
+When a function registers an event on an API (`RestApiId: !Ref Api`) AND references that same API in its environment variables (`API_URL: !Sub "https://${Api}.execute-api..."`), CloudFormation detects a circular dependency and the deploy fails.
+
+**Fix:** Store the API URL in SSM during bootstrap and resolve it from there:
+```yaml
+API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
+```
+The bootstrap script should store the API URL in SSM after the initial deploy. This breaks the dependency cycle because the SSM value is resolved at deploy time without creating a resource reference.
+
+### SSM SecureString does not work with Lambda env vars
+
+CloudFormation's `{{resolve:ssm:...}}` only resolves `String` type parameters. The `{{resolve:ssm-secure:...}}` prefix exists for `SecureString` but is NOT supported for Lambda environment variables.
+
+**Fix:** Use `--type String` (not `--type SecureString`) when storing parameters:
+```bash
+aws ssm put-parameter --name "/<stack-name>/my-secret" --value "..." --type String
+```
+If you need encrypted secrets, read them at runtime from SSM using the AWS SDK instead of injecting them as env vars.
+
+### Missing `version` field in function package.json
+
+SAM's Node.js builder requires both `name` and `version` in `package.json`. Without `version`, `sam build` fails with "NPM Failed: Invalid package".
+
+**Fix:** Always include version:
+```json
+{
+  "name": "my-function",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {}
+}
+```

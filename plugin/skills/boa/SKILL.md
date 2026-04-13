@@ -335,7 +335,7 @@ Load these on demand when you need detailed patterns:
 
 - [REST-API.md](../../docs/REST-API.md) — Full REST API reference: filtering, pagination, headers, @supabase/supabase-js, errors
 - [POLICIES.md](../../docs/POLICIES.md) — Cedar authorization: entity model, examples per app type, SQL translation
-- [PITFALLS.md](../../docs/PITFALLS.md) — Every known failure with severity and fix
+- [PITFALLS.md](../../docs/PITFALLS.md) — Quick reference index of all known failures (details in each pattern doc)
 - [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — DSQL schema patterns per app type
 - [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns
 - [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
