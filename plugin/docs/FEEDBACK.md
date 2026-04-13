@@ -1,24 +1,24 @@
 # Feedback — Help Improve BOA
 
-When you encounter a bug or limitation in BOA (not a developer error — a problem with the template, CLI, or skill itself), track it. At the end of the session, or when the developer's app is working, offer to submit feedback.
+When you encounter a bug or limitation in BOA (not a developer error — a problem with the template, the BOA CLI, or the BOA skill itself), track it. At the end of the session, or when the developer's app is working, offer to submit feedback.
 
 ## What qualifies as BOA feedback
 
 - A workaround you had to apply because the SAM template was wrong (CORS, permissions, etc.)
 - A CLI command that failed unexpectedly or produced confusing output
-- A skill instruction that was missing, wrong, or led you down the wrong path
+- A BOA skill instruction that was missing, wrong, or led you down the wrong path
 - A pattern that should work but doesn't (e.g., @supabase/supabase-js sends headers the CORS config doesn't allow)
 
 ## What does NOT qualify
 
-- Developer-specific errors (wrong SQL, bad Cedar policy, app logic bugs)
+- Developer-specific errors (wrong SQL, bad access policy, app logic bugs)
 - AWS service issues (region outage, throttling)
 - Expected behavior that the developer didn't understand (explain it instead)
 
 ## How to submit
 
 When you have an issue worth reporting, ask the developer:
-> "I found a bug in BOA's [template/CLI/skill] and worked around it. Want me to file it so the BOA team can fix it for everyone?"
+> "I found a bug in BOA's [template / CLI / skill] and worked around it. Want me to file it so the BOA team can fix it for everyone?"
 
 If they agree, check that `gh` is authenticated and file the issue:
 

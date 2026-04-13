@@ -16,7 +16,7 @@ When building a backend, deploying to AWS, setting up auth, creating APIs, or ad
 8. Never use `/<*>` as Amplify SPA redirect
 9. DSQL uses IAM auth tokens — never hardcode credentials
 
-## Stack
+## Backend
 - Database: Aurora DSQL (serverless PostgreSQL)
 - Auth: Amazon Cognito (GoTrue-compatible via pgrest-lambda)
 - Engine: pgrest-lambda (PostgREST-compatible REST API, auto-generates endpoints from schema)

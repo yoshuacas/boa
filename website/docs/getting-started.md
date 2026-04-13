@@ -75,7 +75,7 @@ mkdir my-app && cd my-app
 boa init --region us-east-1
 ```
 
-This creates and deploys the full serverless stack (DSQL, Cognito, Lambda, API Gateway, S3) in one command. Then add tables, write migrations, and connect your frontend.
+This creates and deploys the full serverless backend (DSQL, Cognito, Lambda, API Gateway, S3) in one command. Then add tables, write migrations, and connect your frontend.
 
 ### Option B: Through a coding agent
 
@@ -87,7 +87,7 @@ Build a todo app with user accounts
 
 The agent uses the BOA CLI under the hood. It will:
 
-1. Run `boa init` to deploy the full serverless stack
+1. Run `boa init` to deploy the full serverless backend
 2. Write migration files for your app's data model and run `boa migrate`
 3. Connect your frontend using `@supabase/supabase-js` — every table is automatically available as a REST endpoint
 4. Configure S3 for file attachments (if requested)
@@ -100,11 +100,11 @@ After deployment, you will have:
 | Resource | What it is |
 |----------|------------|
 | **Aurora DSQL cluster** | A serverless PostgreSQL database with your app's tables |
-| **Cognito user pool** | User sign-up and sign-in with email/password |
+| **Cognito user pool** | Sign up and sign in with email/password |
 | **Lambda functions** | Thin handlers powered by pgrest-lambda — auto-generates REST API for all tables |
 | **API Gateway (REST)** | Public API with Cognito-based authorization |
 | **S3 bucket** | Private file storage with presigned URL access |
-| **SAM template** | Infrastructure-as-code in `template.yaml` |
+| **SAM template** | Your backend defined as code in `template.yaml` |
 | **Migration files** | Numbered SQL files in `migrations/` that define your schema |
 
 All resources are created in your AWS account. You own them.
@@ -117,7 +117,7 @@ All resources are created in your AWS account. You own them.
 | `boa deploy` | Redeploy after changes |
 | `boa migrate` | Apply database migrations |
 | `boa verify` | Check deployment health |
-| `boa status` | Show stack info and tables |
+| `boa status` | Show backend info and tables |
 | `boa check` | Check prerequisites |
 | `boa teardown` | Destroy everything |
 

@@ -16,10 +16,10 @@ See the [pricing calculator](/pricing) for exact costs at your scale.
 
 Both are valid choices. The differences:
 
-- **Infrastructure ownership:** BOA deploys to your AWS account. You own and control everything. Supabase is a managed service where your data lives on their infrastructure.
+- **Ownership:** BOA deploys to your AWS account. You own and control everything. Supabase is a managed service where your data lives on their servers.
 - **Scales to zero:** Every BOA service is serverless and costs nothing when idle. Supabase requires a $25/month Pro plan once you exceed the free tier limits (0.5 GB database, 50 concurrent connections).
-- **No re-architecture:** The same BOA stack that runs your prototype handles millions of users. AWS services scale automatically. With Supabase, you may need to upgrade compute tiers or migrate to a larger plan.
-- **AWS ecosystem:** BOA backends integrate with any AWS service (SQS, SNS, Step Functions, EventBridge, etc.) since they are already in your AWS account.
+- **No re-architecture:** The same BOA backend that runs your prototype handles millions of users. AWS services scale automatically. With Supabase, you may need to upgrade compute tiers or migrate to a larger plan.
+- **AWS ecosystem:** Your BOA backend integrates with any AWS service (SQS, SNS, Step Functions, EventBridge, etc.) since everything is already in your AWS account.
 
 ## Why Aurora DSQL and not DynamoDB?
 
@@ -45,11 +45,11 @@ npm install -g boa-cli
 boa init my-app
 ```
 
-The CLI handles everything — prerequisite checks, stack deployment, migrations, and verification. The agent skill uses the same CLI under the hood, so you get the same results either way.
+The CLI handles everything — prerequisite checks, deployment, migrations, and verification. The agent skill uses the same CLI under the hood, so you get the same results either way.
 
 You also have direct access to the underlying artifacts:
 
-- **SAM templates** in `plugin/templates/` define the infrastructure
+- **SAM templates** in `plugin/templates/` define your backend
 - **Lambda handlers** in `plugin/lambda-templates/` are ready-to-use Node.js functions
 - **Documentation** in `plugin/docs/` explains every pattern and pitfall
 

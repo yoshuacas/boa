@@ -90,7 +90,7 @@ boa migrate
 
 ### Via init (first deploy)
 
-`boa init` automatically runs migrations after creating the stack. If you have migration files ready before your first deploy, they are applied immediately.
+`boa init` automatically runs migrations after creating the backend. If you have migration files ready before your first deploy, they are applied immediately.
 
 ### Via deploy (subsequent deploys)
 
@@ -100,7 +100,7 @@ boa migrate
 
 This is where migrations pay off. To stand up an identical backend in a new region or account:
 
-1. Run `boa init` with a new stack name — creates all AWS resources
+1. Run `boa init` with a new backend name — creates all AWS resources
 2. `boa init` runs `boa migrate` — replays every migration from `001` forward
 3. The new environment has the exact same schema as the original
 
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
-Run `boa init my-app` — stack is created, both migrations are applied. The API immediately serves `/rest/v1/users` and `/rest/v1/todos`.
+Run `boa init my-app` — backend is created, both migrations are applied. The API immediately serves `/rest/v1/users` and `/rest/v1/todos`.
 
 **2. A week later — add a priority column**
 

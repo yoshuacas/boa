@@ -2,9 +2,9 @@
 outline: deep
 ---
 
-# The BOA Stack
+# The BOA Backend
 
-Every service in the BOA stack is serverless. No servers to manage, no capacity planning, pay only for what you use.
+Every service in the BOA backend is serverless. No servers to manage, no capacity planning, pay only for what you use.
 
 ## Aurora DSQL — Database
 
@@ -22,11 +22,11 @@ Every service in the BOA stack is serverless. No servers to manage, no capacity 
 
 ## Amazon Cognito — Auth
 
-**What it handles:** User sign-up, sign-in, password reset, email verification, MFA, social login (Google, Apple, etc.), and JWT token issuance. Cognito manages the entire auth flow so you do not build it yourself.
+**What it handles:** Sign up, sign in, password reset, email verification, MFA, social sign in (Google, Apple, etc.), and access token issuance. Cognito manages the entire auth flow so you do not build it yourself.
 
-**Why Cognito:** It integrates directly with API Gateway as an authorizer — no custom auth middleware needed. Users authenticate with Cognito, get a JWT, and API Gateway validates it automatically on every request.
+**Why Cognito:** It integrates directly with API Gateway as an authorizer — no custom auth middleware needed. End users authenticate with Cognito, get an access token, and API Gateway validates it automatically on every request.
 
-**Pricing:** The first 10,000 monthly active users (MAU) are free. After that, pricing starts at $0.0055 per MAU. For comparison, most auth services charge $0.01+ per MAU or require a paid plan.
+**Pricing:** The first 10,000 monthly active end users (MAU) are free. After that, pricing starts at $0.0055 per MAU. For comparison, most auth services charge $0.01+ per MAU or require a paid plan.
 
 **Key details:**
 - Pre-signup Lambda trigger auto-confirms users (no manual confirmation step)
@@ -61,7 +61,7 @@ Every service in the BOA stack is serverless. No servers to manage, no capacity 
 
 **What it is:** S3 stores files — images, documents, uploads, exports. It is object storage with virtually unlimited capacity.
 
-**Why presigned URLs:** BOA never makes S3 buckets public. Instead, your Lambda functions generate presigned URLs — temporary, signed links that allow a specific upload or download for a limited time. This keeps your bucket private while letting authenticated users upload and download files directly.
+**Why presigned URLs:** BOA never makes S3 buckets public. Instead, your Lambda functions generate presigned URLs — temporary, signed links that allow a specific upload or download for a limited time. This keeps your bucket private while letting authenticated end users upload and download files directly.
 
 **Key details:**
 - 5 GB free storage (first 12 months)

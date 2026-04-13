@@ -1,6 +1,6 @@
 # BOA — Backend on AWS
 
-BOA is an open-source skill that teaches coding agents to build production-ready, serverless backends on AWS. The stack uses Aurora DSQL (serverless PostgreSQL), Amazon Cognito, AWS Lambda (Node.js 20.x), API Gateway (REST), Amazon S3, AWS Amplify, and SAM/CloudFormation.
+BOA is an open-source skill that teaches coding agents to build production-ready, serverless backends on AWS. The backend uses Aurora DSQL (serverless PostgreSQL), Amazon Cognito, AWS Lambda (Node.js 20.x), API Gateway (REST), Amazon S3, AWS Amplify, and SAM/CloudFormation.
 
 ## Critical Rules
 
@@ -16,13 +16,13 @@ Follow these rules when building BOA backends. They come from real failures obse
 8. **Never use `/<*>` as Amplify SPA redirect** — use regex excluding static assets
 9. **DSQL requires IAM auth tokens** for connections — never hardcode credentials
 
-## Stack
+## Backend
 
 | Layer | Service |
 |-------|---------|
 | Database | Aurora DSQL (serverless PostgreSQL) |
 | Auth | Amazon Cognito |
-| Authorization | Cedar (policy-as-code) |
+| Authorization | Access policies (deny-by-default) |
 | Compute | Lambda (Node.js 20.x) |
 | API | API Gateway (REST) |
 | Storage | Amazon S3 |

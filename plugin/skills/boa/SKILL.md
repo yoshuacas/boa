@@ -21,10 +21,10 @@ These rules shape every interaction:
 
 - **Narrate, don't dump.** Before running a command, explain what you're doing in one plain sentence. After it finishes, summarize the outcome. Never paste raw bash into your explanation text.
 - **Summarize results visually.** After checking tools or deploying, show a clean summary table or checklist — not raw terminal output.
-- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up login" not "deploying a Cognito user pool with pre-signup Lambda trigger." Translate AWS jargon into what it means for their app.
-- **Hide infrastructure plumbing.** The developer doesn't need to see IAM token generation, CloudFormation resource IDs, or internal connection strings mid-flow. Show them outcomes: "Your backend is live at https://...", "Login is working", "Tables created."
+- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up sign-in" not "deploying a Cognito user pool with pre-signup Lambda trigger." Translate AWS jargon into what it means for their app.
+- **Hide backend plumbing.** The developer doesn't need to see IAM token generation, CloudFormation resource IDs, or internal connection strings mid-flow. Show them outcomes: "Your backend is live at https://...", "Sign-in is working", "Tables created."
 - **Be brief and direct.** One sentence before an action, one sentence after. No walls of text explaining what you're about to do.
-- **When something fails, explain the fix — not the internals.** Say "Your AWS session expired — run `aws login` in your terminal to refresh it" not "STS AssumeRole returned ExpiredTokenException for ARN arn:aws:iam::..."
+- **When something fails, explain the fix — not the internals.** Say "Your AWS session expired — run `aws sso login` in your terminal to refresh it" not "STS AssumeRole returned ExpiredTokenException for ARN arn:aws:iam::..."
 - **Never open HTML via `file://`.** When building a frontend, always start a local dev server (`npx vite`, `npx serve`, `python3 -m http.server`) instead of opening `index.html` directly. Browsers block API requests from `file://` origins due to CORS. If the developer opens a file directly and gets CORS errors, tell them to use `http://localhost` instead.
 
 ## Architecture
@@ -53,12 +53,12 @@ All operations go through the `boa` CLI. The developer can also run these comman
 
 | Command | What it does |
 |---------|-------------|
-| `boa init <name>` | Create project, deploy stack, write `.boa/config.json` |
+| `boa init <name>` | Create project, deploy backend, write `.boa/config.json` |
 | `boa deploy` | Rebuild + redeploy (SAM build/deploy, bundle policies) |
 | `boa migrate` | Apply pending SQL migrations to DSQL |
-| `boa verify` | Check all stack components are correct |
+| `boa verify` | Check all backend components are correct |
 | `boa teardown` | Destroy everything (with confirmation) |
-| `boa status` | Show stack info, tables, pending migrations |
+| `boa status` | Show backend info, tables, pending migrations |
 | `boa check` | Check required tools + AWS credentials |
 | `boa feedback` | Submit feedback to improve BOA |
 
@@ -66,9 +66,9 @@ All operations go through the `boa` CLI. The developer can also run these comman
 
 There are two entry points depending on what the developer asks:
 
-### "Create a backend" (infrastructure only)
+### "Create a backend"
 
-The developer wants a backend but hasn't described their app yet. Deploy the bare infrastructure — no tables, no policies. The backend is ready to use once keys and credentials are generated.
+The developer wants a backend but hasn't described their app yet. Deploy the bare backend — no tables, no policies. The backend is ready to use once keys and credentials are generated.
 
 1. **Setup** — Run through Step 1 below (tools + AWS credentials)
 2. **Deploy** — Run `boa init <app-name> --region us-east-1`
@@ -82,7 +82,7 @@ The developer described what they want. Create the backend, then build on it.
 2. **Deploy** — Run `boa init <app-name> --region us-east-1`
 3. **Design** — Based on the developer's description, design the data model (tables, columns, indexes) and authorization rules (who can read/write what)
 4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](../../docs/MIGRATIONS.md).
-5. **Policies** — Write Cedar policy files in `policies/`. See [POLICIES.md](../../docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
+5. **Policies** — Write access policy files in `policies/`. See [POLICIES.md](../../docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
 6. **Deploy changes** — Run `boa deploy` (bundles policies and applies migrations)
 7. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
 8. **Verify** — Run `boa verify`
@@ -100,7 +100,7 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 7. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
 8. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
 9. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
-10. **Cedar policies required with tables**: When creating tables, always write Cedar policies too — tables without policies return 403 on all requests
+10. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
 11. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
 12. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
 
@@ -149,9 +149,9 @@ After installing, re-run `boa check` to confirm everything passes.
 
 ### If AWS credentials are missing
 
-If the developer has an AWS account but no local credentials, tell them to run `aws login` in their terminal. This opens a browser for sign-in — the developer must run it themselves. Session lasts 12 hours.
+If the developer has an AWS account but no local credentials, tell them to run `aws sso login` in their terminal. This opens a browser for sign-in — the developer must run it themselves. Session lasts 12 hours.
 
-If they don't have an AWS account, tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws login`.
+If they don't have an AWS account, tell them to create one at https://aws.amazon.com/free/ (free tier covers everything BOA uses), then run `aws sso login`.
 
 ### Region
 
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- migrations/002_create_todos.sql
 CREATE TABLE IF NOT EXISTS todos (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,  -- references users(id), enforced by Cedar policies
+  user_id TEXT NOT NULL,  -- references users(id), enforced by access policies
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -203,16 +203,16 @@ CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 
 For naming rules and common patterns, see [MIGRATIONS.md](../../docs/MIGRATIONS.md).
 
-### Write Cedar policies
+### Write access policies
 
-**Every table needs a Cedar policy.** Without one, all requests to that table return 403.
+**Every table needs an access policy.** Without one, all requests to that table return 403.
 
 ```bash
 mkdir -p policies
 ```
 
 ```cedar
-// policies/default.cedar — standard ownership-based access
+// policies/default.cedar — standard ownership-based access policies
 permit(
     principal is PgrestLambda::User,
     action in [PgrestLambda::Action::"select", PgrestLambda::Action::"update", PgrestLambda::Action::"delete"],
@@ -267,7 +267,7 @@ For embedding patterns, filtering syntax, and @supabase/supabase-js examples, se
 The auth engine is GoTrue-compatible at `/auth/v1/*`. Auth endpoints work immediately after `boa init` — no tables or policies needed.
 
 ```
-POST /auth/v1/signup                         — register
+POST /auth/v1/signup                         — sign up
 POST /auth/v1/token?grant_type=password      — sign in
 POST /auth/v1/token?grant_type=refresh_token — refresh
 GET  /auth/v1/user                           — current user
@@ -278,7 +278,7 @@ POST /auth/v1/logout                         — sign out
 - **anonKey** — role `anon`, for public access
 - **serviceRoleKey** — role `service_role`, bypasses authorization (server-side only)
 
-For Cognito flows, social login, MFA, and token handling details, see [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md).
+For Cognito flows, social sign-in, MFA, and token handling details, see [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md).
 
 ## Frontend Configuration
 
@@ -338,7 +338,7 @@ open .boa/dashboard/index.html
 Load these on demand when you need detailed patterns:
 
 - [REST-API.md](../../docs/REST-API.md) — Full REST API reference: filtering, pagination, headers, @supabase/supabase-js, errors
-- [POLICIES.md](../../docs/POLICIES.md) — Cedar authorization: entity model, examples per app type, SQL translation
+- [POLICIES.md](../../docs/POLICIES.md) — Access policies: entity model, examples per app type, SQL translation
 - [PITFALLS.md](../../docs/PITFALLS.md) — Quick reference index of all known failures (details in each pattern doc)
 - [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — DSQL schema patterns per app type
 - [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns

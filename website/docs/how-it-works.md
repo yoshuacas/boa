@@ -14,22 +14,22 @@ When you install BOA, your agent gains knowledge about:
 - What common mistakes to watch for
 - How to deploy everything with SAM/CloudFormation
 
-## One opinionated stack
+## One opinionated backend
 
-BOA teaches one specific way to build a backend on AWS:
+BOA teaches one specific way to build on AWS:
 
 | Layer | Service | Why this one |
 |-------|---------|-------------|
 | Database | Aurora DSQL | Serverless PostgreSQL. SQL you know. Scales to zero. |
 | Auth | Amazon Cognito | Managed auth. 10K MAU free. |
-| Authorization | Cedar | Policy-as-code. Deny-by-default. Agents can read and write it. |
+| Authorization | Access policies | Deny-by-default. Agents can read and write them. |
 | Compute | AWS Lambda | Node.js 20.x. No servers. |
 | API | API Gateway (REST) | Cognito authorizer support. |
 | Storage | Amazon S3 | Presigned URLs. Never public. |
 | Hosting | AWS Amplify | Frontend CI/CD from Git. |
 | IaC | SAM / CloudFormation | Repeatable deployments. |
 
-**Why opinionated?** Because choice is what breaks AI agent builds. After observing hundreds of AI-built backends, the most common failures come from agents choosing the wrong service, the wrong configuration, or the wrong integration pattern. BOA eliminates those choices. One stack, one way to wire it up, every known failure already solved.
+**Why opinionated?** Because choice is what breaks AI agent builds. After observing hundreds of AI-built backends, the most common failures come from agents choosing the wrong service, the wrong configuration, or the wrong integration pattern. BOA eliminates those choices. One backend, one way to wire it up, every known failure already solved.
 
 ## Three components
 

@@ -312,7 +312,7 @@ All errors follow PostgREST format:
 |-------------|---------|
 | 400 | Bad request (invalid filter, missing required field) |
 | 401 | Missing or invalid apikey/bearer token |
-| 403 | Authorization denied by Cedar policy |
+| 403 | Authorization denied by access policy |
 | 404 | Row not found (with single-object Accept header) |
 | 409 | Conflict (unique constraint violation) |
 | 500 | Server error |

@@ -4,7 +4,7 @@ outline: false
 
 # Install BOA
 
-Clone the repository once, install the CLI, and point your coding agent at the plugin directory.
+Clone the repository once, install the CLI, and point your coding agent at the skill directory.
 
 > **Important:** Don't copy individual skill files out of the repo. The skill references 10+ documentation files via relative paths — these only resolve when the full `plugin/` directory is intact.
 
@@ -27,7 +27,7 @@ The BOA skill lives at `~/boa/plugin`. Every agent needs the full directory — 
 
 ### Claude Code
 
-Start Claude Code with the BOA plugin from any project directory:
+Start Claude Code with the BOA skill from any project directory:
 
 ```bash
 claude --plugin-dir ~/boa/plugin
@@ -43,7 +43,7 @@ To load it automatically for a specific project, add to your project's `.claude/
 
 ### Kiro
 
-Symlink the BOA plugin into your project's `.kiro/skills/` directory:
+Symlink the BOA skill into your project's `.kiro/skills/` directory:
 
 ```bash
 ln -s ~/boa/plugin/skills/boa .kiro/skills/boa
@@ -54,7 +54,7 @@ This preserves the relative path references so Kiro can resolve `../../docs/*.md
 
 ### VS Code Copilot
 
-Symlink the BOA instructions into your project:
+Symlink the BOA skill into your project:
 
 ```bash
 ln -s ~/boa/plugin/AGENTS.md .github/copilot-instructions.md
@@ -64,7 +64,7 @@ Copilot reads `.github/copilot-instructions.md` automatically. No other configur
 
 ### Codex
 
-Symlink the BOA skill into your project's agents directory:
+Symlink the BOA skill into your project's `.agents/` directory:
 
 ```bash
 mkdir -p .agents/skills
@@ -104,7 +104,7 @@ The CLI and skill both update in place — no reinstall needed.
 | `boa deploy` | Redeploy after changes |
 | `boa migrate` | Apply database migrations |
 | `boa verify` | Check deployment health |
-| `boa status` | Show stack info and tables |
+| `boa status` | Show backend info and tables |
 | `boa check` | Check prerequisites |
 | `boa teardown` | Destroy everything |
 | `boa feedback` | Submit feedback to improve BOA |

@@ -7,7 +7,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | # | Pitfall | Severity | Details In |
 |---|---------|----------|-----------|
 | **Auth** | | | |
-| 1 | Self-signup disabled by default (`AllowAdminCreateUserOnly: true`) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
+| 1 | Self-sign-up disabled by default (`AllowAdminCreateUserOnly: true`) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 2 | Users stuck in UNCONFIRMED (missing pre-signup trigger) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 3 | `update-user-pool` CLI wipes all Lambda triggers | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #7 |
@@ -35,14 +35,14 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 21 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | 22 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | **Corporate Accounts** | | | |
-| 23 | Corporate security policies auto-disable Cognito self-signup | HIGH | See below |
+| 23 | Corporate security policies auto-disable Cognito self-sign-up | HIGH | See below |
 
-## Corporate AWS Accounts — Self-Signup
+## Corporate AWS Accounts — Self-Sign-Up
 
-Some enterprises (including Amazon) run automated security scans that set `AllowAdminCreateUserOnly: true` on Cognito user pools. This breaks BOA's signup flow silently — self-signup works initially, then stops working after the next security scan.
+Some enterprises (including Amazon) run automated security scans that set `AllowAdminCreateUserOnly: true` on Cognito user pools. This breaks BOA's sign-up flow silently — self-sign-up works initially, then stops working after the next security scan.
 
-**Symptoms:** Signup returns "User creation is not allowed" or the SAM template setting keeps reverting.
+**Symptoms:** Sign-up returns "User creation is not allowed" or the SAM template setting keeps reverting.
 
-**Workaround:** If this happens, tell the developer their corporate AWS account blocks self-signup. They can:
+**Workaround:** If this happens, tell the developer their corporate AWS account blocks self-sign-up. They can:
 1. Request a security exception for the user pool
 2. Use a personal AWS account for development (free tier covers everything BOA uses)

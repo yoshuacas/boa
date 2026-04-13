@@ -1,13 +1,13 @@
-# Authorization Policies (Cedar)
+# Access Policies
 
-Cedar policies control who can access what data in your BOA backend. They replace traditional PostgreSQL Row-Level Security (RLS) with a policy-as-code approach that is faster (~5 microsecond evaluation via cedar-wasm), more readable, and version-controlled alongside your schema.
+Access policies control who can access what data in your BOA backend. They replace traditional PostgreSQL Row-Level Security (RLS) with a policy-as-code approach that is faster (~5 microsecond evaluation via cedar-wasm), more readable, and version-controlled alongside your schema.
 
 ## How It Works
 
 1. You write `.cedar` policy files in `policies/` in your project root
 2. At deploy time, `boa deploy` bundles them with the Lambda
 3. At runtime, pgrest-lambda evaluates policies and translates row-level conditions into SQL WHERE clauses — filtering happens in the database, not in application code
-4. The schema for Cedar entities is auto-generated from your PostgreSQL schema
+4. The entity schema is auto-generated from your PostgreSQL schema
 
 ## Project Layout
 
@@ -16,7 +16,7 @@ project/
 ├── migrations/        # Schema (SQL) — what the data looks like
 │   ├── 001_create_users.sql
 │   └── 002_create_todos.sql
-├── policies/          # Authorization (Cedar) — who can access what
+├── policies/          # Access policies — who can access what
 │   └── todos.cedar
 └── .boa/
     └── config.json
@@ -24,7 +24,7 @@ project/
 
 ## Default Behavior
 
-Without any custom policies, pgrest-lambda applies built-in defaults:
+Without any custom access policies, pgrest-lambda applies built-in defaults:
 - Authenticated users can read/update/delete rows where `user_id` matches their ID
 - Authenticated users can insert into any table
 - `service_role` key bypasses all authorization
@@ -68,7 +68,7 @@ Row attributes are auto-mapped from PostgreSQL types:
 
 Rows have a parent relationship: `resource in PgrestLambda::Table::"tablename"` checks if a row belongs to a specific table.
 
-## Writing Policies
+## Writing Access Policies
 
 Create the `policies/` directory and add `.cedar` files:
 
@@ -213,9 +213,9 @@ permit(
 };
 ```
 
-## Deploying Policies
+## Deploying Access Policies
 
-After writing or updating policies, redeploy:
+After writing or updating access policies, redeploy:
 
 ```bash
 boa deploy
@@ -223,9 +223,9 @@ boa deploy
 
 The deploy script copies `policies/` into the Lambda build automatically. Changes take effect on next Lambda cold start, or within 5 minutes via the policy cache TTL.
 
-## How Policies Become SQL
+## How Access Policies Become SQL
 
-Cedar policies with row-level conditions are **partially evaluated** and translated into SQL WHERE clauses. This means filtering happens in the database, not in application code.
+Access policies with row-level conditions are **partially evaluated** and translated into SQL WHERE clauses. This means filtering happens in the database, not in application code.
 
 Example: A policy with `resource.user_id == principal` for a `select` action becomes:
 
@@ -235,9 +235,9 @@ SELECT * FROM todos WHERE user_id = $1  -- $1 = authenticated user's ID
 
 This is efficient — the database only returns rows the user is authorized to see. There's no post-query filtering.
 
-## Explaining Policies
+## Explaining Access Policies
 
-To explain how policies affect a specific request, trace through:
+To explain how access policies affect a specific request, trace through:
 
 1. **Principal**: What type? `User` (authenticated), `AnonRole` (anon key only), or `ServiceRole`?
 2. **Action**: What HTTP method? GET → `select`, POST → `insert`, PATCH → `update`, DELETE → `delete`
@@ -245,9 +245,9 @@ To explain how policies affect a specific request, trace through:
 4. **Conditions**: Do the `when` clauses match?
 5. **Result**: If any `permit` policy matches → allowed. If no policy matches → denied (default deny).
 
-Cedar is default-deny: if no policy explicitly permits the request, it is denied.
+Access policies are deny by default: if no policy explicitly permits the request, it is denied.
 
-## Supported Cedar Operators in Conditions
+## Supported Operators in Conditions
 
 | Operator | Cedar Syntax | SQL Translation |
 |----------|-------------|-----------------|
@@ -263,7 +263,7 @@ Cedar is default-deny: if no policy explicitly permits the request, it is denied
 
 ## Policy File Organization
 
-All `.cedar` files in the `policies/` directory are concatenated and evaluated together. Organize by concern:
+All `.cedar` files in the `policies/` directory are concatenated and evaluated together. Organize access policies by concern:
 
 ```
 policies/
@@ -273,4 +273,4 @@ policies/
 └── admin.cedar       # Admin-only rules
 ```
 
-Order doesn't matter — Cedar evaluates all policies and permits if **any** policy matches.
+Order doesn't matter — all policies are evaluated and a request is permitted if **any** policy matches.
