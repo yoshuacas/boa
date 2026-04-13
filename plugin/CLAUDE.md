@@ -7,6 +7,7 @@ This plugin teaches your agent to build serverless backends on AWS.
 |------------|--------------------------|
 | Database   | Aurora DSQL              |
 | Auth       | Amazon Cognito           |
+| Authorization | Cedar (policy-as-code) |
 | Engine     | pgrest-lambda (npm)      |
 | Compute    | Lambda (Node.js 20)      |
 | API        | API Gateway (REST)       |

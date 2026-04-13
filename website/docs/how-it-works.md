@@ -22,6 +22,7 @@ BOA teaches one specific way to build a backend on AWS:
 |-------|---------|-------------|
 | Database | Aurora DSQL | Serverless PostgreSQL. SQL you know. Scales to zero. |
 | Auth | Amazon Cognito | Managed auth. 10K MAU free. |
+| Authorization | Cedar | Policy-as-code. Deny-by-default. Agents can read and write it. |
 | Compute | AWS Lambda | Node.js 20.x. No servers. |
 | API | API Gateway (REST) | Cognito authorizer support. |
 | Storage | Amazon S3 | Presigned URLs. Never public. |

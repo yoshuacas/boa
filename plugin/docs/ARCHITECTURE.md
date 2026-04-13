@@ -336,6 +336,7 @@ const tasks = await pool.query(
 |----------|--------|----------|-----------|
 | Database | Aurora DSQL | DynamoDB, Aurora Serverless v2 | DSQL scales to zero, PostgreSQL-compatible, IAM auth, no connection management |
 | Auth | Cognito | Auth0, custom JWT | Lives in customer's AWS account, free up to 10K MAU, integrates with API GW |
+| Authorization | Cedar | PostgreSQL RLS, custom middleware | Policy-as-code, agents can read/write it, deny-by-default, ~5μs per eval |
 | Compute | Lambda (Node.js) | Fargate, EC2, Python Lambda | Scales to zero, no provisioning, Node.js avoids native dependency issues |
 | API | REST API Gateway | HTTP API, AppSync | Cognito authorizer support, request validation, usage plans |
 | Storage | S3 + presigned URLs | Public buckets, EFS | Secure by default, no server-side proxy needed, unlimited scale |

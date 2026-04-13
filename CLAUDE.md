@@ -51,6 +51,7 @@ boa/
 |-------|---------|-------|
 | Database | Aurora DSQL | Serverless PostgreSQL, scales to zero, IAM auth |
 | Auth | Amazon Cognito | Pre-signup auto-confirm trigger required |
+| Authorization | Cedar | Policy-as-code, deny-by-default, ~5μs per eval |
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
 | API | API Gateway (REST) | Not HTTP API — required for REQUEST-type Lambda authorizer |

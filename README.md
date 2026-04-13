@@ -13,6 +13,7 @@ BOA is four things:
 |-------|---------|
 | Database | Aurora DSQL (serverless PostgreSQL) |
 | Auth | Amazon Cognito |
+| Authorization | Cedar (policy-as-code) |
 | Compute | AWS Lambda (Node.js 20.x) |
 | API | API Gateway (REST) |
 | Storage | Amazon S3 |

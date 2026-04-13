@@ -22,6 +22,7 @@ Follow these rules when building BOA backends. They come from real failures obse
 |-------|---------|
 | Database | Aurora DSQL (serverless PostgreSQL) |
 | Auth | Amazon Cognito |
+| Authorization | Cedar (policy-as-code) |
 | Compute | Lambda (Node.js 20.x) |
 | API | API Gateway (REST) |
 | Storage | Amazon S3 |
