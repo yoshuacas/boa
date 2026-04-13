@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: BOA — Backend on AWS serverless stack (Aurora DSQL, Cognito, API Gateway, Lambda, S3)
+Description: BOA — Backend on AWS serverless stack (Aurora DSQL, Cognito, Lambda Function URL, S3)
 
 Parameters:
   ProjectName:
@@ -96,68 +96,6 @@ Resources:
       SourceArn: !GetAtt UserPool.Arn
 
   # -------------------------------------------------------
-  # API — REST API Gateway with BOA Lambda authorizer
-  # -------------------------------------------------------
-  Api:
-    Type: AWS::Serverless::Api
-    Properties:
-      Name: !Sub '${ProjectName}-api'
-      StageName: prod
-      Auth:
-        DefaultAuthorizer: BoaAuthorizer
-        AddDefaultAuthorizerToCorsPreflight: false
-        Authorizers:
-          BoaAuthorizer:
-            FunctionArn: !GetAtt AuthorizerFunction.Arn
-            FunctionPayloadType: REQUEST
-            Identity:
-              ReauthorizeEvery: 0
-      Cors:
-        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-        AllowOrigin: "'*'"
-        MaxAge: "'600'"
-      GatewayResponses:
-        DEFAULT_4XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-        DEFAULT_5XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-        UNAUTHORIZED:
-          StatusCode: 401
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-
-  # -------------------------------------------------------
-  # Authorizer — Lambda authorizer for BOA JWTs
-  # -------------------------------------------------------
-  AuthorizerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${ProjectName}-authorizer'
-      Handler: authorizer.handler
-      CodeUri: ./lambda/
-      MemorySize: 128
-      Environment:
-        Variables:
-          JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
-
-  AuthorizerFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt AuthorizerFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*'
-
-  # -------------------------------------------------------
   # Compute — Lambda API function
   # -------------------------------------------------------
   ApiFunction:
@@ -166,6 +104,29 @@ Resources:
       FunctionName: !Sub '${ProjectName}-api'
       Handler: index.handler
       CodeUri: ./lambda/
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowHeaders:
+            - Content-Type
+            - Authorization
+            - apikey
+            - Prefer
+            - Accept
+            - x-client-info
+            - X-Client-Info
+            - X-Supabase-Api-Version
+            - content-profile
+            - accept-profile
+          AllowMethods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          AllowOrigins:
+            - '*'
+          MaxAge: 600
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -199,27 +160,6 @@ Resources:
               Resource: !GetAtt UserPool.Arn
         - S3CrudPolicy:
             BucketName: !Ref StorageBucket
-      Events:
-        ProxyRoot:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /
-            Method: ANY
-        ProxyPlus:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /{proxy+}
-            Method: ANY
-        AuthProxy:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /auth/v1/{proxy+}
-            Method: ANY
-            Auth:
-              Authorizer: NONE
 
   # -------------------------------------------------------
   # Storage — S3 bucket (private, CORS for presigned URLs)
@@ -248,9 +188,9 @@ Resources:
             MaxAge: 3600
 
 Outputs:
-  ApiUrl:
-    Description: API Gateway endpoint URL
-    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  ApiFunctionUrl:
+    Description: Lambda Function URL endpoint
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
 
   UserPoolId:
     Description: Cognito User Pool ID

@@ -16,14 +16,17 @@ function printHelp() {
   console.log(`Usage: boa <command> [options]
 
 Commands:
-  init <name>    Scaffold project, deploy stack, write config
-  deploy         Rebuild and redeploy the stack
-  migrate        Apply pending SQL migrations
-  verify         Check all stack components
-  teardown       Destroy the stack (with confirmation)
-  status         Show stack info, tables, pending migrations
-  check          Check required tools and AWS credentials
-  feedback       Submit feedback to improve BOA
+  init <name>       Scaffold project, deploy stack, write config
+  deploy            Rebuild and redeploy the stack
+  migrate           Apply pending SQL migrations
+  verify            Check all stack components
+  teardown          Destroy the stack (with confirmation)
+  status            Show stack info, tables, pending migrations
+  check             Check required tools and AWS credentials
+  extend <name>     Add an infrastructure extension
+  remove <name>     Remove an infrastructure extension
+  extensions        List available extensions
+  feedback          Submit feedback to improve BOA
 
 Options:
   --version      Print CLI version
@@ -38,6 +41,7 @@ if (command === '--help' || command === '-h' || !command) {
 const COMMANDS = [
   'init', 'deploy', 'migrate', 'verify',
   'teardown', 'status', 'check', 'feedback',
+  'extend', 'remove', 'extensions',
 ];
 
 if (!COMMANDS.includes(command)) {

@@ -1,14 +1,10 @@
 import { existsSync, readdirSync, cpSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import * as aws from '../lib/aws.mjs';
 import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
-  || join(__dirname, '..', 'templates', 'backend.yaml');
+import { resolveTemplate } from '../lib/extensions.mjs';
 
 export default async function deploy(_args) {
   // 1. Load config (exits if missing)
@@ -23,10 +19,28 @@ export default async function deploy(_args) {
   );
   console.log('');
 
+  // Warn if upgrading from API Gateway to Function URLs
+  const existingExtensions = cfg.extensions || [];
+  if (
+    cfg.apiUrl &&
+    cfg.apiUrl.includes('execute-api.') &&
+    cfg.apiUrl.includes('.amazonaws.com') &&
+    !existingExtensions.includes('api-gateway')
+  ) {
+    console.log(
+      '  \u26a0 This version of boa uses Lambda Function URLs by default.'
+    );
+    console.log(
+      '    Your API URL will change. Update your frontend config after deploy.'
+    );
+    console.log('');
+  }
+
   // 4-5. SAM build
   console.log('Building SAM application...');
   const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
-  sam.build(TEMPLATE_PATH, buildDir, region);
+  const templatePath = resolveTemplate(process.cwd());
+  sam.build(templatePath, buildDir, region);
 
   // 6. Copy Cedar policies if present
   const policiesDir = join(process.cwd(), 'policies');
@@ -49,7 +63,7 @@ export default async function deploy(_args) {
   console.log('');
   console.log('Updating configuration...');
   const outputs = aws.cfnDescribeStacks(stackName, region);
-  const apiUrl = getOutputValue(outputs, 'ApiUrl');
+  let apiUrl = getOutputValue(outputs, 'ApiFunctionUrl');
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
@@ -57,8 +71,22 @@ export default async function deploy(_args) {
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
-  // 9. Update config — preserve keys and accountId
-  config.write({
+  // 9. Handle api-gateway extension URL extraction
+  const extensions = cfg.extensions || [];
+  let functionUrl = null;
+
+  if (extensions.includes('api-gateway')) {
+    const gatewayUrl = getOutputValue(
+      outputs, 'ApiGatewayUrl'
+    );
+    if (gatewayUrl) {
+      functionUrl = apiUrl; // Function URL
+      apiUrl = gatewayUrl;  // API Gateway URL as primary
+    }
+  }
+
+  // 10. Update config — preserve keys and accountId
+  const updatedConfig = {
     stackName,
     region,
     accountId: cfg.accountId,
@@ -70,7 +98,12 @@ export default async function deploy(_args) {
     bucketName,
     dsqlEndpoint,
     deployedAt: new Date().toISOString(),
-  });
+    extensions,
+  };
+  if (functionUrl) {
+    updatedConfig.functionUrl = functionUrl;
+  }
+  config.write(updatedConfig);
 
   console.log('');
   console.log(

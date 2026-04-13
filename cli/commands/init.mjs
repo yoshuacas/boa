@@ -163,7 +163,7 @@ export default async function init(args) {
   console.log('');
   console.log('Extracting stack outputs...');
   const outputs = aws.cfnDescribeStacks(name, region);
-  const apiUrl = getOutputValue(outputs, 'ApiUrl');
+  const apiUrl = getOutputValue(outputs, 'ApiFunctionUrl');
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
@@ -189,6 +189,7 @@ export default async function init(args) {
     bucketName,
     dsqlEndpoint,
     deployedAt: new Date().toISOString(),
+    extensions: [],
   });
   console.log('');
   console.log('Configuration written to .boa/config.json');

@@ -7,7 +7,7 @@ const selectedApp = ref('productivity')
 
 onMounted(async () => {
   try {
-    const resp = await fetch('/data/pricing-data.json')
+    const resp = await fetch('/boa/data/pricing-data.json')
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     pricingData.value = await resp.json()
   } catch {
@@ -91,7 +91,7 @@ const generatedDate = computed(() => {
       </td>
       <td>{{ formatNumber(sizeTiers[r.workload.sizeKey].users) }}</td>
       <td>
-        <strong :style="{ color: r.boa.total === 0 ? '#27ae60' : '#ec7211' }">
+        <strong :style="{ color: r.boa.total === 0 ? '#28C840' : '#FF9900' }">
           {{ r.boa.total === 0 ? '$0 (free tier)' : formatMoney(r.boa.total) }}
         </strong>
       </td>
@@ -99,15 +99,15 @@ const generatedDate = computed(() => {
         <strong>{{ r.supa.total === 0 ? '$0 (free tier)' : formatMoney(r.supa.total) }}</strong>
       </td>
       <td>
-        <span v-if="r.supa.total === 0 && r.boa.total === 0" style="color: #27ae60">Both free</span>
-        <span v-else-if="r.boa.total === 0 && r.supa.total > 0" style="color: #27ae60">Save {{ formatMoney(r.supa.total) }}/mo</span>
-        <span v-else-if="r.boa.total < r.supa.total" style="color: #27ae60">
+        <span v-if="r.supa.total === 0 && r.boa.total === 0" style="color: #28C840">Both free</span>
+        <span v-else-if="r.boa.total === 0 && r.supa.total > 0" style="color: #28C840">Save {{ formatMoney(r.supa.total) }}/mo</span>
+        <span v-else-if="r.boa.total < r.supa.total" style="color: #28C840">
           {{ Math.round(((r.supa.total - r.boa.total) / r.supa.total) * 100) }}% less
         </span>
-        <span v-else-if="r.boa.total > r.supa.total" style="color: #6c757d">
+        <span v-else-if="r.boa.total > r.supa.total" style="color: #888888">
           Supabase {{ Math.round(((r.boa.total - r.supa.total) / r.supa.total) * 100) }}% less
         </span>
-        <span v-else style="color: #6c757d">Same</span>
+        <span v-else style="color: #888888">Same</span>
       </td>
       <td><small>{{ r.supa.plan }} + {{ r.supa.tier }}</small></td>
     </tr>
@@ -119,7 +119,7 @@ const generatedDate = computed(() => {
 <div class="breakdown-grid">
   <div v-for="r in results" :key="'b-' + r.workload.sizeKey" class="breakdown-card">
     <h3>{{ sizeTiers[r.workload.sizeKey].name }} — {{ formatNumber(sizeTiers[r.workload.sizeKey].users) }} users</h3>
-    <div class="total-price" :style="{ color: r.boa.total === 0 ? '#27ae60' : '#ec7211' }">
+    <div class="total-price" :style="{ color: r.boa.total === 0 ? '#28C840' : '#FF9900' }">
       {{ r.boa.total === 0 ? '$0/mo' : formatMoney(r.boa.total) + '/mo' }}
     </div>
     <div class="line-item" v-for="svc in [
@@ -130,18 +130,18 @@ const generatedDate = computed(() => {
       { name: 'S3', cost: r.boa.s3 },
     ]" :key="svc.name">
       <span>{{ svc.name }}</span>
-      <span :style="{ color: svc.cost === 0 ? '#27ae60' : 'inherit', fontWeight: 600 }">
+      <span :style="{ color: svc.cost === 0 ? '#28C840' : '#CCCCCC', fontWeight: 600 }">
         {{ svc.cost === 0 ? '$0 (free)' : formatMoney(svc.cost) }}
       </span>
     </div>
-    <div class="line-item" style="margin-top: 0.5rem; border-top: 2px solid var(--vp-c-divider); padding-top: 0.5rem;">
-      <span style="font-weight: 600;">vs Supabase</span>
-      <span style="font-weight: 600;">{{ formatMoney(r.supa.total) }}/mo</span>
+    <div class="line-item vs-line">
+      <span>vs Supabase</span>
+      <span>{{ formatMoney(r.supa.total) }}/mo</span>
     </div>
   </div>
 </div>
 
-<p style="text-align: center; color: var(--vp-c-text-3); font-size: 0.85rem; margin-top: 2rem;">
+<p class="pricing-footer-note">
   All prices US East (N. Virginia). Rates fetched from the AWS Pricing API on {{ generatedDate }}.
   The calculator source code is open — see <code>website/scripts/generate-pricing.mjs</code> in the repo.
 </p>
@@ -157,100 +157,154 @@ const generatedDate = computed(() => {
 .pricing-widget {
   margin-top: 1.5rem;
 }
+
 .loading {
   text-align: center;
   padding: 2rem;
-  color: var(--vp-c-text-3);
+  color: #888888;
 }
+
 .load-error {
   text-align: center;
   padding: 2rem;
   color: #e74c3c;
   border: 1px solid #e74c3c;
   border-radius: 8px;
+  background: rgba(231, 76, 60, 0.08);
 }
+
 .pricing-controls {
   margin-bottom: 1.5rem;
 }
+
 .pricing-controls label {
   display: block;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
+  color: #888888;
 }
+
 .pricing-controls select {
   padding: 0.6rem 1rem;
-  border: 1.5px solid var(--vp-c-divider);
+  border: 1.5px solid #2A2A2A;
   border-radius: 8px;
   font-size: 0.9rem;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
+  background: #111111;
+  color: #FFFFFF;
   min-width: 320px;
 }
+
 .pricing-controls select:focus {
   outline: none;
-  border-color: var(--vp-c-brand-1);
+  border-color: #FF9900;
 }
+
 .free-tier-callout {
   padding: 1rem 1.5rem;
   border-radius: 8px;
-  background: rgba(46, 204, 113, 0.08);
-  border: 1px solid rgba(46, 204, 113, 0.2);
+  background: rgba(40, 200, 64, 0.06);
+  border: 1px solid rgba(40, 200, 64, 0.2);
   margin-bottom: 2rem;
   font-size: 0.9rem;
   line-height: 1.6;
+  color: #CCCCCC;
 }
+
+.free-tier-callout strong {
+  color: #28C840;
+}
+
 .pricing-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
   margin-bottom: 2.5rem;
 }
+
 .pricing-table th {
   text-align: left;
   padding: 0.75rem 1rem;
-  border-bottom: 2px solid var(--vp-c-divider);
+  border-bottom: 2px solid #2A2A2A;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--vp-c-text-3);
+  color: #888888;
 }
+
 .pricing-table th.boa-col {
-  color: #ec7211;
+  color: #FF9900;
 }
+
 .pricing-table td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--vp-c-divider);
+  border-bottom: 1px solid #1A1A1A;
   vertical-align: top;
+  color: #CCCCCC;
 }
+
 .pricing-table small {
-  color: var(--vp-c-text-3);
+  color: #666666;
 }
+
+.pricing-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
 .breakdown-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
 }
+
 .breakdown-card {
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid #2A2A2A;
   border-radius: 8px;
   padding: 1.25rem;
+  background: #111111;
 }
+
 .breakdown-card h3 {
   font-size: 0.95rem;
   margin: 0 0 0.25rem;
+  color: #FFFFFF;
 }
+
 .total-price {
   font-size: 1.5rem;
   font-weight: 800;
   margin-bottom: 0.75rem;
 }
+
 .line-item {
   display: flex;
   justify-content: space-between;
   padding: 0.35rem 0;
   font-size: 0.85rem;
-  border-top: 1px solid var(--vp-c-divider);
+  border-top: 1px solid #1A1A1A;
+  color: #CCCCCC;
+}
+
+.vs-line {
+  margin-top: 0.5rem;
+  border-top: 2px solid #2A2A2A;
+  padding-top: 0.5rem;
+  font-weight: 600;
+}
+
+.pricing-footer-note {
+  text-align: center;
+  color: #666666;
+  font-size: 0.85rem;
+  margin-top: 2rem;
+}
+
+.pricing-footer-note code {
+  background: #1A1A1A;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #FF9900;
 }
 </style>

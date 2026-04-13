@@ -12,9 +12,18 @@
   "files": [
     "bin/",
     "commands/",
+    "extensions/",
     "lib/",
     "templates/"
   ],
-  "keywords": ["aws", "serverless", "backend", "cli"],
-  "license": "MIT"
+  "keywords": [
+    "aws",
+    "serverless",
+    "backend",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^2.8.3"
+  }
 }

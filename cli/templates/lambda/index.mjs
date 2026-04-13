@@ -3,7 +3,8 @@ import { handler as uploadHandler } from './presigned-upload.mjs';
 
 const pgrest = createPgrest();
 
-export async function handler(event) {
+export async function handler(rawEvent) {
+  const event = pgrest.normalizeEvent(rawEvent);
   const path = event.path || '';
 
   // Presigned upload/download routes

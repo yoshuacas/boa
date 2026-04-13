@@ -19,6 +19,10 @@ export default async function status(_args) {
   console.log(`  Region:      ${region}`);
   console.log(`  API URL:     ${apiUrl}`);
   console.log(`  Deployed at: ${deployedAt}`);
+  const extensions = cfg.extensions || [];
+  console.log(
+    `  Extensions:  ${extensions.length > 0 ? extensions.join(', ') : '(none)'}`
+  );
 
   // 3-7. Database queries (graceful degradation)
   try {
