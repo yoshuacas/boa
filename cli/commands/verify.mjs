@@ -51,7 +51,7 @@ export default async function verify(_args) {
   }
 
   // Check 2: API Gateway returns 401/403
-  console.log('Checking API Gateway...');
+  console.log('Checking API endpoint...');
   let httpCode;
   try {
     httpCode = aws.exec(

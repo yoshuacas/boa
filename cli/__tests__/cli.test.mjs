@@ -76,6 +76,7 @@ describe('boa CLI entry point', () => {
     const commands = [
       'init', 'deploy', 'migrate', 'verify',
       'teardown', 'status', 'check', 'feedback',
+      'extend', 'remove', 'extensions',
     ];
     for (const cmd of commands) {
       assert.ok(

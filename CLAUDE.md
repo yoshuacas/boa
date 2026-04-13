@@ -4,13 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What Is BOA?
 
-**BOA (Backend on AWS)** is four things:
+**BOA — Backend on AWS, without the complexity.**
+
+A complete backend on AWS in under a minute. Built for agents. Free until your users show up. No ceiling when they do.
+
+**BOA is four things:**
 1. **A serverless backend** — database, auth, APIs, storage on AWS. Scales to zero, scales to millions.
 2. **The BOA CLI** — `boa init`, `boa deploy`, `boa migrate`. One tool for the full lifecycle. Developers and agents use the same commands.
 3. **The BOA skill** — works with any coding agent (Claude Code, Kiro, Copilot, Codex) to build and evolve backends.
 4. **Guardrails** — opinionated defaults that prevent the mistakes that kill projects. Data protected by default, migrations tracked, your backend can't be accidentally destroyed.
 
-**Core problem:** AI coding agents default to Supabase/Firebase because building backends on AWS is too complex. BOA fixes that with battle-tested patterns from hundreds of real agent builds, a CLI that developers and agents share, and guardrails that make the safe path the easy path.
+**Core problem:** Building backends on AWS is too complex — especially for AI coding agents, which default to Supabase or Firebase because AWS has too many choices and too many ways to get it wrong. BOA fixes that with battle-tested patterns, a CLI that developers and agents share, and guardrails that make the safe path the easy path.
+
+**Product definition:** See [docs/PRODUCT.md](docs/PRODUCT.md) for the full product definition — value proposition, audience, positioning, writing standards, and nomenclature. All materials derive from that document.
 
 **Nomenclature:** See [docs/GLOSSARY.md](docs/GLOSSARY.md) for canonical terms. Use these consistently across all BOA materials.
 
