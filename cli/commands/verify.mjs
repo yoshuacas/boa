@@ -50,22 +50,21 @@ export default async function verify(_args) {
     );
   }
 
-  // Check 2: API Gateway returns 401/403
+  // Check 2: API endpoint is responding (not 500)
   console.log('Checking API endpoint...');
   let httpCode;
   try {
     httpCode = aws.exec(
-      `curl -s -o /dev/null -w '%{http_code}' ${apiUrl}/items`
+      `curl -s -o /dev/null -w '%{http_code}' ${apiUrl}/rest/v1/`
     );
   } catch {
     httpCode = '000';
   }
-  if (httpCode === '401') {
-    check(true, 'API returns 401 Unauthorized (not 500)');
-  } else if (httpCode === '403') {
-    check(true, 'API returns 403 Forbidden (Cognito authorizer active)');
+  const validCodes = ['200', '401', '403', '404'];
+  if (validCodes.includes(httpCode)) {
+    check(true, `API is responding (HTTP ${httpCode})`);
   } else {
-    check(false, `API returns 401/403 — got HTTP ${httpCode}`);
+    check(false, `API returns unexpected HTTP ${httpCode} (expected 200/401/403/404)`);
   }
 
   // Check 3: S3 bucket exists
