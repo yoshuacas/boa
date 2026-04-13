@@ -29,21 +29,6 @@ function formatNumber(n) {
   return n.toString()
 }
 
-function savingsLabel(r) {
-  if (r.supa.total === 0 && r.boa.total === 0) return { text: 'Both free', color: '#28C840' }
-  if (r.boa.total === 0 && r.supa.total > 0) return { text: `BOA is free`, color: '#28C840' }
-  if (r.supa.total === 0 && r.boa.total > 0) return { text: `Supa is free`, color: '#888888' }
-  if (r.boa.total < r.supa.total) {
-    const pct = Math.round(((r.supa.total - r.boa.total) / r.supa.total) * 100)
-    return { text: `BOA ${pct}% less`, color: '#28C840' }
-  }
-  if (r.boa.total > r.supa.total) {
-    const diff = r.boa.total - r.supa.total
-    return { text: `+${formatMoney(diff)} vs Supa`, color: '#888888' }
-  }
-  return { text: 'Same', color: '#888888' }
-}
-
 const sizeTiers = computed(() => pricingData.value?.sizeTiers || {})
 
 const results = computed(() => {
@@ -67,7 +52,7 @@ const generatedDate = computed(() => {
 <template v-else-if="pricingData">
 
 <div class="pricing-controls">
-  <label for="app-select">App type</label>
+  <label for="app-select"><strong>App Type</strong></label>
   <select id="app-select" v-model="selectedApp">
     <option value="productivity">Productivity (todo, notes, project mgmt)</option>
     <option value="social">Social (feeds, posts, likes, media)</option>
@@ -80,21 +65,19 @@ const generatedDate = computed(() => {
 
 <div class="free-tier-callout">
   <strong>AWS Free Tier covers most of the backend.</strong>
-  Aurora DSQL: 100K DPUs + 1 GB &middot;
+  Aurora DSQL: 100K DPUs + 1 GB storage &middot;
   Cognito: 10,000 MAU &middot;
-  Lambda + Function URLs: 1M requests &middot;
+  Lambda + Function URLs: 1M requests (free) &middot;
   S3: 5 GB storage
 </div>
 
-<!-- Comparison table -->
-<div class="table-wrapper">
 <table class="pricing-table">
   <thead>
     <tr>
       <th>Scale</th>
-      <th class="num-col">Users</th>
-      <th class="num-col boa-col">BOA /mo</th>
-      <th class="num-col">Supabase /mo</th>
+      <th>Users</th>
+      <th class="boa-col">BOA /mo</th>
+      <th>Supabase /mo</th>
       <th>Comparison</th>
     </tr>
   </thead>
@@ -102,66 +85,62 @@ const generatedDate = computed(() => {
     <tr v-for="r in results" :key="r.workload.sizeKey">
       <td>
         <strong>{{ sizeTiers[r.workload.sizeKey].name }}</strong><br>
-        <span class="tier-desc">{{ sizeTiers[r.workload.sizeKey].desc }}</span>
+        <small>{{ sizeTiers[r.workload.sizeKey].desc }}</small>
       </td>
-      <td class="num-col">{{ formatNumber(sizeTiers[r.workload.sizeKey].users) }}</td>
-      <td class="num-col">
-        <strong :class="r.boa.total === 0 ? 'price-free' : 'price-boa'">
-          {{ r.boa.total === 0 ? 'Free' : formatMoney(r.boa.total) }}
+      <td>{{ formatNumber(sizeTiers[r.workload.sizeKey].users) }}</td>
+      <td>
+        <strong :style="{ color: r.boa.total === 0 ? '#16a34a' : '#EC7211' }">
+          {{ r.boa.total === 0 ? '$0 (free tier)' : formatMoney(r.boa.total) }}
         </strong>
-      </td>
-      <td class="num-col">
-        <strong :class="r.supa.total === 0 ? 'price-free' : ''">
-          {{ r.supa.total === 0 ? 'Free' : formatMoney(r.supa.total) }}
-        </strong>
-        <span class="plan-label">{{ r.supa.plan }}</span>
       </td>
       <td>
-        <span class="savings-badge" :style="{ color: savingsLabel(r).color }">
-          {{ savingsLabel(r).text }}
+        <strong>{{ r.supa.total === 0 ? '$0 (free tier)' : formatMoney(r.supa.total) }}</strong>
+      </td>
+      <td>
+        <span v-if="r.supa.total === 0 && r.boa.total === 0" class="savings-green">Both free</span>
+        <span v-else-if="r.boa.total === 0 && r.supa.total > 0" class="savings-green">BOA is free</span>
+        <span v-else-if="r.supa.total === 0 && r.boa.total > 0" class="savings-neutral">Supa is free</span>
+        <span v-else-if="r.boa.total < r.supa.total" class="savings-green">
+          BOA {{ Math.round(((r.supa.total - r.boa.total) / r.supa.total) * 100) }}% less
         </span>
+        <span v-else-if="r.boa.total > r.supa.total" class="savings-neutral">
+          +{{ formatMoney(r.boa.total - r.supa.total) }} vs Supa
+        </span>
+        <span v-else class="savings-neutral">Same</span>
       </td>
     </tr>
   </tbody>
 </table>
-</div>
 
-<!-- Breakdown cards -->
-<h3 class="breakdown-heading">Cost breakdown by service</h3>
+<h2>Cost Breakdown by Service</h2>
 
 <div class="breakdown-grid">
   <div v-for="r in results" :key="'b-' + r.workload.sizeKey" class="breakdown-card">
-    <div class="card-header">
-      <span class="card-tier">{{ sizeTiers[r.workload.sizeKey].name }}</span>
-      <span class="card-users">{{ formatNumber(sizeTiers[r.workload.sizeKey].users) }} users</span>
+    <h3>{{ sizeTiers[r.workload.sizeKey].name }} — {{ formatNumber(sizeTiers[r.workload.sizeKey].users) }} users</h3>
+    <div class="total-price" :style="{ color: r.boa.total === 0 ? '#16a34a' : '#EC7211' }">
+      {{ r.boa.total === 0 ? '$0/mo' : formatMoney(r.boa.total) + '/mo' }}
     </div>
-    <div class="card-total" :class="r.boa.total === 0 ? 'price-free' : 'price-boa'">
-      {{ r.boa.total === 0 ? '$0' : formatMoney(r.boa.total) }}<span class="per-mo">/mo</span>
+    <div class="line-item" v-for="svc in [
+      { name: 'Database (DSQL)', cost: r.boa.dsql },
+      { name: 'Auth (Cognito)', cost: r.boa.cognito },
+      { name: 'Compute (Lambda)', cost: r.boa.lambda },
+      { name: 'Storage (S3)', cost: r.boa.s3 },
+    ]" :key="svc.name">
+      <span>{{ svc.name }}</span>
+      <span :style="{ color: svc.cost === 0 ? '#16a34a' : 'inherit', fontWeight: 600 }">
+        {{ svc.cost === 0 ? '$0 (free)' : formatMoney(svc.cost) }}
+      </span>
     </div>
-    <div class="card-services">
-      <div class="svc-row" v-for="svc in [
-        { name: 'Database (DSQL)', cost: r.boa.dsql },
-        { name: 'Auth (Cognito)', cost: r.boa.cognito },
-        { name: 'Compute (Lambda)', cost: r.boa.lambda },
-        { name: 'Storage (S3)', cost: r.boa.s3 },
-      ]" :key="svc.name">
-        <span class="svc-name">{{ svc.name }}</span>
-        <span :class="svc.cost === 0 ? 'svc-free' : 'svc-cost'">
-          {{ svc.cost === 0 ? 'Free' : formatMoney(svc.cost) }}
-        </span>
-      </div>
-    </div>
-    <div class="card-compare">
+    <div class="line-item vs-line">
       <span>vs Supabase</span>
-      <span>{{ r.supa.total === 0 ? 'Free' : formatMoney(r.supa.total) }}/mo</span>
+      <span>{{ formatMoney(r.supa.total) }}/mo</span>
     </div>
   </div>
 </div>
 
-<p class="pricing-note">
-  Prices for US East (N. Virginia). Rates from AWS Pricing API, {{ generatedDate }}.
-  No API Gateway in the default backend — Lambda Function URLs are free.
-  <br>Source: <code>website/scripts/generate-pricing.mjs</code>
+<p class="pricing-footer-note">
+  All prices US East (N. Virginia). Rates fetched from the AWS Pricing API on {{ generatedDate }}.
+  The calculator source code is open — see <code>website/scripts/generate-pricing.mjs</code> in the repo.
 </p>
 
 </template>
@@ -173,53 +152,45 @@ const generatedDate = computed(() => {
 
 <style scoped>
 .pricing-widget {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
 .loading {
   text-align: center;
-  padding: 3rem;
-  color: #666;
+  padding: 2rem;
+  color: var(--vp-c-text-3);
 }
 
 .load-error {
   text-align: center;
   padding: 2rem;
-  color: #e74c3c;
-  border: 1px solid rgba(231, 76, 60, 0.3);
-  border-radius: 12px;
-  background: rgba(231, 76, 60, 0.06);
+  color: #dc2626;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.05);
 }
 
-/* Controls */
 .pricing-controls {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .pricing-controls label {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
-  color: #888;
+  color: var(--vp-c-text-3);
 }
 
 .pricing-controls select {
-  padding: 0.65rem 1.2rem;
-  border: 1.5px solid #333;
-  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  border: 1.5px solid var(--vp-c-divider);
+  border-radius: 8px;
   font-size: 0.9rem;
-  background: #0F0F0F;
-  color: #FFF;
-  min-width: 340px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.pricing-controls select:hover {
-  border-color: #555;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  min-width: 320px;
 }
 
 .pricing-controls select:focus {
@@ -227,207 +198,113 @@ const generatedDate = computed(() => {
   border-color: #FF9900;
 }
 
-/* Free tier callout */
 .free-tier-callout {
   padding: 1rem 1.5rem;
-  border-radius: 10px;
-  background: rgba(40, 200, 64, 0.04);
-  border: 1px solid rgba(40, 200, 64, 0.15);
-  margin-bottom: 2.5rem;
-  font-size: 0.85rem;
-  line-height: 1.7;
-  color: #999;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.06);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  margin-bottom: 2rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
 }
 
 .free-tier-callout strong {
-  color: #28C840;
-  display: block;
-  margin-bottom: 0.25rem;
-  font-size: 0.9rem;
-}
-
-/* Table */
-.table-wrapper {
-  overflow-x: auto;
-  margin-bottom: 3rem;
+  color: #16a34a;
 }
 
 .pricing-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  margin-bottom: 2.5rem;
 }
 
 .pricing-table th {
   text-align: left;
   padding: 0.75rem 1rem;
-  border-bottom: 2px solid #2A2A2A;
-  font-size: 0.7rem;
-  font-weight: 600;
+  border-bottom: 2px solid var(--vp-c-divider);
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #666;
+  letter-spacing: 0.05em;
+  color: var(--vp-c-text-3);
 }
 
 .pricing-table th.boa-col {
-  color: #FF9900;
-}
-
-.pricing-table th.num-col,
-.pricing-table td.num-col {
-  text-align: right;
+  color: #EC7211;
 }
 
 .pricing-table td {
-  padding: 1rem 1rem;
-  border-bottom: 1px solid #1A1A1A;
-  vertical-align: middle;
-  color: #CCC;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--vp-c-divider);
+  vertical-align: top;
+  color: var(--vp-c-text-1);
 }
 
-.pricing-table tbody tr {
-  transition: background 0.1s;
+.pricing-table small {
+  color: var(--vp-c-text-3);
 }
 
 .pricing-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--vp-c-bg-soft);
 }
 
-.tier-desc {
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.price-free {
-  color: #28C840 !important;
-}
-
-.price-boa {
-  color: #FF9900 !important;
-}
-
-.plan-label {
-  display: block;
-  font-size: 0.75rem;
-  color: #555;
-  font-weight: 400;
-  margin-top: 2px;
-}
-
-.savings-badge {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* Breakdown */
-.breakdown-heading {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #FFF;
-  margin-bottom: 1.25rem;
-  border: none;
-}
+.savings-green { color: #16a34a; font-weight: 600; }
+.savings-neutral { color: var(--vp-c-text-3); }
 
 .breakdown-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1rem;
-  margin-bottom: 2.5rem;
 }
 
 .breakdown-card {
-  border: 1px solid #222;
-  border-radius: 12px;
-  padding: 1.5rem;
-  background: #0A0A0A;
-  transition: border-color 0.15s;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  padding: 1.25rem;
+  background: var(--vp-c-bg-soft);
 }
 
-.breakdown-card:hover {
-  border-color: #333;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.5rem;
-}
-
-.card-tier {
+.breakdown-card h3 {
   font-size: 0.95rem;
-  font-weight: 700;
-  color: #FFF;
+  margin: 0 0 0.25rem;
+  color: var(--vp-c-text-1);
 }
 
-.card-users {
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.card-total {
-  font-size: 2rem;
+.total-price {
+  font-size: 1.5rem;
   font-weight: 800;
-  margin-bottom: 1rem;
-  line-height: 1;
+  margin-bottom: 0.75rem;
 }
 
-.per-mo {
+.line-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
   font-size: 0.85rem;
-  font-weight: 500;
-  color: #666;
+  border-top: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-2);
 }
 
-.card-services {
-  margin-bottom: 1rem;
-}
-
-.svc-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.4rem 0;
-  font-size: 0.82rem;
-  border-top: 1px solid #1A1A1A;
-}
-
-.svc-name {
-  color: #999;
-}
-
-.svc-free {
-  color: #28C840;
+.vs-line {
+  margin-top: 0.5rem;
+  border-top: 2px solid var(--vp-c-divider);
+  padding-top: 0.5rem;
   font-weight: 600;
 }
 
-.svc-cost {
-  color: #CCC;
-  font-weight: 600;
-}
-
-.card-compare {
-  display: flex;
-  justify-content: space-between;
-  padding-top: 0.75rem;
-  border-top: 2px solid #222;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #888;
-}
-
-/* Footer */
-.pricing-note {
+.pricing-footer-note {
   text-align: center;
-  color: #555;
-  font-size: 0.8rem;
-  line-height: 1.7;
-  margin-top: 1rem;
+  color: var(--vp-c-text-3);
+  font-size: 0.85rem;
+  margin-top: 2rem;
 }
 
-.pricing-note code {
-  background: #1A1A1A;
+.pricing-footer-note code {
+  background: var(--vp-c-bg-soft);
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.75rem;
-  color: #FF9900;
+  font-size: 0.8rem;
+  color: #EC7211;
 }
 </style>
