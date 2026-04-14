@@ -10,7 +10,7 @@ The BOA skill teaches your agent to build serverless backends on AWS.
 | Authorization | Access policies (Cedar) |
 | Engine     | pgrest-lambda (npm)      |
 | Compute    | Lambda (Node.js 20)      |
-| API        | CloudFront + WAF (default), Lambda Function URLs (internal) |
+| API        | CloudFront + WAF (default), Lambda Function URLs (internal, origin secret) |
 | Storage    | Amazon S3                |
 | Hosting    | AWS Amplify              |
 | IaC        | SAM / CloudFormation     |
@@ -29,7 +29,7 @@ CloudFront + WAF is the default traffic layer. API Gateway is available as an ex
 7. Never use `/<*>` as Amplify SPA redirect — use regex excluding static assets
 8. DSQL requires IAM auth tokens for connections — never hardcode credentials
 9. Extensions are optional. The default backend works without any extensions.
-10. Function URLs are behind CloudFront. Never share the raw Function URL with clients.
+10. Function URLs are behind CloudFront (origin secret header). Never share the raw Function URL with clients.
 
 ## Authorizer Contract
 pgrest-lambda handles JWT validation internally. When the API Gateway extension is enabled, the BOA custom Lambda authorizer (JWT dual-layer validation) passes flat keys:

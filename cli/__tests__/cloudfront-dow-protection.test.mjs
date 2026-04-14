@@ -72,10 +72,11 @@ describe('SAM template -- CloudFront resources', () => {
     );
   });
 
-  it('contains CloudFrontOAC resource', () => {
+  it('does NOT contain CloudFrontOAC resource', () => {
     assert.ok(
-      template.includes('CloudFrontOAC:'),
-      'template should contain a CloudFrontOAC resource'
+      !template.includes('CloudFrontOAC:'),
+      'template should not contain CloudFrontOAC'
+        + ' (replaced by origin secret header)'
     );
   });
 
@@ -93,10 +94,18 @@ describe('SAM template -- CloudFront resources', () => {
     );
   });
 
-  it('contains CloudFrontInvokePermission resource', () => {
+  it('contains ApiFunctionUrlPermission resource', () => {
     assert.ok(
-      template.includes('CloudFrontInvokePermission:'),
-      'template should contain a CloudFrontInvokePermission resource'
+      template.includes('ApiFunctionUrlPermission:'),
+      'template should contain an ApiFunctionUrlPermission resource'
+    );
+  });
+
+  it('contains origin custom header x-origin-verify', () => {
+    assert.ok(
+      template.includes('x-origin-verify'),
+      'template should contain x-origin-verify custom header'
+        + ' on CloudFront origin'
     );
   });
 });
@@ -162,14 +171,14 @@ describe('SAM template -- conditions', () => {
 // -----------------------------------------------------------
 
 describe('SAM template -- function configuration', () => {
-  it('ApiFunction has AuthType: AWS_IAM', () => {
+  it('ApiFunction has AuthType: NONE', () => {
     assert.ok(
-      template.includes('AuthType: AWS_IAM'),
-      'FunctionUrlConfig AuthType should be AWS_IAM, not NONE'
+      template.includes('AuthType: NONE'),
+      'FunctionUrlConfig AuthType should be NONE'
     );
   });
 
-  it('FunctionUrlConfig does NOT contain a Cors block', () => {
+  it('FunctionUrlConfig contains a Cors block', () => {
     const start = template.indexOf('FunctionUrlConfig:');
     assert.ok(
       start !== -1,
@@ -182,9 +191,16 @@ describe('SAM template -- function configuration', () => {
     );
     const section = template.slice(start, envStart);
     assert.ok(
-      !section.includes('Cors:'),
-      'FunctionUrlConfig should not have a Cors block'
-        + ' (CloudFront handles CORS passthrough)'
+      section.includes('Cors:'),
+      'FunctionUrlConfig should have a Cors block'
+        + ' (required when AuthType is NONE)'
+    );
+  });
+
+  it('Lambda env vars include ORIGIN_SECRET', () => {
+    assert.ok(
+      template.includes('ORIGIN_SECRET'),
+      'Lambda environment should include ORIGIN_SECRET'
     );
   });
 
@@ -200,20 +216,20 @@ describe('SAM template -- function configuration', () => {
 // SAM template -- removed permissions
 // -----------------------------------------------------------
 
-describe('SAM template -- removed permissions', () => {
-  it('does NOT contain ApiFunctionUrlPermission resource', () => {
+describe('SAM template -- removed resources', () => {
+  it('does NOT contain CloudFrontInvokePermission resource', () => {
     assert.ok(
-      !template.includes('ApiFunctionUrlPermission:'),
-      'template should not contain ApiFunctionUrlPermission'
-        + ' (replaced by CloudFrontInvokePermission)'
+      !template.includes('CloudFrontInvokePermission:'),
+      'template should not contain CloudFrontInvokePermission'
+        + ' (replaced by public permissions)'
     );
   });
 
-  it('does NOT contain ApiFunctionInvokePermission resource', () => {
+  it('does NOT contain CloudFrontOAC resource', () => {
     assert.ok(
-      !template.includes('ApiFunctionInvokePermission:'),
-      'template should not contain ApiFunctionInvokePermission'
-        + ' (replaced by CloudFrontInvokePermission)'
+      !template.includes('CloudFrontOAC:'),
+      'template should not contain CloudFrontOAC'
+        + ' (replaced by origin secret header)'
     );
   });
 });
@@ -222,43 +238,40 @@ describe('SAM template -- removed permissions', () => {
 // SAM template -- CloudFront permission details
 // -----------------------------------------------------------
 
-describe('SAM template -- CloudFront permission details', () => {
-  it('Principal is cloudfront.amazonaws.com', () => {
-    const section = resourceSection('CloudFrontInvokePermission');
+describe('SAM template -- public permission details', () => {
+  it('ApiFunctionUrlPermission has Principal: *', () => {
+    const section = resourceSection('ApiFunctionUrlPermission');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontInvokePermission resource'
+      'template should contain ApiFunctionUrlPermission resource'
     );
     assert.ok(
-      section.includes('cloudfront.amazonaws.com'),
-      'CloudFrontInvokePermission Principal should be'
-        + ' cloudfront.amazonaws.com'
+      section.includes("'*'"),
+      'ApiFunctionUrlPermission Principal should be *'
     );
   });
 
-  it('Action is lambda:InvokeFunctionUrl', () => {
-    const section = resourceSection('CloudFrontInvokePermission');
+  it('ApiFunctionUrlPermission has FunctionUrlAuthType: NONE', () => {
+    const section = resourceSection('ApiFunctionUrlPermission');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontInvokePermission resource'
+      'template should contain ApiFunctionUrlPermission resource'
     );
     assert.ok(
-      section.includes('lambda:InvokeFunctionUrl'),
-      'CloudFrontInvokePermission Action should be'
-        + ' lambda:InvokeFunctionUrl'
+      section.includes('FunctionUrlAuthType: NONE'),
+      'ApiFunctionUrlPermission FunctionUrlAuthType should be NONE'
     );
   });
 
-  it('FunctionUrlAuthType is AWS_IAM', () => {
-    const section = resourceSection('CloudFrontInvokePermission');
+  it('ApiFunctionInvokePermission has Principal: *', () => {
+    const section = resourceSection('ApiFunctionInvokePermission');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontInvokePermission resource'
+      'template should contain ApiFunctionInvokePermission resource'
     );
     assert.ok(
-      section.includes('FunctionUrlAuthType: AWS_IAM'),
-      'CloudFrontInvokePermission FunctionUrlAuthType should be'
-        + ' AWS_IAM'
+      section.includes("'*'"),
+      'ApiFunctionInvokePermission Principal should be *'
     );
   });
 });
@@ -363,41 +376,41 @@ describe('SAM template -- origin request policy', () => {
 // SAM template -- OAC details
 // -----------------------------------------------------------
 
-describe('SAM template -- OAC details', () => {
-  it('OriginAccessControlOriginType is lambda', () => {
-    const section = resourceSection('CloudFrontOAC');
+describe('SAM template -- origin secret header', () => {
+  it('CloudFront origin has OriginCustomHeaders', () => {
+    const section = resourceSection('CloudFrontDistribution');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontOAC resource'
+      'template should contain CloudFrontDistribution resource'
     );
     assert.ok(
-      section.includes('OriginAccessControlOriginType: lambda'),
-      'CloudFrontOAC should have'
-        + ' OriginAccessControlOriginType: lambda'
+      section.includes('OriginCustomHeaders'),
+      'CloudFront origin should have OriginCustomHeaders'
     );
   });
 
-  it('SigningBehavior is always', () => {
-    const section = resourceSection('CloudFrontOAC');
+  it('OriginCustomHeaders includes x-origin-verify', () => {
+    const section = resourceSection('CloudFrontDistribution');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontOAC resource'
+      'template should contain CloudFrontDistribution resource'
     );
     assert.ok(
-      section.includes('SigningBehavior: always'),
-      'CloudFrontOAC should have SigningBehavior: always'
+      section.includes('x-origin-verify'),
+      'OriginCustomHeaders should include x-origin-verify'
     );
   });
 
-  it('SigningProtocol is sigv4', () => {
-    const section = resourceSection('CloudFrontOAC');
+  it('x-origin-verify value references SSM origin-secret', () => {
+    const section = resourceSection('CloudFrontDistribution');
     assert.ok(
       section.length > 0,
-      'template should contain CloudFrontOAC resource'
+      'template should contain CloudFrontDistribution resource'
     );
     assert.ok(
-      section.includes('SigningProtocol: sigv4'),
-      'CloudFrontOAC should have SigningProtocol: sigv4'
+      section.includes('origin-secret'),
+      'x-origin-verify HeaderValue should reference'
+        + ' SSM origin-secret parameter'
     );
   });
 });
@@ -688,14 +701,6 @@ describe('CLI verify -- new checks', () => {
     );
   });
 
-  it('checks for cloudfront.amazonaws.com in permissions', () => {
-    assert.ok(
-      verifySrc.includes('cloudfront.amazonaws.com'),
-      'verify should check for cloudfront.amazonaws.com'
-        + ' in permission statements'
-    );
-  });
-
   it('skips WAF check when region is not us-east-1', () => {
     assert.ok(
       verifySrc.includes("region === 'us-east-1'")
@@ -740,14 +745,6 @@ describe('Extension system -- CloudFront removal', () => {
     );
   });
 
-  it('removes CloudFrontOAC when api-gateway active', () => {
-    assert.ok(
-      extensionsSrc.includes('CloudFrontOAC'),
-      'extensions.mjs should reference CloudFrontOAC'
-        + ' in a removal list'
-    );
-  });
-
   it('removes WafWebAcl when api-gateway active', () => {
     assert.ok(
       extensionsSrc.includes('WafWebAcl'),
@@ -756,12 +753,11 @@ describe('Extension system -- CloudFront removal', () => {
     );
   });
 
-  it('reverts AuthType to NONE', () => {
+  it('removes ORIGIN_SECRET env var', () => {
     assert.ok(
-      extensionsSrc.includes("'NONE'")
-        || extensionsSrc.includes('NONE'),
-      'extensions.mjs should revert AuthType to NONE'
-        + ' when api-gateway extension replaces CloudFront'
+      extensionsSrc.includes('ORIGIN_SECRET'),
+      'extensions.mjs should remove ORIGIN_SECRET'
+        + ' when api-gateway extension is active'
     );
   });
 

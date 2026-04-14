@@ -24,9 +24,10 @@ the Lambda Function URL:
   Cache key includes `Authorization` header and query
   string, so different users and queries get separate
   cache entries
-- **Origin auth**: CloudFront uses OAC with SigV4 to
-  invoke the Function URL (`AuthType: AWS_IAM`). Direct
-  access to the Function URL returns 403
+- **Origin auth**: CloudFront adds a secret header
+  (`x-origin-verify`) to every origin request. The Lambda
+  handler rejects requests without the correct header.
+  Direct access to the Function URL returns 403
 
 ### Cache Behavior
 

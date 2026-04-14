@@ -22,10 +22,10 @@ describe('SAM template — Function URL default', () => {
     );
   });
 
-  it('FunctionUrlConfig has AuthType: AWS_IAM', () => {
+  it('FunctionUrlConfig has AuthType: NONE', () => {
     assert.ok(
-      template.includes('AuthType: AWS_IAM'),
-      'FunctionUrlConfig should have AuthType: AWS_IAM'
+      template.includes('AuthType: NONE'),
+      'FunctionUrlConfig should have AuthType: NONE'
     );
   });
 

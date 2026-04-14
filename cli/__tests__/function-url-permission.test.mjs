@@ -34,51 +34,51 @@ const pitfalls = readFileSync(PITFALLS_PATH, 'utf8');
 // CLI SAM template
 // -----------------------------------------------------------
 
-describe('CLI SAM template — CloudFrontInvokePermission', () => {
-  it('contains a CloudFrontInvokePermission resource', () => {
+describe('CLI SAM template — ApiFunctionUrlPermission', () => {
+  it('contains an ApiFunctionUrlPermission resource', () => {
     assert.ok(
-      cliTemplate.includes('CloudFrontInvokePermission'),
-      'template should contain CloudFrontInvokePermission resource'
+      cliTemplate.includes('ApiFunctionUrlPermission'),
+      'template should contain ApiFunctionUrlPermission resource'
     );
   });
 
-  it('CloudFrontInvokePermission Type is AWS::Lambda::Permission', () => {
+  it('ApiFunctionUrlPermission Type is AWS::Lambda::Permission', () => {
     assert.ok(
-      /CloudFrontInvokePermission:[\s\S]*?Type:\s*AWS::Lambda::Permission/
+      /ApiFunctionUrlPermission:[\s\S]*?Type:\s*AWS::Lambda::Permission/
         .test(cliTemplate),
-      'CloudFrontInvokePermission should have Type: AWS::Lambda::Permission'
+      'ApiFunctionUrlPermission should have Type: AWS::Lambda::Permission'
     );
   });
 
-  it('CloudFrontInvokePermission Action is lambda:InvokeFunctionUrl', () => {
+  it('ApiFunctionUrlPermission Action is lambda:InvokeFunctionUrl', () => {
     assert.ok(
-      /CloudFrontInvokePermission:[\s\S]*?Action:\s*lambda:InvokeFunctionUrl/
+      /ApiFunctionUrlPermission:[\s\S]*?Action:\s*lambda:InvokeFunctionUrl/
         .test(cliTemplate),
-      'CloudFrontInvokePermission should have Action: lambda:InvokeFunctionUrl'
+      'ApiFunctionUrlPermission should have Action: lambda:InvokeFunctionUrl'
     );
   });
 
-  it('CloudFrontInvokePermission FunctionName references ApiFunction.Arn', () => {
+  it('ApiFunctionUrlPermission FunctionName references ApiFunction.Arn', () => {
     assert.ok(
-      /CloudFrontInvokePermission:[\s\S]*?FunctionName:\s*!GetAtt\s+ApiFunction\.Arn/
+      /ApiFunctionUrlPermission:[\s\S]*?FunctionName:\s*!GetAtt\s+ApiFunction\.Arn/
         .test(cliTemplate),
-      'CloudFrontInvokePermission should reference !GetAtt ApiFunction.Arn'
+      'ApiFunctionUrlPermission should reference !GetAtt ApiFunction.Arn'
     );
   });
 
-  it('CloudFrontInvokePermission has FunctionUrlAuthType: AWS_IAM', () => {
+  it('ApiFunctionUrlPermission has FunctionUrlAuthType: NONE', () => {
     assert.ok(
-      /CloudFrontInvokePermission:[\s\S]*?FunctionUrlAuthType:\s*AWS_IAM/
+      /ApiFunctionUrlPermission:[\s\S]*?FunctionUrlAuthType:\s*NONE/
         .test(cliTemplate),
-      'CloudFrontInvokePermission should have FunctionUrlAuthType: AWS_IAM'
+      'ApiFunctionUrlPermission should have FunctionUrlAuthType: NONE'
     );
   });
 
-  it('CloudFrontInvokePermission Principal is cloudfront.amazonaws.com', () => {
+  it('ApiFunctionUrlPermission Principal is *', () => {
     assert.ok(
-      /CloudFrontInvokePermission:[\s\S]*?Principal:\s*cloudfront\.amazonaws\.com/
+      /ApiFunctionUrlPermission:[\s\S]*?Principal:\s*'\*'/
         .test(cliTemplate),
-      'CloudFrontInvokePermission should have Principal: cloudfront.amazonaws.com'
+      "ApiFunctionUrlPermission should have Principal: '*'"
     );
   });
 });
@@ -141,15 +141,22 @@ describe('Plugin SAM template — ApiFunctionInvokePermission', () => {
 // -----------------------------------------------------------
 
 describe('Template parity — invoke permissions', () => {
-  it('CLI template has CloudFrontInvokePermission (not ApiFunctionInvokePermission)', () => {
+  it('CLI template has ApiFunctionUrlPermission and ApiFunctionInvokePermission', () => {
     assert.ok(
-      cliTemplate.includes('CloudFrontInvokePermission'),
-      'CLI template should contain CloudFrontInvokePermission'
+      cliTemplate.includes('ApiFunctionUrlPermission'),
+      'CLI template should contain ApiFunctionUrlPermission'
     );
     assert.ok(
-      !cliTemplate.includes('ApiFunctionInvokePermission'),
-      'CLI template should not contain ApiFunctionInvokePermission'
-        + ' (replaced by CloudFrontInvokePermission)'
+      cliTemplate.includes('ApiFunctionInvokePermission'),
+      'CLI template should contain ApiFunctionInvokePermission'
+    );
+  });
+
+  it('CLI template does NOT have CloudFrontInvokePermission', () => {
+    assert.ok(
+      !cliTemplate.includes('CloudFrontInvokePermission'),
+      'CLI template should not contain CloudFrontInvokePermission'
+        + ' (replaced by public permissions + origin secret)'
     );
   });
 
@@ -166,31 +173,23 @@ describe('Template parity — invoke permissions', () => {
 // CLI verify command (verify.mjs)
 // -----------------------------------------------------------
 
-describe('CLI verify command — Function URL permission checks', () => {
-  it('contains a lambda:InvokeFunctionUrl permission check', () => {
+describe('CLI verify command — Function URL checks', () => {
+  it('checks direct Function URL returns 403', () => {
     assert.ok(
-      verifyMjs.includes('lambda:InvokeFunctionUrl'),
-      'verify.mjs should check for lambda:InvokeFunctionUrl permission'
+      verifyMjs.includes('403'),
+      'verify.mjs should check for HTTP 403 on direct'
+        + ' Function URL access (origin secret rejection)'
     );
   });
 
-  it('contains a lambda:InvokeFunction permission check', () => {
+  it('checks origin secret protection message', () => {
     assert.ok(
-      verifyMjs.includes('lambda:InvokeFunction'),
-      'verify.mjs should check for lambda:InvokeFunction permission'
-    );
-  });
-
-  it('calls aws lambda get-policy to retrieve the resource policy', () => {
-    assert.ok(
-      verifyMjs.includes('get-policy'),
-      'verify.mjs should call aws lambda get-policy'
+      verifyMjs.includes('origin secret'),
+      'verify.mjs should mention origin secret in check message'
     );
   });
 
   it('does not include 403 in the valid HTTP codes', () => {
-    // Match the validCodes array definition and check 403 is
-    // not present
     const codesMatch = verifyMjs.match(
       /validCodes\s*=\s*\[([^\]]*)\]/
     );

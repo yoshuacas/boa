@@ -336,13 +336,16 @@ export default async function init(args) {
     writeFileSync('.gitignore', '.boa/\nnode_modules/\n');
   }
 
-  // 7. Generate JWT secret
-  console.log('Generating JWT secret...');
+  // 7. Generate JWT secret and origin secret
+  console.log('Generating secrets...');
   const jwtSecret = randomBytes(32).toString('base64');
+  const originSecret = randomBytes(32).toString('hex');
 
   // 8. Store in SSM
   aws.ssmPutParameter(`/${name}/jwt-secret`, jwtSecret, region);
   ok(`JWT secret stored at /${name}/jwt-secret`);
+  aws.ssmPutParameter(`/${name}/origin-secret`, originSecret, region);
+  ok(`Origin secret stored at /${name}/origin-secret`);
   console.log('');
 
   // 9. SAM build

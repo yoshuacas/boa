@@ -111,12 +111,12 @@ describe('template merging — base (no extensions)', () => {
       'base template should contain CloudFrontDistribution'
     );
     assert.ok(
-      result.includes('CloudFrontOAC'),
-      'base template should contain CloudFrontOAC'
-    );
-    assert.ok(
       result.includes('WafWebAcl'),
       'base template should contain WafWebAcl'
+    );
+    assert.ok(
+      result.includes('x-origin-verify'),
+      'base template should contain x-origin-verify custom header'
     );
   });
 });
@@ -203,11 +203,11 @@ describe('template merging — api-gateway extension', () => {
     );
   });
 
-  it('result contains AuthType: NONE', () => {
+  it('result does NOT contain ORIGIN_SECRET env var', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.includes('AuthType: NONE'),
-      'merged template should revert AuthType to NONE'
+      !result.includes('ORIGIN_SECRET'),
+      'merged template should NOT contain ORIGIN_SECRET'
         + ' when api-gateway extension is active'
     );
   });

@@ -133,6 +133,20 @@ function normalizeEvent(raw) {
 }
 
 export async function handler(rawEvent) {
+  // Origin secret check — reject requests not from CloudFront.
+  // Only applies to Function URL events (no event.path).
+  // API Gateway events (have event.path) bypass this check.
+  if (!rawEvent.path && process.env.ORIGIN_SECRET) {
+    const headers = rawEvent.headers || {};
+    if (headers['x-origin-verify'] !== process.env.ORIGIN_SECRET) {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Forbidden' }),
+      };
+    }
+  }
+
   const event = normalizeEvent(rawEvent);
   const path = event.path || '';
 

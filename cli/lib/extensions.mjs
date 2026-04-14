@@ -58,11 +58,11 @@ export function mergeTemplate(extensions) {
   if (extensions.includes('api-gateway')) {
     // Remove CloudFront resources
     const cloudFrontResources = [
-      'CloudFrontDistribution', 'CloudFrontOAC',
+      'CloudFrontDistribution',
       'CloudFrontCachePolicy',
       'CloudFrontOriginRequestPolicy',
-      'CloudFrontInvokePermission',
-      'CloudFrontInvokePermissionV2',
+      'ApiFunctionUrlPermission',
+      'ApiFunctionInvokePermission',
       'WafWebAcl', 'WafAssociation',
       'LambdaThrottleAlarm', 'ThrottleAlarmTopic',
     ];
@@ -71,13 +71,6 @@ export function mergeTemplate(extensions) {
       baseResources.delete(name);
     }
 
-    // Revert AuthType to NONE for API Gateway
-    doc.setIn(
-      ['Resources', 'ApiFunction', 'Properties',
-       'FunctionUrlConfig', 'AuthType'],
-      'NONE',
-    );
-
     // Remove reserved concurrency (API Gateway has its
     // own throttling)
     const apiProps = doc.getIn(
@@ -85,7 +78,16 @@ export function mergeTemplate(extensions) {
     );
     apiProps.delete('ReservedConcurrentExecutions');
 
-    // Restore CORS on FunctionUrlConfig
+    // Remove ORIGIN_SECRET env var (API Gateway doesn't
+    // need origin secret verification)
+    const envVars = doc.getIn(
+      ['Resources', 'ApiFunction', 'Properties',
+       'Environment', 'Variables'], true,
+    );
+    envVars.delete('ORIGIN_SECRET');
+
+    // Replace CORS on FunctionUrlConfig with API Gateway
+    // specific CORS (API Gateway handles CORS itself)
     const corsNode = doc.createNode({
       AllowHeaders: [
         'Content-Type', 'Authorization', 'apikey',

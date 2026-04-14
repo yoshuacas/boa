@@ -63,7 +63,7 @@ boa/
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
 | API | CloudFront + WAF (default) | DDoS protection, rate limiting, edge caching |
-| Compute Access | Lambda Function URLs (internal) | AuthType AWS_IAM, only CloudFront can invoke |
+| Compute Access | Lambda Function URLs (internal) | Origin secret header, only CloudFront can invoke |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
 | IaC | SAM / CloudFormation | One-command deploy |

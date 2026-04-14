@@ -109,7 +109,28 @@ Resources:
       CodeUri: ./lambda/
       ReservedConcurrentExecutions: 50
       FunctionUrlConfig:
-        AuthType: AWS_IAM
+        AuthType: NONE
+        Cors:
+          AllowHeaders:
+            - Content-Type
+            - Authorization
+            - apikey
+            - Prefer
+            - Accept
+            - x-client-info
+            - X-Client-Info
+            - X-Supabase-Api-Version
+            - content-profile
+            - accept-profile
+          AllowMethods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          AllowOrigins:
+            - '*'
+          MaxAge: 600
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -118,6 +139,7 @@ Resources:
           USER_POOL_ID: !Ref UserPool
           USER_POOL_CLIENT_ID: !Ref UserPoolClient
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
+          ORIGIN_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/origin-secret}}'
           AUTH_PROVIDER: cognito
           POLICIES_PATH: ./policies
       Policies:
@@ -147,15 +169,6 @@ Resources:
   # -------------------------------------------------------
   # Traffic layer — CloudFront + WAF (DoW protection)
   # -------------------------------------------------------
-  CloudFrontOAC:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: !Sub '${ProjectName}-lambda-oac'
-        OriginAccessControlOriginType: lambda
-        SigningBehavior: always
-        SigningProtocol: sigv4
-
   CloudFrontCachePolicy:
     Type: AWS::CloudFront::CachePolicy
     Properties:
@@ -226,10 +239,12 @@ Resources:
             DomainName: !Select
               - 2
               - !Split ['/', !GetAtt ApiFunctionUrl.FunctionUrl]
-            OriginAccessControlId: !Ref CloudFrontOAC
             CustomOriginConfig:
               HTTPSPort: 443
               OriginProtocolPolicy: https-only
+            OriginCustomHeaders:
+              - HeaderName: x-origin-verify
+                HeaderValue: !Sub '{{resolve:ssm:/${ProjectName}/origin-secret}}'
         WebACLId: !If
           - IsUsEast1
           - !GetAtt WafWebAcl.Arn
@@ -237,24 +252,20 @@ Resources:
         HttpVersion: http2and3
         PriceClass: PriceClass_100
 
-  CloudFrontInvokePermission:
+  ApiFunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt ApiFunction.Arn
       Action: lambda:InvokeFunctionUrl
-      Principal: cloudfront.amazonaws.com
-      SourceArn: !Sub >-
-        arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
-      FunctionUrlAuthType: AWS_IAM
+      Principal: '*'
+      FunctionUrlAuthType: NONE
 
-  CloudFrontInvokePermissionV2:
+  ApiFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt ApiFunction.Arn
       Action: lambda:InvokeFunction
-      Principal: cloudfront.amazonaws.com
-      SourceArn: !Sub >-
-        arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+      Principal: '*'
 
   WafWebAcl:
     Type: AWS::WAFv2::WebACL

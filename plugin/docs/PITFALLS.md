@@ -25,7 +25,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
-| 25 | Direct Function URL returns 403 (expected with CloudFront) | MEDIUM | See below |
+| 25 | Direct Function URL returns 403 (expected, origin secret) | MEDIUM | See below |
 | 26 | CORS errors through CloudFront (missing origin request headers) | MEDIUM | See below |
 | 27 | Stale GET responses from CloudFront cache (60s TTL) | LOW | See below |
 | **Functions** | | | |
@@ -89,18 +89,19 @@ aws lambda add-permission \
 
 ## Direct Function URL 403 — Expected with CloudFront
 
-With CloudFront as the default traffic layer, the Lambda
-Function URL uses `AuthType: AWS_IAM`. Only CloudFront
-(via OAC) can invoke it. Curling the Function URL directly
-returns `{"Message":"Forbidden"}` with HTTP 403.
+With CloudFront as the default traffic layer, CloudFront
+adds a secret header (`x-origin-verify`) to every origin
+request. The Lambda handler rejects requests without the
+correct header. Curling the Function URL directly returns
+`{"message":"Forbidden"}` with HTTP 403.
 
 **This is expected behavior, not a bug.** The API URL for
 clients is the CloudFront domain (from
 `.boa/config.json` `apiUrl`), not the raw Function URL.
 
 **Symptoms:** HTTP 403 when accessing the Function URL
-directly. No Lambda CloudWatch logs for the request
-(it never reaches Lambda).
+directly. Lambda CloudWatch logs show the request was
+rejected by the origin secret check.
 
 **Fix:** Use the CloudFront URL from `.boa/config.json`
 `apiUrl`. If you need to test Lambda directly, use

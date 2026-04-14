@@ -51,10 +51,10 @@ CloudFront is the default traffic layer. All client
 requests go through CloudFront, which provides DDoS
 absorption (AWS Shield Standard), WAF rate limiting
 (1000 req/5min per IP), and edge caching (60s TTL for
-GET requests). The Lambda Function URL uses
-`AuthType: AWS_IAM` -- only CloudFront can invoke it
-via Origin Access Control (OAC). Direct access to the
-Function URL returns 403 Forbidden.
+GET requests). CloudFront adds a secret header
+(`x-origin-verify`) to every origin request. The Lambda
+handler rejects requests without the correct header.
+Direct access to the Function URL returns 403 Forbidden.
 
 ## BOA CLI
 

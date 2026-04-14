@@ -1339,3 +1339,41 @@ commands are introduced.
    latency and cost ($0.005 per path per invalidation after
    the first 1000/month). The 60-second TTL makes this
    unlikely to cause problems in practice.
+
+---
+
+## Addendum: OAC Replaced with Origin Secret Header (2026-04-14)
+
+The original design used CloudFront OAC (Origin Access Control)
+with SigV4 signing and `AuthType: AWS_IAM` on the Lambda
+Function URL. This was replaced with an origin secret header
+pattern due to a fundamental incompatibility:
+
+**Problem:** AWS CloudFront OAC with Lambda Function URLs
+requires clients to compute `x-amz-content-sha256` (SHA256
+of the request body) for POST/PUT/PATCH/DELETE requests.
+Lambda does not support unsigned payloads. Since
+`@supabase/supabase-js` (our drop-in client) does not send
+this header, every write operation through CloudFront failed
+with HTTP 403 ("The request signature we calculated does not
+match the signature you provided").
+
+See: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html
+
+**Solution:** CloudFront adds a secret `x-origin-verify`
+header to every origin request via `OriginCustomHeaders`. The
+Lambda handler rejects requests without the correct header
+value. The secret is stored in SSM Parameter Store and
+referenced by both CloudFront and the Lambda env var.
+
+**Changes:**
+- Removed `CloudFrontOAC` resource
+- Changed `AuthType: AWS_IAM` to `AuthType: NONE`
+- Added CORS block to `FunctionUrlConfig`
+- Added `OriginCustomHeaders` with `x-origin-verify`
+- Added `ORIGIN_SECRET` Lambda env var
+- Replaced CloudFront-scoped permissions with public permissions
+- Added origin secret check in Lambda handler
+
+Same protection (only CloudFront can invoke Lambda), no
+client-side changes needed, works with all HTTP methods.
