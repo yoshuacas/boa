@@ -58,12 +58,12 @@ const howSteps = [
 ]
 
 const capabilities = [
-  { name: 'PostgreSQL Database', desc: 'Write SQL you already know. No connection strings to manage, no clusters to size. Scales to zero when idle.', link: '/boa/docs/database/overview' },
-  { name: 'Authentication', desc: 'Sign up, sign in, MFA, social providers. Works the moment you deploy. No auth code to write.', link: '/boa/docs/auth/overview' },
-  { name: 'REST API', desc: 'Auto-generated CRUD for every table. Filtering, sorting, pagination, resource embedding. No routes to write.', link: '/boa/docs/api/overview' },
-  { name: 'File Storage', desc: 'Upload and download files. Private by default, organized by user. No public buckets, no access mistakes.', link: '/boa/docs/storage/overview' },
-  { name: 'Functions', desc: 'Business logic that runs on deploy. Webhooks, scheduled jobs, background work. Write the code, BOA runs it.', link: '/boa/docs/functions/overview' },
-  { name: 'One-Command Deploy', desc: '`boa deploy` and your backend is live. Update a table, add a function, change a policy. Deploy again. Same command.', link: '/boa/docs/deployment/overview' },
+  { name: 'PostgreSQL Database', desc: 'Write SQL you already know. No connection strings to manage, no clusters to size. Scales to zero when idle.', link: '/docs/database/overview' },
+  { name: 'Authentication', desc: 'Sign up, sign in, MFA, social providers. Works the moment you deploy. No auth code to write.', link: '/docs/auth/overview' },
+  { name: 'REST API', desc: 'Auto-generated CRUD for every table. Filtering, sorting, pagination, resource embedding. No routes to write.', link: '/docs/api/overview' },
+  { name: 'File Storage', desc: 'Upload and download files. Private by default, organized by user. No public buckets, no access mistakes.', link: '/docs/storage/overview' },
+  { name: 'Functions', desc: 'Business logic that runs on deploy. Webhooks, scheduled jobs, background work. Write the code, BOA runs it.', link: '/docs/functions/overview' },
+  { name: 'One-Command Deploy', desc: '`boa deploy` and your backend is live. Update a table, add a function, change a policy. Deploy again. Same command.', link: '/docs/deployment/overview' },
 ]
 
 const whyBoaCards = [
@@ -123,7 +123,7 @@ onUnmounted(() => {
           A complete backend on AWS in under a minute. Built for agents. Free until you have paying customers. Same architecture at a million customers.
         </p>
         <div class="hero-actions">
-          <a href="/boa/docs/getting-started" class="btn btn-primary">Get Started</a>
+          <a href="/docs/getting-started" class="btn btn-primary">Get Started</a>
           <a href="https://github.com/yoshuacas/boa" target="_blank" rel="noopener" class="btn btn-outline">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             View on GitHub
@@ -165,7 +165,7 @@ onUnmounted(() => {
       <div class="container">
         <span class="announcement-badge">New</span>
         April 28, 2026. BOA is live. Deploy your first backend in under a minute.
-        <a href="/boa/install">Install now &rarr;</a>
+        <a href="/install">Install now &rarr;</a>
       </div>
     </section>
 
@@ -273,7 +273,7 @@ onUnmounted(() => {
           BOA is open source. No fees, no tiers, no paid plans. You only pay AWS, and only when you outgrow their free tier.
         </p>
         <div class="pricing-cta">
-          <a href="/boa/pricing" class="btn btn-secondary">See the pricing calculator &rarr;</a>
+          <a href="/pricing" class="btn btn-secondary">See the pricing calculator &rarr;</a>
         </div>
       </div>
     </section>
@@ -299,7 +299,7 @@ onUnmounted(() => {
         <h2 class="cta-title">From install to a working backend in under a minute</h2>
         <p class="cta-subtitle">Free and open source. Apache 2.0. No BOA fees, ever. You only pay AWS.</p>
         <div class="cta-actions">
-          <a href="/boa/docs/getting-started" class="btn btn-primary btn-lg">Get Started</a>
+          <a href="/docs/getting-started" class="btn btn-primary btn-lg">Get Started</a>
           <a href="https://github.com/yoshuacas/boa" target="_blank" rel="noopener" class="btn btn-outline btn-lg">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
             Star on GitHub
@@ -315,20 +315,20 @@ onUnmounted(() => {
           <div class="footer-col">
             <h4>BOA</h4>
             <ul>
-              <li><a href="/boa/docs/getting-started">Getting Started</a></li>
-              <li><a href="/boa/docs/how-it-works">How It Works</a></li>
-              <li><a href="/boa/install">Install</a></li>
-              <li><a href="/boa/pricing">Pricing</a></li>
+              <li><a href="/docs/getting-started">Getting Started</a></li>
+              <li><a href="/docs/how-it-works">How It Works</a></li>
+              <li><a href="/install">Install</a></li>
+              <li><a href="/pricing">Pricing</a></li>
             </ul>
           </div>
           <div class="footer-col">
             <h4>Docs</h4>
             <ul>
-              <li><a href="/boa/docs/database/overview">Database</a></li>
-              <li><a href="/boa/docs/auth/overview">Auth</a></li>
-              <li><a href="/boa/docs/api/overview">API</a></li>
-              <li><a href="/boa/docs/storage/overview">Storage</a></li>
-              <li><a href="/boa/docs/faq">FAQ</a></li>
+              <li><a href="/docs/database/overview">Database</a></li>
+              <li><a href="/docs/auth/overview">Auth</a></li>
+              <li><a href="/docs/api/overview">API</a></li>
+              <li><a href="/docs/storage/overview">Storage</a></li>
+              <li><a href="/docs/faq">FAQ</a></li>
             </ul>
           </div>
           <div class="footer-col">
