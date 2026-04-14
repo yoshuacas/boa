@@ -8,7 +8,8 @@ const selectedExtension = ref('cloudfront')
 
 onMounted(async () => {
   try {
-    const resp = await fetch('/boa/data/pricing-data.json')
+    const base = import.meta.env.BASE_URL || '/'
+    const resp = await fetch(`${base}data/pricing-data.json`)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
     pricingData.value = await resp.json()
   } catch {
