@@ -22,24 +22,10 @@ describe('SAM template — Function URL default', () => {
     );
   });
 
-  it('FunctionUrlConfig has AuthType: NONE', () => {
+  it('FunctionUrlConfig has AuthType: AWS_IAM', () => {
     assert.ok(
-      template.includes('AuthType: NONE'),
-      'FunctionUrlConfig should have AuthType: NONE'
-    );
-  });
-
-  it('FunctionUrlConfig.Cors includes Authorization in AllowHeaders', () => {
-    assert.ok(
-      /AllowHeaders:[\s\S]*?- Authorization/m.test(template),
-      'FunctionUrlConfig.Cors.AllowHeaders should include Authorization'
-    );
-  });
-
-  it('FunctionUrlConfig.Cors includes apikey in AllowHeaders', () => {
-    assert.ok(
-      /AllowHeaders:[\s\S]*?- apikey/m.test(template),
-      'FunctionUrlConfig.Cors.AllowHeaders should include apikey'
+      template.includes('AuthType: AWS_IAM'),
+      'FunctionUrlConfig should have AuthType: AWS_IAM'
     );
   });
 

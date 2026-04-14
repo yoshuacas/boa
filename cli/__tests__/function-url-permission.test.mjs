@@ -34,51 +34,51 @@ const pitfalls = readFileSync(PITFALLS_PATH, 'utf8');
 // CLI SAM template
 // -----------------------------------------------------------
 
-describe('CLI SAM template — ApiFunctionInvokePermission', () => {
-  it('contains an ApiFunctionInvokePermission resource', () => {
+describe('CLI SAM template — CloudFrontInvokePermission', () => {
+  it('contains a CloudFrontInvokePermission resource', () => {
     assert.ok(
-      cliTemplate.includes('ApiFunctionInvokePermission'),
-      'template should contain ApiFunctionInvokePermission resource'
+      cliTemplate.includes('CloudFrontInvokePermission'),
+      'template should contain CloudFrontInvokePermission resource'
     );
   });
 
-  it('ApiFunctionInvokePermission Type is AWS::Lambda::Permission', () => {
+  it('CloudFrontInvokePermission Type is AWS::Lambda::Permission', () => {
     assert.ok(
-      /ApiFunctionInvokePermission:[\s\S]*?Type:\s*AWS::Lambda::Permission/
+      /CloudFrontInvokePermission:[\s\S]*?Type:\s*AWS::Lambda::Permission/
         .test(cliTemplate),
-      'ApiFunctionInvokePermission should have Type: AWS::Lambda::Permission'
+      'CloudFrontInvokePermission should have Type: AWS::Lambda::Permission'
     );
   });
 
-  it('ApiFunctionInvokePermission Action is lambda:InvokeFunction', () => {
+  it('CloudFrontInvokePermission Action is lambda:InvokeFunctionUrl', () => {
     assert.ok(
-      /ApiFunctionInvokePermission:[\s\S]*?Action:\s*lambda:InvokeFunction/
+      /CloudFrontInvokePermission:[\s\S]*?Action:\s*lambda:InvokeFunctionUrl/
         .test(cliTemplate),
-      'ApiFunctionInvokePermission should have Action: lambda:InvokeFunction'
+      'CloudFrontInvokePermission should have Action: lambda:InvokeFunctionUrl'
     );
   });
 
-  it('ApiFunctionInvokePermission FunctionName references ApiFunction.Arn', () => {
+  it('CloudFrontInvokePermission FunctionName references ApiFunction.Arn', () => {
     assert.ok(
-      /ApiFunctionInvokePermission:[\s\S]*?FunctionName:\s*!GetAtt\s+ApiFunction\.Arn/
+      /CloudFrontInvokePermission:[\s\S]*?FunctionName:\s*!GetAtt\s+ApiFunction\.Arn/
         .test(cliTemplate),
-      'ApiFunctionInvokePermission should reference !GetAtt ApiFunction.Arn'
+      'CloudFrontInvokePermission should reference !GetAtt ApiFunction.Arn'
     );
   });
 
-  it('ApiFunctionInvokePermission has InvokedViaFunctionUrl: true', () => {
+  it('CloudFrontInvokePermission has FunctionUrlAuthType: AWS_IAM', () => {
     assert.ok(
-      /ApiFunctionInvokePermission:[\s\S]*?InvokedViaFunctionUrl:\s*true/
+      /CloudFrontInvokePermission:[\s\S]*?FunctionUrlAuthType:\s*AWS_IAM/
         .test(cliTemplate),
-      'ApiFunctionInvokePermission should have InvokedViaFunctionUrl: true'
+      'CloudFrontInvokePermission should have FunctionUrlAuthType: AWS_IAM'
     );
   });
 
-  it('ApiFunctionInvokePermission Principal is *', () => {
+  it('CloudFrontInvokePermission Principal is cloudfront.amazonaws.com', () => {
     assert.ok(
-      /ApiFunctionInvokePermission:[\s\S]*?Principal:\s*'\*'/
+      /CloudFrontInvokePermission:[\s\S]*?Principal:\s*cloudfront\.amazonaws\.com/
         .test(cliTemplate),
-      "ApiFunctionInvokePermission should have Principal: '*'"
+      'CloudFrontInvokePermission should have Principal: cloudfront.amazonaws.com'
     );
   });
 });
@@ -137,42 +137,27 @@ describe('Plugin SAM template — ApiFunctionInvokePermission', () => {
 });
 
 // -----------------------------------------------------------
-// Template parity
+// Template parity — invoke permissions
 // -----------------------------------------------------------
 
-describe('Template parity — ApiFunctionInvokePermission', () => {
-  it('both templates have structurally identical ApiFunctionInvokePermission sections', () => {
-    // Extract the ApiFunctionInvokePermission block from each
-    // template (from the resource name to the next top-level
-    // resource or section, indicated by a line starting with
-    // exactly two spaces followed by a non-space character that
-    // is not a property continuation).
-    const extractPermissionBlock = (template) => {
-      const marker = 'ApiFunctionInvokePermission:';
-      const start = template.indexOf(marker);
-      if (start === -1) return null;
-      // Find the end: next resource at same indentation level
-      const afterMarker = template.slice(start + marker.length);
-      const nextResource = afterMarker.search(/\n  \S/);
-      if (nextResource === -1) return afterMarker.trim();
-      return afterMarker.slice(0, nextResource).trim();
-    };
-
-    const cliBlock = extractPermissionBlock(cliTemplate);
-    const pluginBlock = extractPermissionBlock(pluginTemplate);
-
+describe('Template parity — invoke permissions', () => {
+  it('CLI template has CloudFrontInvokePermission (not ApiFunctionInvokePermission)', () => {
     assert.ok(
-      cliBlock !== null,
-      'CLI template should contain ApiFunctionInvokePermission'
+      cliTemplate.includes('CloudFrontInvokePermission'),
+      'CLI template should contain CloudFrontInvokePermission'
     );
     assert.ok(
-      pluginBlock !== null,
-      'Plugin template should contain ApiFunctionInvokePermission'
+      !cliTemplate.includes('ApiFunctionInvokePermission'),
+      'CLI template should not contain ApiFunctionInvokePermission'
+        + ' (replaced by CloudFrontInvokePermission)'
     );
-    assert.equal(
-      cliBlock,
-      pluginBlock,
-      'ApiFunctionInvokePermission sections should be identical across templates'
+  });
+
+  it('plugin template still has ApiFunctionInvokePermission', () => {
+    assert.ok(
+      pluginTemplate.includes('ApiFunctionInvokePermission'),
+      'Plugin template should still contain'
+        + ' ApiFunctionInvokePermission'
     );
   });
 });

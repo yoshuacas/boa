@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (CloudFront + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (Function URLs), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -33,9 +33,6 @@ These rules shape every interaction:
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-CloudFront + WAF ─── DDoS protection, rate limiting, edge cache
-    │
-    ▼
 Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
@@ -46,15 +43,6 @@ Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing
 Everything is serverless. No servers to manage. Scales to zero. Scales to millions.
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
-
-CloudFront is the default traffic layer. All client
-requests go through CloudFront, which provides DDoS
-absorption (AWS Shield Standard), WAF rate limiting
-(1000 req/5min per IP), and edge caching (60s TTL for
-GET requests). The Lambda Function URL uses
-`AuthType: AWS_IAM` -- only CloudFront can invoke it
-via Origin Access Control (OAC). Direct access to the
-Function URL returns 403 Forbidden.
 
 ## BOA CLI
 
@@ -93,8 +81,8 @@ The developer described what they want. Create the backend, then build on it.
 1. **Setup** — Run through Step 1 below (tools + AWS credentials)
 2. **Deploy** — Run `boa init <app-name> --region us-east-1`
 3. **Design** — Based on the developer's description, design the data model (tables, columns, indexes) and authorization rules (who can read/write what)
-4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](../../docs/MIGRATIONS.md).
-5. **Policies** — Write access policy files in `policies/`. See [POLICIES.md](../../docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
+4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](docs/MIGRATIONS.md).
+5. **Policies** — Write access policy files in `policies/`. See [POLICIES.md](docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
 6. **Deploy changes** — Run `boa deploy` (bundles policies and applies migrations)
 7. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
 8. **Verify** — Run `boa verify`
@@ -115,13 +103,6 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
 11. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
 12. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
-13. **Function URLs are behind CloudFront**: The raw
-    Function URL is internal. Never share it with
-    frontend clients. Use the CloudFront URL from
-    `.boa/config.json` `apiUrl`.
-14. **WAF rate limiting**: Default is 1000 requests per
-    5 minutes per IP. Increase in the WAF rule if a
-    legitimate app needs higher throughput.
 
 ## Step 1: Setup
 
@@ -192,7 +173,7 @@ mkdir -p migrations
 - `CREATE INDEX ASYNC` — DSQL requires ASYNC for all index creation
 - No triggers, stored procedures, or functions
 - **Name foreign key columns with `_id` suffix** — this enables resource embedding (e.g., `player_id` auto-links to the `players` table, letting clients fetch `game_stats(*, players(*))` in one request)
-- See [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) for the full constraints table
+- See [DSQL-PATTERNS.md](docs/DSQL-PATTERNS.md) for the full constraints table
 
 ```sql
 -- migrations/001_create_users.sql
@@ -220,7 +201,7 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX ASYNC IF NOT EXISTS idx_todos_user ON todos(user_id);
 ```
 
-For naming rules and common patterns, see [MIGRATIONS.md](../../docs/MIGRATIONS.md).
+For naming rules and common patterns, see [MIGRATIONS.md](docs/MIGRATIONS.md).
 
 ### Write access policies
 
@@ -242,7 +223,7 @@ permit(principal is PgrestLambda::User, action == PgrestLambda::Action::"insert"
 permit(principal is PgrestLambda::ServiceRole, action, resource);
 ```
 
-For more patterns (public read, role-based, per-table), see [POLICIES.md](../../docs/POLICIES.md).
+For more patterns (public read, role-based, per-table), see [POLICIES.md](docs/POLICIES.md).
 
 ### Deploy and apply
 
@@ -279,7 +260,7 @@ const { data } = await supabase
   .select('*, game_stats(goals, assists, players(name, position))');
 ```
 
-For embedding patterns, filtering syntax, and @supabase/supabase-js examples, see [REST-API.md](../../docs/REST-API.md).
+For embedding patterns, filtering syntax, and @supabase/supabase-js examples, see [REST-API.md](docs/REST-API.md).
 
 ## Authentication
 
@@ -297,7 +278,7 @@ POST /auth/v1/logout                         — sign out
 - **anonKey** — role `anon`, for public access
 - **serviceRoleKey** — role `service_role`, bypasses authorization (server-side only)
 
-For Cognito flows, social sign-in, MFA, and token handling details, see [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md).
+For Cognito flows, social sign-in, MFA, and token handling details, see [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md).
 
 ## Frontend Configuration
 
@@ -356,21 +337,21 @@ open .boa/dashboard/index.html
 
 Load these on demand when you need detailed patterns:
 
-- [REST-API.md](../../docs/REST-API.md) — Full REST API reference: filtering, pagination, headers, @supabase/supabase-js, errors
-- [POLICIES.md](../../docs/POLICIES.md) — Access policies: entity model, examples per app type, SQL translation
-- [PITFALLS.md](../../docs/PITFALLS.md) — Quick reference index of all known failures (details in each pattern doc)
-- [ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — DSQL schema patterns per app type
-- [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns
-- [AUTH-PATTERNS.md](../../docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
-- [API-PATTERNS.md](../../docs/API-PATTERNS.md) — API Gateway + Lambda patterns
-- [STORAGE-PATTERNS.md](../../docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
-- [FUNCTIONS.md](../../docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs
-- [MIGRATIONS.md](../../docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
-- [FEEDBACK.md](../../docs/FEEDBACK.md) — How to report BOA bugs found during a session
+- [REST-API.md](docs/REST-API.md) — Full REST API reference: filtering, pagination, headers, @supabase/supabase-js, errors
+- [POLICIES.md](docs/POLICIES.md) — Access policies: entity model, examples per app type, SQL translation
+- [PITFALLS.md](docs/PITFALLS.md) — Quick reference index of all known failures (details in each pattern doc)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — DSQL schema patterns per app type
+- [DSQL-PATTERNS.md](docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns
+- [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
+- [API-PATTERNS.md](docs/API-PATTERNS.md) — API Gateway + Lambda patterns
+- [STORAGE-PATTERNS.md](docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
+- [FUNCTIONS.md](docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs
+- [MIGRATIONS.md](docs/MIGRATIONS.md) — Migration file format, runner usage, common patterns
+- [FEEDBACK.md](docs/FEEDBACK.md) — How to report BOA bugs found during a session
 
 ## Feedback
 
-When you encounter a BOA bug (not a developer error), see [FEEDBACK.md](../../docs/FEEDBACK.md) for how to report it.
+When you encounter a BOA bug (not a developer error), see [FEEDBACK.md](docs/FEEDBACK.md) for how to report it.
 
 ## Teardown
 

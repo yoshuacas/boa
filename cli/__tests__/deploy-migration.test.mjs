@@ -17,9 +17,25 @@ describe('deploy migration warning', () => {
     }));
   });
 
-  it('Function URL → no warning', () => {
+  it('Function URL without cloudfront → warning', () => {
+    assert.ok(needsMigrationWarning({
+      apiUrl: 'https://abc123.lambda-url.us-east-1.on.aws/',
+      extensions: [],
+    }));
+  });
+
+  it('Function URL with cloudfront → no warning', () => {
     assert.ok(!needsMigrationWarning({
       apiUrl: 'https://abc123.lambda-url.us-east-1.on.aws/',
+      cloudfront: { distributionId: 'E123' },
+      extensions: [],
+    }));
+  });
+
+  it('CloudFront URL → no warning', () => {
+    assert.ok(!needsMigrationWarning({
+      apiUrl: 'https://d111111abcdef8.cloudfront.net',
+      cloudfront: { distributionId: 'E123' },
       extensions: [],
     }));
   });

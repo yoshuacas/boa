@@ -52,7 +52,7 @@ function wait(ms) { return new Promise(r => setTimeout(r, ms)) }
 // --- Static data ---
 const howSteps = [
   { title: 'Describe your app', desc: 'Build a todo app with user accounts and file attachments' },
-  { title: 'BOA deploys your backend', desc: 'Database, auth, APIs, storage \u2014 created in your AWS account with one command.' },
+  { title: 'BOA deploys your backend', desc: 'Database, auth, APIs, storage. Created in your AWS account with one command.' },
   { title: 'Connect your frontend', desc: 'Use @supabase/supabase-js as a drop-in client. Every table is a REST endpoint.' },
   { title: 'Evolve with migrations', desc: 'Add tables, change schemas, track every change in numbered SQL files. No surprises.' },
 ]
@@ -63,7 +63,7 @@ const capabilities = [
   { name: 'REST API', desc: 'Auto-generated CRUD for every table. Filtering, sorting, pagination, resource embedding. No routes to write.', link: '/boa/docs/api/overview' },
   { name: 'File Storage', desc: 'Upload and download files. Private by default, organized by user. No public buckets, no access mistakes.', link: '/boa/docs/storage/overview' },
   { name: 'Functions', desc: 'Business logic that runs on deploy. Webhooks, scheduled jobs, background work. Write the code, BOA runs it.', link: '/boa/docs/functions/overview' },
-  { name: 'One-Command Deploy', desc: '`boa deploy` and your backend is live. Update a table, add a function, change a policy \u2014 deploy again. Same command.', link: '/boa/docs/deployment/overview' },
+  { name: 'One-Command Deploy', desc: '`boa deploy` and your backend is live. Update a table, add a function, change a policy. Deploy again. Same command.', link: '/boa/docs/deployment/overview' },
 ]
 
 const whyBoaCards = [
@@ -73,13 +73,6 @@ const whyBoaCards = [
   { title: 'No re-architecture', desc: 'The backend you prototype on is the backend you scale on.' },
   { title: 'Supabase-JS compatible', desc: 'Use @supabase/supabase-js as your client library. Zero learning curve.' },
   { title: 'Agent-native', desc: 'The BOA skill works with Claude Code, Kiro, Copilot, and Codex.' },
-]
-
-const pricingTiers = [
-  { name: 'Prototype', users: '50 customers', price: '$0', sub: '/mo', note: 'Free tier covers everything', free: true },
-  { name: 'Startup', users: '1,000 customers', price: '$0', sub: '/mo', note: 'Still within free tier', free: true },
-  { name: 'Growth', users: '100K customers', price: '~$500', sub: '/mo', note: 'Pay-as-you-go AWS pricing', free: false },
-  { name: 'Scale', users: '2M customers', price: 'Pay-as-you-go', sub: '', note: 'Same backend, no re-architecture', free: false, highlighted: true },
 ]
 
 const agents = [
@@ -171,7 +164,7 @@ onUnmounted(() => {
     <section class="announcement">
       <div class="container">
         <span class="announcement-badge">New</span>
-        April 28, 2026 — BOA is live. Deploy your first backend in under a minute.
+        April 28, 2026. BOA is live. Deploy your first backend in under a minute.
         <a href="/boa/install">Install now &rarr;</a>
       </div>
     </section>
@@ -190,7 +183,7 @@ onUnmounted(() => {
               </svg>
             </div>
             <h3>Serverless Backend</h3>
-            <p>Database, auth, APIs, storage — all in your AWS account. Scales to zero when idle. Scales to millions under load.</p>
+            <p>Database, auth, APIs, storage. All in your AWS account. Scales to zero when idle. Scales to millions under load.</p>
           </div>
 
           <div class="pillar">
@@ -208,7 +201,7 @@ onUnmounted(() => {
               </svg>
             </div>
             <h3>Agent-Ready</h3>
-            <p>Stop teaching your agent how AWS works. The BOA skill already knows every pattern and pitfall — just describe what you need built.</p>
+            <p>Stop teaching your agent how AWS works. The BOA skill already knows every pattern and pitfall. Just describe what you need built.</p>
           </div>
 
           <div class="pillar">
@@ -241,7 +234,7 @@ onUnmounted(() => {
     <section class="how-it-works reveal">
       <div class="container">
         <h2 class="section-title">Tell your agent what to build. BOA handles the rest.</h2>
-        <p class="section-subtitle">Your agent uses the BOA CLI under the hood — same commands you'd run yourself.</p>
+        <p class="section-subtitle">Your agent uses the BOA CLI under the hood. Same commands you'd run yourself.</p>
 
         <div class="how-grid">
           <div class="how-step" v-for="(step, i) in howSteps" :key="i">
@@ -277,21 +270,10 @@ onUnmounted(() => {
       <div class="container">
         <h2 class="section-title">BOA is free. Here's what AWS costs.</h2>
         <p class="section-subtitle">
-          BOA is open source — no fees, no tiers, no paid plans. You only pay AWS, and only when you outgrow their free tier.
-          A typical app with 1,000 customers costs $0/month.
+          BOA is open source. No fees, no tiers, no paid plans. You only pay AWS, and only when you outgrow their free tier.
         </p>
-
-        <div class="pricing-tiers">
-          <div v-for="tier in pricingTiers" :key="tier.name" class="tier" :class="{ highlighted: tier.highlighted }">
-            <div class="tier-name">{{ tier.name }}</div>
-            <div class="tier-users">{{ tier.users }}</div>
-            <div class="tier-price" :class="{ free: tier.free }">{{ tier.price }}<span v-if="tier.sub">{{ tier.sub }}</span></div>
-            <div class="tier-note">{{ tier.note }}</div>
-          </div>
-        </div>
-
         <div class="pricing-cta">
-          <a href="/boa/pricing" class="btn btn-secondary">See full pricing calculator &rarr;</a>
+          <a href="/boa/pricing" class="btn btn-secondary">See the pricing calculator &rarr;</a>
         </div>
       </div>
     </section>
@@ -315,7 +297,7 @@ onUnmounted(() => {
     <section class="cta reveal">
       <div class="container">
         <h2 class="cta-title">From install to a working backend in under a minute</h2>
-        <p class="cta-subtitle">Free and open source. Apache 2.0. No BOA fees, ever — you only pay AWS.</p>
+        <p class="cta-subtitle">Free and open source. Apache 2.0. No BOA fees, ever. You only pay AWS.</p>
         <div class="cta-actions">
           <a href="/boa/docs/getting-started" class="btn btn-primary btn-lg">Get Started</a>
           <a href="https://github.com/yoshuacas/boa" target="_blank" rel="noopener" class="btn btn-outline btn-lg">
@@ -369,7 +351,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* ============================================================
-   HomeLayout — Dark Theme with Animations
+   HomeLayout - Dark Theme with Animations
    ============================================================ */
 
 .home-layout {

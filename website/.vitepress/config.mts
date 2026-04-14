@@ -4,7 +4,7 @@ export default defineConfig({
   title: 'BOA',
   titleTemplate: ':title — BOA, Backend on AWS',
   description: 'Backend on AWS, without the complexity. A complete backend in under a minute. Built for agents. Free until your users show up.',
-  base: '/boa/',
+  base: '/',
 
   appearance: false,
 

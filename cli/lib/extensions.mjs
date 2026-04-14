@@ -56,6 +56,99 @@ export function mergeTemplate(extensions) {
   // SAM requires Events on the function resource itself —
   // a separate fragment cannot inject events into an existing function.
   if (extensions.includes('api-gateway')) {
+    // Remove CloudFront resources
+    const cloudFrontResources = [
+      'CloudFrontDistribution', 'CloudFrontOAC',
+      'CloudFrontCachePolicy',
+      'CloudFrontOriginRequestPolicy',
+      'CloudFrontInvokePermission',
+      'CloudFrontInvokePermissionV2',
+      'WafWebAcl', 'WafAssociation',
+      'LambdaThrottleAlarm', 'ThrottleAlarmTopic',
+    ];
+    const baseResources = doc.get('Resources', true);
+    for (const name of cloudFrontResources) {
+      baseResources.delete(name);
+    }
+
+    // Revert AuthType to NONE for API Gateway
+    doc.setIn(
+      ['Resources', 'ApiFunction', 'Properties',
+       'FunctionUrlConfig', 'AuthType'],
+      'NONE',
+    );
+
+    // Remove reserved concurrency (API Gateway has its
+    // own throttling)
+    const apiProps = doc.getIn(
+      ['Resources', 'ApiFunction', 'Properties'], true,
+    );
+    apiProps.delete('ReservedConcurrentExecutions');
+
+    // Restore CORS on FunctionUrlConfig
+    const corsNode = doc.createNode({
+      AllowHeaders: [
+        'Content-Type', 'Authorization', 'apikey',
+        'Prefer', 'Accept', 'x-client-info',
+        'X-Client-Info', 'X-Supabase-Api-Version',
+        'content-profile', 'accept-profile',
+      ],
+      AllowMethods: [
+        'GET', 'POST', 'PUT', 'PATCH', 'DELETE',
+      ],
+      AllowOrigins: ['*'],
+      MaxAge: 600,
+    });
+    const funcUrlConfig = doc.getIn(
+      ['Resources', 'ApiFunction', 'Properties',
+       'FunctionUrlConfig'], true,
+    );
+    funcUrlConfig.set('Cors', corsNode);
+
+    // Restore public invoke permissions
+    const urlPerm = doc.createNode({
+      Type: 'AWS::Lambda::Permission',
+      Properties: {
+        FunctionName: { 'Fn::GetAtt': ['ApiFunction', 'Arn'] },
+        Action: 'lambda:InvokeFunctionUrl',
+        Principal: '*',
+        FunctionUrlAuthType: 'NONE',
+      },
+    });
+    const invokePerm = doc.createNode({
+      Type: 'AWS::Lambda::Permission',
+      Properties: {
+        FunctionName: { 'Fn::GetAtt': ['ApiFunction', 'Arn'] },
+        Action: 'lambda:InvokeFunction',
+        Principal: '*',
+        InvokedViaFunctionUrl: true,
+      },
+    });
+    baseResources.set('ApiFunctionUrlPermission', urlPerm);
+    baseResources.set(
+      'ApiFunctionInvokePermission', invokePerm,
+    );
+
+    // Remove CloudFront-related outputs
+    const baseOutputs = doc.get('Outputs', true);
+    for (const key of [
+      'CloudFrontUrl', 'CloudFrontDistributionId',
+      'ThrottleAlarmTopicArn',
+    ]) {
+      baseOutputs.delete(key);
+    }
+
+    // Remove CloudFront-only condition
+    const conditions = doc.get('Conditions', true);
+    if (conditions) {
+      conditions.delete('IsUsEast1');
+      // Remove empty Conditions section
+      if (conditions.items && conditions.items.length === 0) {
+        doc.delete('Conditions');
+      }
+    }
+
+    // Add Events for API Gateway
     const props = doc.getIn(
       ['Resources', 'ApiFunction', 'Properties'], true,
     );

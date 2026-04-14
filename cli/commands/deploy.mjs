@@ -5,15 +5,24 @@ import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 import { resolveTemplate } from '../lib/extensions.mjs';
+import { copySkill } from '../lib/skill.mjs';
 
 export function needsMigrationWarning(cfg) {
   const extensions = cfg.extensions || [];
-  return (
-    cfg.apiUrl &&
+  // API Gateway -> CloudFront migration
+  if (cfg.apiUrl &&
     cfg.apiUrl.includes('execute-api.') &&
     cfg.apiUrl.includes('.amazonaws.com') &&
-    !extensions.includes('api-gateway')
-  );
+    !extensions.includes('api-gateway')) {
+    return 'This version of BOA uses CloudFront + WAF by default instead of API Gateway.';
+  }
+  // Function URL -> CloudFront migration
+  if (cfg.apiUrl &&
+    cfg.apiUrl.includes('lambda-url.') &&
+    !cfg.cloudfront) {
+    return 'This version of BOA adds CloudFront + WAF protection.';
+  }
+  return null;
 }
 
 export default async function deploy(_args) {
@@ -29,11 +38,10 @@ export default async function deploy(_args) {
   );
   console.log('');
 
-  // Warn if upgrading from API Gateway to Function URLs
-  if (needsMigrationWarning(cfg)) {
-    console.log(
-      '  \u26a0 This version of boa uses Lambda Function URLs by default.'
-    );
+  // Warn if API URL will change (API GW -> CloudFront, or Function URL -> CloudFront)
+  const migration = needsMigrationWarning(cfg);
+  if (migration) {
+    console.log(`  ! ${migration}`);
     console.log(
       '    Your API URL will change. Update your frontend config after deploy.'
     );
@@ -67,7 +75,19 @@ export default async function deploy(_args) {
   console.log('');
   console.log('Updating configuration...');
   const outputs = aws.cfnDescribeStacks(stackName, region);
-  let apiUrl = getOutputValue(outputs, 'ApiFunctionUrl');
+  const cloudFrontUrl = getOutputValue(
+    outputs, 'CloudFrontUrl'
+  );
+  const distributionId = getOutputValue(
+    outputs, 'CloudFrontDistributionId'
+  );
+  const throttleTopicArn = getOutputValue(
+    outputs, 'ThrottleAlarmTopicArn'
+  );
+  const functionUrlOutput = getOutputValue(
+    outputs, 'ApiFunctionUrl'
+  );
+  let apiUrl = cloudFrontUrl || functionUrlOutput;
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
@@ -75,26 +95,14 @@ export default async function deploy(_args) {
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
-  // 9. Handle api-gateway extension URL extraction
+  // 9. Build config — preserve keys and accountId
   const extensions = cfg.extensions || [];
-  let functionUrl = null;
-
-  if (extensions.includes('api-gateway')) {
-    const gatewayUrl = getOutputValue(
-      outputs, 'ApiGatewayUrl'
-    );
-    if (gatewayUrl) {
-      functionUrl = apiUrl; // Function URL
-      apiUrl = gatewayUrl;  // API Gateway URL as primary
-    }
-  }
-
-  // 10. Update config — preserve keys and accountId
   const updatedConfig = {
     stackName,
     region,
     accountId: cfg.accountId,
     apiUrl,
+    functionUrl: functionUrlOutput,
     anonKey: cfg.anonKey,
     serviceRoleKey: cfg.serviceRoleKey,
     userPoolId,
@@ -104,10 +112,32 @@ export default async function deploy(_args) {
     deployedAt: new Date().toISOString(),
     extensions,
   };
-  if (functionUrl) {
-    updatedConfig.functionUrl = functionUrl;
+
+  // Add cloudfront object when CloudFront is active
+  if (distributionId && cloudFrontUrl) {
+    updatedConfig.cloudfront = {
+      distributionId,
+      domainName: new URL(cloudFrontUrl).hostname,
+      throttleTopicArn: throttleTopicArn || undefined,
+    };
   }
+
+  // When api-gateway extension is active, use Gateway URL
+  // and remove cloudfront object
+  if (extensions.includes('api-gateway')) {
+    const gatewayUrl = getOutputValue(
+      outputs, 'ApiGatewayUrl'
+    );
+    if (gatewayUrl) {
+      updatedConfig.apiUrl = gatewayUrl;
+    }
+    delete updatedConfig.cloudfront;
+  }
+
   config.write(updatedConfig);
+
+  // Refresh bundled skill from CLI
+  copySkill(process.cwd());
 
   console.log('');
   console.log(

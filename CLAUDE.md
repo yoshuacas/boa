@@ -62,12 +62,13 @@ boa/
 | Authorization | Cedar | Policy-as-code, deny-by-default, ~5μs per eval |
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
-| API | Lambda Function URLs (free) | No API Gateway in default backend |
+| API | CloudFront + WAF (default) | DDoS protection, rate limiting, edge caching |
+| Compute Access | Lambda Function URLs (internal) | AuthType AWS_IAM, only CloudFront can invoke |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
 | IaC | SAM / CloudFormation | One-command deploy |
 
-API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
+CloudFront + WAF is the default traffic layer. API Gateway and ALB are available as extensions (`boa extend api-gateway`, `boa extend alb`).
 
 ## Critical Rules
 

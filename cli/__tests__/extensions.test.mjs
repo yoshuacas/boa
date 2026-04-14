@@ -103,6 +103,22 @@ describe('template merging — base (no extensions)', () => {
       'merged template should contain ApiFunctionUrl in Outputs'
     );
   });
+
+  it('mergeTemplate([]) result contains CloudFront resources', () => {
+    const result = mergeTemplate([]);
+    assert.ok(
+      result.includes('CloudFrontDistribution'),
+      'base template should contain CloudFrontDistribution'
+    );
+    assert.ok(
+      result.includes('CloudFrontOAC'),
+      'base template should contain CloudFrontOAC'
+    );
+    assert.ok(
+      result.includes('WafWebAcl'),
+      'base template should contain WafWebAcl'
+    );
+  });
 });
 
 // -----------------------------------------------------------
@@ -175,6 +191,33 @@ describe('template merging — api-gateway extension', () => {
     assert.ok(
       !result.includes('AuthorizerFunction'),
       'merged template should NOT contain AuthorizerFunction'
+    );
+  });
+
+  it('result does NOT contain CloudFrontDistribution', () => {
+    const result = mergeTemplate(['api-gateway']);
+    assert.ok(
+      !result.includes('CloudFrontDistribution'),
+      'merged template should NOT contain CloudFrontDistribution'
+        + ' when api-gateway extension is active'
+    );
+  });
+
+  it('result contains AuthType: NONE', () => {
+    const result = mergeTemplate(['api-gateway']);
+    assert.ok(
+      result.includes('AuthType: NONE'),
+      'merged template should revert AuthType to NONE'
+        + ' when api-gateway extension is active'
+    );
+  });
+
+  it('result does NOT contain ReservedConcurrentExecutions', () => {
+    const result = mergeTemplate(['api-gateway']);
+    assert.ok(
+      !result.includes('ReservedConcurrentExecutions'),
+      'merged template should NOT contain'
+        + ' ReservedConcurrentExecutions when api-gateway is active'
     );
   });
 });

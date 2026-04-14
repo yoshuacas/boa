@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: BOA — Backend on AWS serverless stack (Aurora DSQL, Cognito, Lambda Function URL, S3)
+Description: BOA — Backend on AWS serverless stack (CloudFront, WAF, Aurora DSQL, Cognito, Lambda, S3)
 
 Parameters:
   ProjectName:
@@ -15,6 +15,9 @@ Globals:
     Timeout: 30
     Runtime: nodejs20.x
     MemorySize: 256
+
+Conditions:
+  IsUsEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
 
 Resources:
   # -------------------------------------------------------
@@ -104,29 +107,9 @@ Resources:
       FunctionName: !Sub '${ProjectName}-api'
       Handler: index.handler
       CodeUri: ./lambda/
+      ReservedConcurrentExecutions: 50
       FunctionUrlConfig:
-        AuthType: NONE
-        Cors:
-          AllowHeaders:
-            - Content-Type
-            - Authorization
-            - apikey
-            - Prefer
-            - Accept
-            - x-client-info
-            - X-Client-Info
-            - X-Supabase-Api-Version
-            - content-profile
-            - accept-profile
-          AllowMethods:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          AllowOrigins:
-            - '*'
-          MaxAge: 600
+        AuthType: AWS_IAM
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -162,25 +145,179 @@ Resources:
             BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
-  # Function URL permissions — both required since Oct 2025
-  # SAM should auto-generate these for AuthType: NONE, but
-  # older versions do not. Explicit is safe on all versions.
+  # Traffic layer — CloudFront + WAF (DoW protection)
   # -------------------------------------------------------
-  ApiFunctionUrlPermission:
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${ProjectName}-lambda-oac'
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${ProjectName}-api-cache'
+        DefaultTTL: 60
+        MaxTTL: 60
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Authorization
+              - apikey
+          QueryStringsConfig:
+            QueryStringBehavior: all
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+
+  CloudFrontOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${ProjectName}-api-origin'
+        CookiesConfig:
+          CookieBehavior: none
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Content-Type
+            - Accept
+            - Prefer
+            - x-client-info
+            - X-Client-Info
+            - X-Supabase-Api-Version
+            - content-profile
+            - accept-profile
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub '${ProjectName} API'
+        DefaultCacheBehavior:
+          TargetOriginId: lambda-origin
+          ViewerProtocolPolicy: https-only
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: !Ref CloudFrontCachePolicy
+          OriginRequestPolicyId: !Ref CloudFrontOriginRequestPolicy
+          Compress: true
+        Origins:
+          - Id: lambda-origin
+            DomainName: !Select
+              - 2
+              - !Split ['/', !GetAtt ApiFunctionUrl.FunctionUrl]
+            OriginAccessControlId: !Ref CloudFrontOAC
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+        WebACLId: !If
+          - IsUsEast1
+          - !GetAtt WafWebAcl.Arn
+          - !Ref 'AWS::NoValue'
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+
+  CloudFrontInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt ApiFunction.Arn
       Action: lambda:InvokeFunctionUrl
-      Principal: '*'
-      FunctionUrlAuthType: NONE
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub >-
+        arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+      FunctionUrlAuthType: AWS_IAM
 
-  ApiFunctionInvokePermission:
+  CloudFrontInvokePermissionV2:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt ApiFunction.Arn
       Action: lambda:InvokeFunction
-      Principal: '*'
-      InvokedViaFunctionUrl: true
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub >-
+        arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+
+  WafWebAcl:
+    Type: AWS::WAFv2::WebACL
+    Condition: IsUsEast1
+    Properties:
+      Name: !Sub '${ProjectName}-waf'
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-waf'
+      Rules:
+        - Name: rate-limit
+          Priority: 1
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-rate-limit'
+          Statement:
+            RateBasedStatement:
+              Limit: 1000
+              AggregateKeyType: IP
+        - Name: ip-reputation
+          Priority: 2
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-ip-reputation'
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+
+  ThrottleAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-throttle-alarm'
+
+  LambdaThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-api-throttled'
+      AlarmDescription: >-
+        API function is being throttled. This may indicate
+        a traffic spike or denial-of-wallet attack.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub '${ProjectName}-api'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref ThrottleAlarmTopic
 
   # -------------------------------------------------------
   # Storage — S3 bucket (private, CORS for presigned URLs)
@@ -210,8 +347,17 @@ Resources:
 
 Outputs:
   ApiFunctionUrl:
-    Description: Lambda Function URL endpoint
+    Description: Lambda Function URL (internal, behind CloudFront)
     Value: !GetAtt ApiFunctionUrl.FunctionUrl
+
+  CloudFrontUrl:
+    Description: CloudFront distribution URL (primary API endpoint)
+    Value: !Sub >-
+      https://${CloudFrontDistribution.DomainName}
+
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID
+    Value: !Ref CloudFrontDistribution
 
   UserPoolId:
     Description: Cognito User Pool ID
@@ -228,3 +374,7 @@ Outputs:
   DsqlEndpoint:
     Description: Aurora DSQL cluster endpoint
     Value: !GetAtt DsqlCluster.Endpoint
+
+  ThrottleAlarmTopicArn:
+    Description: SNS topic for Lambda throttle alarms
+    Value: !Ref ThrottleAlarmTopic

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-13T20:47:22.300Z",
+  "generatedAt": "2026-04-14T13:40:15.856Z",
   "region": "us-east-1",
   "regionName": "US East (N. Virginia)",
   "sources": {
@@ -51,6 +51,14 @@
       "memoryMB": 256,
       "avgDurationMs": 100
     },
+    "cloudfront": {
+      "source": "https://aws.amazon.com/cloudfront/pricing/",
+      "lastVerified": "2026-04-14",
+      "requestPricePerMillion": 1,
+      "dataTransferPerGB": 0.085,
+      "freeTierRequests": 10000000,
+      "freeTierTransferGB": 1000
+    },
     "apiGateway": {
       "tiers": [
         {
@@ -72,6 +80,17 @@
       ],
       "freeTierRequests": 1000000
     },
+    "alb": {
+      "source": "https://aws.amazon.com/elasticloadbalancing/pricing/",
+      "lastVerified": "2026-04-14",
+      "hourlyRate": 0.0225,
+      "lcuHourlyRate": 0.008,
+      "hoursPerMonth": 730,
+      "lcuProcessedBytesGB": 0.4,
+      "lcuNewConnections": 25,
+      "freeTierHours": 750,
+      "freeTierLCUs": 15
+    },
     "s3": {
       "storagePricePerGB": 0.023,
       "putPricePer1000": 0.005,
@@ -83,7 +102,7 @@
   },
   "supabasePricing": {
     "source": "https://supabase.com/pricing",
-    "lastVerified": "2026-04-13",
+    "lastVerified": "2026-04-14",
     "plans": {
       "free": {
         "name": "Free",
@@ -292,30 +311,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.01,
-            "cognito": 0.27,
-            "lambda": 0.03,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.31
+            },
+            "freeTier": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.31,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.32
+            "total": 0,
+            "savingsPercent": 0
           },
-          "freeTier": {
-            "dsql": 0.01,
-            "cognito": 0.27,
-            "lambda": 0.03,
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0.05,
+              "s3": 0,
+              "total": 0.36
+            },
+            "freeTier": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0.05,
+              "s3": 0,
+              "total": 0.36,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.32,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0,
+            "savingsPercent": 0
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0,
-          "total": 0
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0.18,
+              "s3": 0,
+              "total": 0.49
+            },
+            "freeTier": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 0.18,
+              "s3": 0,
+              "total": 0.49,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 16.43,
+              "s3": 0,
+              "total": 16.74
+            },
+            "freeTier": {
+              "dsql": 0.01,
+              "cognito": 0.27,
+              "lambda": 0.03,
+              "traffic": 16.43,
+              "s3": 0,
+              "total": 16.74,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          }
         },
         "supa": {
           "plan": "Free",
@@ -326,8 +452,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": 0
+        }
       },
       {
         "workload": {
@@ -345,30 +470,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 0.26,
-            "cognito": 5.5,
-            "lambda": 0.62,
-            "s3": 0.02,
-            "total": 6.4
-          },
-          "freeTier": {
-            "dsql": 0.26,
-            "cognito": 5.5,
-            "lambda": 0.62,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 6.4
+            },
+            "freeTier": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 0,
+              "s3": 0.01,
+              "total": 6.39,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0.01,
-            "total": 6.39,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0.01,
+            "savingsPercent": null
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0.01,
-          "total": 0.01
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 1.05,
+              "s3": 0.02,
+              "total": 7.45
+            },
+            "freeTier": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 1.05,
+              "s3": 0.01,
+              "total": 7.44,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
+          },
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 3.5,
+              "s3": 0.02,
+              "total": 9.9
+            },
+            "freeTier": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 3.5,
+              "s3": 0.01,
+              "total": 9.89,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 16.51,
+              "s3": 0.02,
+              "total": 22.91
+            },
+            "freeTier": {
+              "dsql": 0.26,
+              "cognito": 5.5,
+              "lambda": 0.62,
+              "traffic": 16.51,
+              "s3": 0.01,
+              "total": 22.9,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.09
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -379,8 +611,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -398,30 +629,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 26.24,
-            "cognito": 541,
-            "lambda": 61.67,
-            "s3": 2.36,
-            "total": 631.27
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 26.24,
+              "cognito": 541,
+              "lambda": 61.67,
+              "traffic": 0,
+              "s3": 2.36,
+              "total": 631.27
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 62.97,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 25.28,
+            "cognito": 486,
+            "lambda": 54.8,
+            "traffic": 0,
+            "s3": 2.22,
+            "total": 568.3,
+            "savingsPercent": -152.58
           },
-          "freeTier": {
-            "dsql": 0.97,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 62.96,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 26.24,
+              "cognito": 541,
+              "lambda": 61.67,
+              "traffic": 104.86,
+              "s3": 2.36,
+              "total": 736.13
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 14.86,
+              "s3": 0.13,
+              "total": 77.83,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 25.28,
+            "cognito": 486,
+            "lambda": 54.8,
+            "traffic": 90,
+            "s3": 2.22,
+            "total": 658.3,
+            "savingsPercent": -192.58
           },
-          "dsql": 25.28,
-          "cognito": 486,
-          "lambda": 54.8,
-          "apiGateway": 0,
-          "s3": 2.22,
-          "total": 568.3
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 26.24,
+              "cognito": 541,
+              "lambda": 61.67,
+              "traffic": 350,
+              "s3": 2.36,
+              "total": 981.27
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.47,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 25.28,
+            "cognito": 486,
+            "lambda": 54.8,
+            "traffic": 346.5,
+            "s3": 2.22,
+            "total": 914.8,
+            "savingsPercent": -306.58
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 26.24,
+              "cognito": 541,
+              "lambda": 61.67,
+              "traffic": 25.31,
+              "s3": 2.36,
+              "total": 656.58
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.52,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 8.89
+            },
+            "dsql": 25.28,
+            "cognito": 486,
+            "lambda": 54.8,
+            "traffic": 8.77,
+            "s3": 2.22,
+            "total": 577.07,
+            "savingsPercent": -156.48
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -432,8 +770,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 225
-        },
-        "savingsPercent": -152.58
+        }
       },
       {
         "workload": {
@@ -451,30 +788,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 524.9,
-            "cognito": 7917.5,
-            "lambda": 1233.34,
-            "s3": 47.1,
-            "total": 9722.84
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 524.9,
+              "cognito": 7917.5,
+              "lambda": 1233.34,
+              "traffic": 0,
+              "s3": 47.1,
+              "total": 9722.84
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 523.77,
+            "cognito": 7862.5,
+            "lambda": 1226.47,
+            "traffic": 0,
+            "s3": 46.97,
+            "total": 9659.71,
+            "savingsPercent": 3.53
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 524.9,
+              "cognito": 7917.5,
+              "lambda": 1233.34,
+              "traffic": 2097.27,
+              "s3": 47.1,
+              "total": 11820.11
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 95,
+              "s3": 0.13,
+              "total": 158.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 523.77,
+            "cognito": 7862.5,
+            "lambda": 1226.47,
+            "traffic": 2002.27,
+            "s3": 46.97,
+            "total": 11661.98,
+            "savingsPercent": -16.47
           },
-          "dsql": 523.77,
-          "cognito": 7862.5,
-          "lambda": 1226.47,
-          "apiGateway": 0,
-          "s3": 46.97,
-          "total": 9659.71
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 524.9,
+              "cognito": 7917.5,
+              "lambda": 1233.34,
+              "traffic": 5413.1,
+              "s3": 47.1,
+              "total": 15135.94
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 523.77,
+            "cognito": 7862.5,
+            "lambda": 1226.47,
+            "traffic": 5409.6,
+            "s3": 46.97,
+            "total": 15069.31,
+            "savingsPercent": -50.49
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 524.9,
+              "cognito": 7917.5,
+              "lambda": 1233.34,
+              "traffic": 194.2,
+              "s3": 47.1,
+              "total": 9917.04
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 177.78
+            },
+            "dsql": 523.77,
+            "cognito": 7862.5,
+            "lambda": 1226.47,
+            "traffic": 177.66,
+            "s3": 46.97,
+            "total": 9837.37,
+            "savingsPercent": 1.76
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -485,8 +929,7 @@
           "egressOverage": 80.5,
           "mauOverage": 6175,
           "total": 10013.25
-        },
-        "savingsPercent": 3.53
+        }
       }
     ],
     "social": [
@@ -506,30 +949,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.03,
-            "cognito": 0.27,
-            "lambda": 0.09,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.39
+            },
+            "freeTier": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.39,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.4
+            "total": 0,
+            "savingsPercent": 0
           },
-          "freeTier": {
-            "dsql": 0.03,
-            "cognito": 0.27,
-            "lambda": 0.09,
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0.16,
+              "s3": 0,
+              "total": 0.55
+            },
+            "freeTier": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0.16,
+              "s3": 0,
+              "total": 0.55,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.4,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0,
+            "savingsPercent": 0
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0,
-          "total": 0
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0.53,
+              "s3": 0,
+              "total": 0.92
+            },
+            "freeTier": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 0.53,
+              "s3": 0,
+              "total": 0.92,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 16.44,
+              "s3": 0,
+              "total": 16.83
+            },
+            "freeTier": {
+              "dsql": 0.03,
+              "cognito": 0.27,
+              "lambda": 0.09,
+              "traffic": 16.44,
+              "s3": 0,
+              "total": 16.83,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.01
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          }
         },
         "supa": {
           "plan": "Free",
@@ -540,8 +1090,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": 0
+        }
       },
       {
         "workload": {
@@ -559,30 +1108,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 0.64,
-            "cognito": 5.5,
-            "lambda": 1.85,
-            "s3": 0.05,
-            "total": 8.04
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.85,
+              "traffic": 0,
+              "s3": 0.05,
+              "total": 8.04
+            },
+            "freeTier": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.45,
+              "traffic": 0,
+              "s3": 0.03,
+              "total": 7.62,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.4,
+            "traffic": 0,
+            "s3": 0.02,
+            "total": 0.42,
+            "savingsPercent": null
           },
-          "freeTier": {
-            "dsql": 0.64,
-            "cognito": 5.5,
-            "lambda": 1.45,
-            "s3": 0.03,
-            "total": 7.62,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.85,
+              "traffic": 3.2,
+              "s3": 0.05,
+              "total": 11.24
+            },
+            "freeTier": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.45,
+              "traffic": 3.2,
+              "s3": 0.03,
+              "total": 10.82,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.4,
+            "traffic": 0,
+            "s3": 0.02,
+            "total": 0.42,
+            "savingsPercent": null
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0.4,
-          "apiGateway": 0,
-          "s3": 0.02,
-          "total": 0.42
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.85,
+              "traffic": 10.5,
+              "s3": 0.05,
+              "total": 18.54
+            },
+            "freeTier": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.45,
+              "traffic": 3.5,
+              "s3": 0.03,
+              "total": 11.12,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.4,
+            "traffic": 7,
+            "s3": 0.02,
+            "total": 7.42,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.85,
+              "traffic": 16.69,
+              "s3": 0.05,
+              "total": 24.73
+            },
+            "freeTier": {
+              "dsql": 0.64,
+              "cognito": 5.5,
+              "lambda": 1.45,
+              "traffic": 16.55,
+              "s3": 0.03,
+              "total": 24.17,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.27
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.4,
+            "traffic": 0.15,
+            "s3": 0.02,
+            "total": 0.57,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -593,8 +1249,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -612,30 +1267,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 63.78,
-            "cognito": 541,
-            "lambda": 185,
-            "s3": 5.11,
-            "total": 794.89
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 63.78,
+              "cognito": 541,
+              "lambda": 185,
+              "traffic": 0,
+              "s3": 5.11,
+              "total": 794.89
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 62.65,
+            "cognito": 486,
+            "lambda": 178.13,
+            "traffic": 0,
+            "s3": 4.98,
+            "total": 731.76,
+            "savingsPercent": -217.47
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 63.78,
+              "cognito": 541,
+              "lambda": 185,
+              "traffic": 319.46,
+              "s3": 5.11,
+              "total": 1114.35
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 29.46,
+              "s3": 0.13,
+              "total": 92.59,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 62.65,
+            "cognito": 486,
+            "lambda": 178.13,
+            "traffic": 290,
+            "s3": 4.98,
+            "total": 1021.76,
+            "savingsPercent": -343.28
           },
-          "dsql": 62.65,
-          "cognito": 486,
-          "lambda": 178.13,
-          "apiGateway": 0,
-          "s3": 4.98,
-          "total": 731.76
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 63.78,
+              "cognito": 541,
+              "lambda": 185,
+              "traffic": 1050,
+              "s3": 5.11,
+              "total": 1844.89
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 62.65,
+            "cognito": 486,
+            "lambda": 178.13,
+            "traffic": 1046.5,
+            "s3": 4.98,
+            "total": 1778.26,
+            "savingsPercent": -671.48
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 63.78,
+              "cognito": 541,
+              "lambda": 185,
+              "traffic": 43.09,
+              "s3": 5.11,
+              "total": 837.98
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 26.67
+            },
+            "dsql": 62.65,
+            "cognito": 486,
+            "lambda": 178.13,
+            "traffic": 26.55,
+            "s3": 4.98,
+            "total": 758.31,
+            "savingsPercent": -228.98
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -646,8 +1408,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 230.5
-        },
-        "savingsPercent": -217.47
+        }
       },
       {
         "workload": {
@@ -665,30 +1426,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 1275.6,
-            "cognito": 7917.5,
-            "lambda": 3700.01,
-            "s3": 102.2,
-            "total": 12995.31
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 1275.6,
+              "cognito": 7917.5,
+              "lambda": 3700.01,
+              "traffic": 0,
+              "s3": 102.2,
+              "total": 12995.31
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1274.47,
+            "cognito": 7862.5,
+            "lambda": 3693.14,
+            "traffic": 0,
+            "s3": 102.07,
+            "total": 12932.18,
+            "savingsPercent": -23.89
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 1275.6,
+              "cognito": 7917.5,
+              "lambda": 3700.01,
+              "traffic": 6389.1,
+              "s3": 102.2,
+              "total": 19384.41
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 95,
+              "s3": 0.13,
+              "total": 158.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1274.47,
+            "cognito": 7862.5,
+            "lambda": 3693.14,
+            "traffic": 6294.1,
+            "s3": 102.07,
+            "total": 19226.28,
+            "savingsPercent": -84.19
           },
-          "dsql": 1274.47,
-          "cognito": 7862.5,
-          "lambda": 3693.14,
-          "apiGateway": 0,
-          "s3": 102.07,
-          "total": 12932.18
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 1275.6,
+              "cognito": 7917.5,
+              "lambda": 3700.01,
+              "traffic": 14933.1,
+              "s3": 102.2,
+              "total": 27928.41
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1274.47,
+            "cognito": 7862.5,
+            "lambda": 3693.14,
+            "traffic": 14929.6,
+            "s3": 102.07,
+            "total": 27861.78,
+            "savingsPercent": -166.91
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 1275.6,
+              "cognito": 7917.5,
+              "lambda": 3700.01,
+              "traffic": 549.76,
+              "s3": 102.2,
+              "total": 13545.07
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 533.33
+            },
+            "dsql": 1274.47,
+            "cognito": 7862.5,
+            "lambda": 3693.14,
+            "traffic": 533.21,
+            "s3": 102.07,
+            "total": 13465.39,
+            "savingsPercent": -29
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -699,8 +1567,7 @@
           "egressOverage": 389.48,
           "mauOverage": 6175,
           "total": 10438.48
-        },
-        "savingsPercent": -23.89
+        }
       }
     ],
     "realtime": [
@@ -720,30 +1587,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.12,
-            "cognito": 0.27,
-            "lambda": 0.25,
-            "s3": 0.01,
-            "total": 0.65
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 0,
+              "s3": 0.01,
+              "total": 0.65
+            },
+            "freeTier": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 0,
+              "s3": 0.01,
+              "total": 0.65,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
           },
-          "freeTier": {
-            "dsql": 0.12,
-            "cognito": 0.27,
-            "lambda": 0.25,
-            "s3": 0.01,
-            "total": 0.65,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 0.42,
+              "s3": 0.01,
+              "total": 1.07
+            },
+            "freeTier": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 0.42,
+              "s3": 0.01,
+              "total": 1.07,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0,
-          "total": 0
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 1.4,
+              "s3": 0.01,
+              "total": 2.05
+            },
+            "freeTier": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 1.4,
+              "s3": 0.01,
+              "total": 2.05,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 16.46,
+              "s3": 0.01,
+              "total": 17.11
+            },
+            "freeTier": {
+              "dsql": 0.12,
+              "cognito": 0.27,
+              "lambda": 0.25,
+              "traffic": 16.46,
+              "s3": 0.01,
+              "total": 17.11,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.04
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          }
         },
         "supa": {
           "plan": "Free",
@@ -754,8 +1728,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": 0
+        }
       },
       {
         "workload": {
@@ -773,30 +1746,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 2.3,
-            "cognito": 5.5,
-            "lambda": 4.93,
-            "s3": 0.22,
-            "total": 12.95
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 2.3,
+              "cognito": 5.5,
+              "lambda": 4.93,
+              "traffic": 0,
+              "s3": 0.22,
+              "total": 12.95
+            },
+            "freeTier": {
+              "dsql": 0.81,
+              "cognito": 5.5,
+              "lambda": 3.53,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 9.86,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1.49,
+            "cognito": 0,
+            "lambda": 1.4,
+            "traffic": 0,
+            "s3": 0.2,
+            "total": 3.09,
+            "savingsPercent": null
           },
-          "freeTier": {
-            "dsql": 0.81,
-            "cognito": 5.5,
-            "lambda": 3.53,
-            "s3": 0.02,
-            "total": 9.86,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 2.3,
+              "cognito": 5.5,
+              "lambda": 4.93,
+              "traffic": 8.32,
+              "s3": 0.22,
+              "total": 21.27
+            },
+            "freeTier": {
+              "dsql": 0.81,
+              "cognito": 5.5,
+              "lambda": 3.53,
+              "traffic": 8.32,
+              "s3": 0.02,
+              "total": 18.18,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1.49,
+            "cognito": 0,
+            "lambda": 1.4,
+            "traffic": 0,
+            "s3": 0.2,
+            "total": 3.09,
+            "savingsPercent": null
           },
-          "dsql": 1.49,
-          "cognito": 0,
-          "lambda": 1.4,
-          "apiGateway": 0,
-          "s3": 0.2,
-          "total": 3.09
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 2.3,
+              "cognito": 5.5,
+              "lambda": 4.93,
+              "traffic": 28,
+              "s3": 0.22,
+              "total": 40.95
+            },
+            "freeTier": {
+              "dsql": 0.81,
+              "cognito": 5.5,
+              "lambda": 3.53,
+              "traffic": 3.5,
+              "s3": 0.02,
+              "total": 13.36,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1.49,
+            "cognito": 0,
+            "lambda": 1.4,
+            "traffic": 24.5,
+            "s3": 0.2,
+            "total": 27.59,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 2.3,
+              "cognito": 5.5,
+              "lambda": 4.93,
+              "traffic": 17.14,
+              "s3": 0.22,
+              "total": 30.09
+            },
+            "freeTier": {
+              "dsql": 0.81,
+              "cognito": 5.5,
+              "lambda": 3.53,
+              "traffic": 16.55,
+              "s3": 0.02,
+              "total": 26.41,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.71
+            },
+            "dsql": 1.49,
+            "cognito": 0,
+            "lambda": 1.4,
+            "traffic": 0.59,
+            "s3": 0.2,
+            "total": 3.68,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -807,8 +1887,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -826,30 +1905,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 229.79,
-            "cognito": 541,
-            "lambda": 493.33,
-            "s3": 21.83,
-            "total": 1285.95
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 229.79,
+              "cognito": 541,
+              "lambda": 493.33,
+              "traffic": 0,
+              "s3": 21.83,
+              "total": 1285.95
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 228.66,
+            "cognito": 486,
+            "lambda": 486.47,
+            "traffic": 0,
+            "s3": 21.7,
+            "total": 1222.83,
+            "savingsPercent": -414.96
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 229.79,
+              "cognito": 541,
+              "lambda": 493.33,
+              "traffic": 832.43,
+              "s3": 21.83,
+              "total": 2118.38
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 42.43,
+              "s3": 0.13,
+              "total": 105.56,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 228.66,
+            "cognito": 486,
+            "lambda": 486.47,
+            "traffic": 790,
+            "s3": 21.7,
+            "total": 2012.83,
+            "savingsPercent": -747.65
           },
-          "dsql": 228.66,
-          "cognito": 486,
-          "lambda": 486.47,
-          "apiGateway": 0,
-          "s3": 21.7,
-          "total": 1222.82
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 229.79,
+              "cognito": 541,
+              "lambda": 493.33,
+              "traffic": 2473.1,
+              "s3": 21.83,
+              "total": 3759.05
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 228.66,
+            "cognito": 486,
+            "lambda": 486.47,
+            "traffic": 2469.6,
+            "s3": 21.7,
+            "total": 3692.43,
+            "savingsPercent": -1454.97
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 229.79,
+              "cognito": 541,
+              "lambda": 493.33,
+              "traffic": 87.54,
+              "s3": 21.83,
+              "total": 1373.49
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 71.11
+            },
+            "dsql": 228.66,
+            "cognito": 486,
+            "lambda": 486.47,
+            "traffic": 70.99,
+            "s3": 21.7,
+            "total": 1293.82,
+            "savingsPercent": -444.86
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -860,8 +2046,7 @@
           "egressOverage": 11.84,
           "mauOverage": 0,
           "total": 237.46
-        },
-        "savingsPercent": -414.96
+        }
       },
       {
         "workload": {
@@ -879,30 +2064,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 4595.8,
-            "cognito": 7917.5,
-            "lambda": 9866.68,
-            "s3": 436.6,
-            "total": 22816.58
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 4595.8,
+              "cognito": 7917.5,
+              "lambda": 9866.68,
+              "traffic": 0,
+              "s3": 436.6,
+              "total": 22816.58
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 4594.67,
+            "cognito": 7862.5,
+            "lambda": 9859.81,
+            "traffic": 0,
+            "s3": 436.47,
+            "total": 22753.45,
+            "savingsPercent": -114.34
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 4595.8,
+              "cognito": 7917.5,
+              "lambda": 9866.68,
+              "traffic": 16648.5,
+              "s3": 436.6,
+              "total": 39465.08
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 95,
+              "s3": 0.13,
+              "total": 158.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 4594.67,
+            "cognito": 7862.5,
+            "lambda": 9859.81,
+            "traffic": 16553.5,
+            "s3": 436.47,
+            "total": 39306.95,
+            "savingsPercent": -270.27
           },
-          "dsql": 4594.67,
-          "cognito": 7862.5,
-          "lambda": 9859.81,
-          "apiGateway": 0,
-          "s3": 436.47,
-          "total": 22753.45
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 4595.8,
+              "cognito": 7917.5,
+              "lambda": 9866.68,
+              "traffic": 38733.1,
+              "s3": 436.6,
+              "total": 61549.68
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 4594.67,
+            "cognito": 7862.5,
+            "lambda": 9859.81,
+            "traffic": 38729.6,
+            "s3": 436.47,
+            "total": 61483.05,
+            "savingsPercent": -479.17
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 4595.8,
+              "cognito": 7917.5,
+              "lambda": 9866.68,
+              "traffic": 1438.65,
+              "s3": 436.6,
+              "total": 24255.23
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 1422.22
+            },
+            "dsql": 4594.67,
+            "cognito": 7862.5,
+            "lambda": 9859.81,
+            "traffic": 1422.1,
+            "s3": 436.47,
+            "total": 24175.55,
+            "savingsPercent": -127.73
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -913,8 +2205,7 @@
           "egressOverage": 664.15,
           "mauOverage": 6175,
           "total": 10615.65
-        },
-        "savingsPercent": -114.34
+        }
       }
     ],
     "healthIot": [
@@ -934,30 +2225,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.16,
-            "cognito": 0.27,
-            "lambda": 0.23,
-            "s3": 0.02,
-            "total": 0.69
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 0.68
+            },
+            "freeTier": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 0.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
           },
-          "freeTier": {
-            "dsql": 0.16,
-            "cognito": 0.27,
-            "lambda": 0.23,
-            "s3": 0.02,
-            "total": 0.68,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 0.38,
+              "s3": 0.02,
+              "total": 1.06
+            },
+            "freeTier": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 0.38,
+              "s3": 0.02,
+              "total": 1.06,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0.01,
-          "total": 0.01
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 1.31,
+              "s3": 0.02,
+              "total": 1.99
+            },
+            "freeTier": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 1.31,
+              "s3": 0.02,
+              "total": 1.99,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 16.46,
+              "s3": 0.02,
+              "total": 17.14
+            },
+            "freeTier": {
+              "dsql": 0.16,
+              "cognito": 0.27,
+              "lambda": 0.23,
+              "traffic": 16.46,
+              "s3": 0.02,
+              "total": 17.14,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.03
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0.01,
+            "total": 0.01,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -968,8 +2366,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -987,30 +2384,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 3.14,
-            "cognito": 5.5,
-            "lambda": 4.63,
-            "s3": 0.47,
-            "total": 13.74
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 3.14,
+              "cognito": 5.5,
+              "lambda": 4.63,
+              "traffic": 0,
+              "s3": 0.47,
+              "total": 13.74
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 5.5,
+              "lambda": 3.33,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 9.93,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 2.18,
+            "cognito": 0,
+            "lambda": 1.3,
+            "traffic": 0,
+            "s3": 0.34,
+            "total": 3.82,
+            "savingsPercent": -506.35
           },
-          "freeTier": {
-            "dsql": 0.97,
-            "cognito": 5.5,
-            "lambda": 3.33,
-            "s3": 0.13,
-            "total": 9.92,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 3.14,
+              "cognito": 5.5,
+              "lambda": 4.63,
+              "traffic": 7.53,
+              "s3": 0.47,
+              "total": 21.27
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 5.5,
+              "lambda": 3.33,
+              "traffic": 7.53,
+              "s3": 0.13,
+              "total": 17.46,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 2.18,
+            "cognito": 0,
+            "lambda": 1.3,
+            "traffic": 0,
+            "s3": 0.34,
+            "total": 3.82,
+            "savingsPercent": -506.35
           },
-          "dsql": 2.18,
-          "cognito": 0,
-          "lambda": 1.3,
-          "apiGateway": 0,
-          "s3": 0.34,
-          "total": 3.82
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 3.14,
+              "cognito": 5.5,
+              "lambda": 4.63,
+              "traffic": 26.25,
+              "s3": 0.47,
+              "total": 39.99
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 5.5,
+              "lambda": 3.33,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 13.43,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 2.18,
+            "cognito": 0,
+            "lambda": 1.3,
+            "traffic": 22.75,
+            "s3": 0.34,
+            "total": 26.57,
+            "savingsPercent": -4117.46
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 3.14,
+              "cognito": 5.5,
+              "lambda": 4.63,
+              "traffic": 17.09,
+              "s3": 0.47,
+              "total": 30.83
+            },
+            "freeTier": {
+              "dsql": 0.97,
+              "cognito": 5.5,
+              "lambda": 3.33,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 26.48,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.67
+            },
+            "dsql": 2.18,
+            "cognito": 0,
+            "lambda": 1.3,
+            "traffic": 0.55,
+            "s3": 0.34,
+            "total": 4.37,
+            "savingsPercent": -593.65
+          }
         },
         "supa": {
           "plan": "Free",
@@ -1021,8 +2525,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0.63
-        },
-        "savingsPercent": -506.35
+        }
       },
       {
         "workload": {
@@ -1040,30 +2543,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 314.16,
-            "cognito": 541,
-            "lambda": 462.5,
-            "s3": 46.93,
-            "total": 1364.59
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 314.16,
+              "cognito": 541,
+              "lambda": 462.5,
+              "traffic": 0,
+              "s3": 46.93,
+              "total": 1364.59
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 313.03,
+            "cognito": 486,
+            "lambda": 455.63,
+            "traffic": 0,
+            "s3": 46.8,
+            "total": 1301.46,
+            "savingsPercent": -164.12
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 314.16,
+              "cognito": 541,
+              "lambda": 462.5,
+              "traffic": 753.65,
+              "s3": 46.93,
+              "total": 2118.24
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 13.65,
+              "s3": 0.13,
+              "total": 76.78,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 313.03,
+            "cognito": 486,
+            "lambda": 455.63,
+            "traffic": 740,
+            "s3": 46.8,
+            "total": 2041.46,
+            "savingsPercent": -314.3
           },
-          "dsql": 313.03,
-          "cognito": 486,
-          "lambda": 455.63,
-          "apiGateway": 0,
-          "s3": 46.8,
-          "total": 1301.46
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 314.16,
+              "cognito": 541,
+              "lambda": 462.5,
+              "traffic": 2333.1,
+              "s3": 46.93,
+              "total": 3697.69
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 313.03,
+            "cognito": 486,
+            "lambda": 455.63,
+            "traffic": 2329.6,
+            "s3": 46.8,
+            "total": 3631.06,
+            "savingsPercent": -636.9
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 314.16,
+              "cognito": 541,
+              "lambda": 462.5,
+              "traffic": 83.09,
+              "s3": 46.93,
+              "total": 1447.68
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 66.67
+            },
+            "dsql": 313.03,
+            "cognito": 486,
+            "lambda": 455.63,
+            "traffic": 66.55,
+            "s3": 46.8,
+            "total": 1368.01,
+            "savingsPercent": -177.63
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1074,8 +2684,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 492.75
-        },
-        "savingsPercent": -164.12
+        }
       },
       {
         "workload": {
@@ -1093,30 +2702,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 6283.2,
-            "cognito": 7917.5,
-            "lambda": 9250.01,
-            "s3": 938.6,
-            "total": 24389.31
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 6283.2,
+              "cognito": 7917.5,
+              "lambda": 9250.01,
+              "traffic": 0,
+              "s3": 938.6,
+              "total": 24389.31
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 6282.07,
+            "cognito": 7862.5,
+            "lambda": 9243.15,
+            "traffic": 0,
+            "s3": 938.47,
+            "total": 24326.19,
+            "savingsPercent": -114.35
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 6283.2,
+              "cognito": 7917.5,
+              "lambda": 9250.01,
+              "traffic": 15072.96,
+              "s3": 938.6,
+              "total": 39462.27
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 82.96,
+              "s3": 0.13,
+              "total": 146.09,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 6282.07,
+            "cognito": 7862.5,
+            "lambda": 9243.15,
+            "traffic": 14990,
+            "s3": 938.47,
+            "total": 39316.19,
+            "savingsPercent": -246.44
           },
-          "dsql": 6282.07,
-          "cognito": 7862.5,
-          "lambda": 9243.15,
-          "apiGateway": 0,
-          "s3": 938.47,
-          "total": 24326.18
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 6283.2,
+              "cognito": 7917.5,
+              "lambda": 9250.01,
+              "traffic": 36353.1,
+              "s3": 938.6,
+              "total": 60742.41
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 6282.07,
+            "cognito": 7862.5,
+            "lambda": 9243.15,
+            "traffic": 36349.6,
+            "s3": 938.47,
+            "total": 60675.79,
+            "savingsPercent": -434.65
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 6283.2,
+              "cognito": 7917.5,
+              "lambda": 9250.01,
+              "traffic": 1349.76,
+              "s3": 938.6,
+              "total": 25739.07
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 1333.33
+            },
+            "dsql": 6282.07,
+            "cognito": 7862.5,
+            "lambda": 9243.15,
+            "traffic": 1333.21,
+            "s3": 938.47,
+            "total": 25659.4,
+            "savingsPercent": -126.1
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1127,8 +2843,7 @@
           "egressOverage": 54.75,
           "mauOverage": 6175,
           "total": 11348.75
-        },
-        "savingsPercent": -114.35
+        }
       }
     ],
     "ecommerce": [
@@ -1148,30 +2863,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.02,
-            "cognito": 0.27,
-            "lambda": 0.06,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.35
+            },
+            "freeTier": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.35,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.36
+            "total": 0,
+            "savingsPercent": 0
           },
-          "freeTier": {
-            "dsql": 0.02,
-            "cognito": 0.27,
-            "lambda": 0.06,
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0.11,
+              "s3": 0,
+              "total": 0.46
+            },
+            "freeTier": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0.11,
+              "s3": 0,
+              "total": 0.46,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.36,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0,
+            "savingsPercent": 0
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0,
-          "total": 0
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0.35,
+              "s3": 0,
+              "total": 0.7
+            },
+            "freeTier": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 0.35,
+              "s3": 0,
+              "total": 0.7,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 16.43,
+              "s3": 0,
+              "total": 16.78
+            },
+            "freeTier": {
+              "dsql": 0.02,
+              "cognito": 0.27,
+              "lambda": 0.06,
+              "traffic": 16.43,
+              "s3": 0,
+              "total": 16.78,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.01
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          }
         },
         "supa": {
           "plan": "Free",
@@ -1182,8 +3004,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": 0
+        }
       },
       {
         "workload": {
@@ -1201,30 +3022,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 0.45,
-            "cognito": 5.5,
-            "lambda": 1.23,
-            "s3": 0.04,
-            "total": 7.22
-          },
-          "freeTier": {
-            "dsql": 0.45,
-            "cognito": 5.5,
-            "lambda": 1.03,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.23,
+              "traffic": 0,
+              "s3": 0.04,
+              "total": 7.22
+            },
+            "freeTier": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.03,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 7,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.2,
+            "traffic": 0,
             "s3": 0.02,
-            "total": 7,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0.22,
+            "savingsPercent": null
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0.2,
-          "apiGateway": 0,
-          "s3": 0.02,
-          "total": 0.21
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.23,
+              "traffic": 2.12,
+              "s3": 0.04,
+              "total": 9.34
+            },
+            "freeTier": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.03,
+              "traffic": 2.12,
+              "s3": 0.02,
+              "total": 9.12,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.2,
+            "traffic": 0,
+            "s3": 0.02,
+            "total": 0.22,
+            "savingsPercent": null
+          },
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.23,
+              "traffic": 7,
+              "s3": 0.04,
+              "total": 14.22
+            },
+            "freeTier": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.03,
+              "traffic": 3.5,
+              "s3": 0.02,
+              "total": 10.5,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.2,
+            "traffic": 3.5,
+            "s3": 0.02,
+            "total": 3.72,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.23,
+              "traffic": 16.6,
+              "s3": 0.04,
+              "total": 23.82
+            },
+            "freeTier": {
+              "dsql": 0.45,
+              "cognito": 5.5,
+              "lambda": 1.03,
+              "traffic": 16.55,
+              "s3": 0.02,
+              "total": 23.55,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.18
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0.2,
+            "traffic": 0.06,
+            "s3": 0.02,
+            "total": 0.28,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -1235,8 +3163,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -1254,30 +3181,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 45.1,
-            "cognito": 541,
-            "lambda": 123.33,
-            "s3": 3.56,
-            "total": 712.99
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 45.1,
+              "cognito": 541,
+              "lambda": 123.33,
+              "traffic": 0,
+              "s3": 3.56,
+              "total": 712.99
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 43.97,
+            "cognito": 486,
+            "lambda": 116.47,
+            "traffic": 0,
+            "s3": 3.43,
+            "total": 649.87,
+            "savingsPercent": -186.68
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 45.1,
+              "cognito": 541,
+              "lambda": 123.33,
+              "traffic": 212.16,
+              "s3": 3.56,
+              "total": 925.15
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 22.16,
+              "s3": 0.13,
+              "total": 85.29,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 43.97,
+            "cognito": 486,
+            "lambda": 116.47,
+            "traffic": 190,
+            "s3": 3.43,
+            "total": 839.87,
+            "savingsPercent": -270.49
           },
-          "dsql": 43.97,
-          "cognito": 486,
-          "lambda": 116.47,
-          "apiGateway": 0,
-          "s3": 3.43,
-          "total": 649.86
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 45.1,
+              "cognito": 541,
+              "lambda": 123.33,
+              "traffic": 700,
+              "s3": 3.56,
+              "total": 1412.99
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 43.97,
+            "cognito": 486,
+            "lambda": 116.47,
+            "traffic": 696.5,
+            "s3": 3.43,
+            "total": 1346.37,
+            "savingsPercent": -493.93
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 45.1,
+              "cognito": 541,
+              "lambda": 123.33,
+              "traffic": 34.2,
+              "s3": 3.56,
+              "total": 747.19
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 17.78
+            },
+            "dsql": 43.97,
+            "cognito": 486,
+            "lambda": 116.47,
+            "traffic": 17.66,
+            "s3": 3.43,
+            "total": 667.53,
+            "savingsPercent": -194.47
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1288,8 +3322,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 226.69
-        },
-        "savingsPercent": -186.67
+        }
       },
       {
         "workload": {
@@ -1307,30 +3340,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 901.9,
-            "cognito": 7917.5,
-            "lambda": 2466.67,
-            "s3": 71.2,
-            "total": 11357.27
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 901.9,
+              "cognito": 7917.5,
+              "lambda": 2466.67,
+              "traffic": 0,
+              "s3": 71.2,
+              "total": 11357.27
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 900.77,
+            "cognito": 7862.5,
+            "lambda": 2459.8,
+            "traffic": 0,
+            "s3": 71.07,
+            "total": 11294.14,
+            "savingsPercent": -10.64
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 901.9,
+              "cognito": 7917.5,
+              "lambda": 2466.67,
+              "traffic": 4243.19,
+              "s3": 71.2,
+              "total": 15600.46
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 95,
+              "s3": 0.13,
+              "total": 158.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 900.77,
+            "cognito": 7862.5,
+            "lambda": 2459.8,
+            "traffic": 4148.19,
+            "s3": 71.07,
+            "total": 15442.33,
+            "savingsPercent": -51.28
           },
-          "dsql": 900.77,
-          "cognito": 7862.5,
-          "lambda": 2459.8,
-          "apiGateway": 0,
-          "s3": 71.07,
-          "total": 11294.14
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 901.9,
+              "cognito": 7917.5,
+              "lambda": 2466.67,
+              "traffic": 10173.1,
+              "s3": 71.2,
+              "total": 21530.37
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 900.77,
+            "cognito": 7862.5,
+            "lambda": 2459.8,
+            "traffic": 10169.6,
+            "s3": 71.07,
+            "total": 21463.74,
+            "savingsPercent": -110.27
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 901.9,
+              "cognito": 7917.5,
+              "lambda": 2466.67,
+              "traffic": 371.98,
+              "s3": 71.2,
+              "total": 11729.25
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 355.56
+            },
+            "dsql": 900.77,
+            "cognito": 7862.5,
+            "lambda": 2459.8,
+            "traffic": 355.44,
+            "s3": 71.07,
+            "total": 11649.58,
+            "savingsPercent": -14.12
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1341,8 +3481,7 @@
           "egressOverage": 234.99,
           "mauOverage": 6175,
           "total": 10207.74
-        },
-        "savingsPercent": -10.64
+        }
       }
     ],
     "saas": [
@@ -1362,30 +3501,137 @@
           "mau": 50
         },
         "boa": {
-          "gross": {
-            "dsql": 0.05,
-            "cognito": 0.27,
-            "lambda": 0.12,
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.44
+            },
+            "freeTier": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0,
+              "s3": 0,
+              "total": 0.44,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.45
+            "total": 0,
+            "savingsPercent": 0
           },
-          "freeTier": {
-            "dsql": 0.05,
-            "cognito": 0.27,
-            "lambda": 0.12,
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0.21,
+              "s3": 0,
+              "total": 0.65
+            },
+            "freeTier": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0.21,
+              "s3": 0,
+              "total": 0.65,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
             "s3": 0,
-            "total": 0.45,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+            "total": 0,
+            "savingsPercent": 0
           },
-          "dsql": 0,
-          "cognito": 0,
-          "lambda": 0,
-          "apiGateway": 0,
-          "s3": 0,
-          "total": 0
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0.7,
+              "s3": 0,
+              "total": 1.14
+            },
+            "freeTier": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 0.7,
+              "s3": 0,
+              "total": 1.14,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 16.44,
+              "s3": 0,
+              "total": 16.88
+            },
+            "freeTier": {
+              "dsql": 0.05,
+              "cognito": 0.27,
+              "lambda": 0.12,
+              "traffic": 16.44,
+              "s3": 0,
+              "total": 16.88,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.02
+            },
+            "dsql": 0,
+            "cognito": 0,
+            "lambda": 0,
+            "traffic": 0,
+            "s3": 0,
+            "total": 0,
+            "savingsPercent": 0
+          }
         },
         "supa": {
           "plan": "Free",
@@ -1396,8 +3642,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": 0
+        }
       },
       {
         "workload": {
@@ -1415,30 +3660,137 @@
           "mau": 1000
         },
         "boa": {
-          "gross": {
-            "dsql": 0.96,
-            "cognito": 5.5,
-            "lambda": 2.47,
-            "s3": 0.08,
-            "total": 9
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 0.96,
+              "cognito": 5.5,
+              "lambda": 2.47,
+              "traffic": 0,
+              "s3": 0.08,
+              "total": 9.01
+            },
+            "freeTier": {
+              "dsql": 0.82,
+              "cognito": 5.5,
+              "lambda": 1.87,
+              "traffic": 0,
+              "s3": 0.02,
+              "total": 8.21,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0.14,
+            "cognito": 0,
+            "lambda": 0.6,
+            "traffic": 0,
+            "s3": 0.05,
+            "total": 0.79,
+            "savingsPercent": null
           },
-          "freeTier": {
-            "dsql": 0.82,
-            "cognito": 5.5,
-            "lambda": 1.87,
-            "s3": 0.02,
-            "total": 8.21,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 0.96,
+              "cognito": 5.5,
+              "lambda": 2.47,
+              "traffic": 4.23,
+              "s3": 0.08,
+              "total": 13.24
+            },
+            "freeTier": {
+              "dsql": 0.82,
+              "cognito": 5.5,
+              "lambda": 1.87,
+              "traffic": 4.23,
+              "s3": 0.02,
+              "total": 12.44,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0.14,
+            "cognito": 0,
+            "lambda": 0.6,
+            "traffic": 0,
+            "s3": 0.05,
+            "total": 0.79,
+            "savingsPercent": null
           },
-          "dsql": 0.14,
-          "cognito": 0,
-          "lambda": 0.6,
-          "apiGateway": 0,
-          "s3": 0.05,
-          "total": 0.8
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 0.96,
+              "cognito": 5.5,
+              "lambda": 2.47,
+              "traffic": 14,
+              "s3": 0.08,
+              "total": 23.01
+            },
+            "freeTier": {
+              "dsql": 0.82,
+              "cognito": 5.5,
+              "lambda": 1.87,
+              "traffic": 3.5,
+              "s3": 0.02,
+              "total": 11.71,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 0.14,
+            "cognito": 0,
+            "lambda": 0.6,
+            "traffic": 10.5,
+            "s3": 0.05,
+            "total": 11.29,
+            "savingsPercent": null
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 0.96,
+              "cognito": 5.5,
+              "lambda": 2.47,
+              "traffic": 16.78,
+              "s3": 0.08,
+              "total": 25.79
+            },
+            "freeTier": {
+              "dsql": 0.82,
+              "cognito": 5.5,
+              "lambda": 1.87,
+              "traffic": 16.55,
+              "s3": 0.02,
+              "total": 24.76,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 0.36
+            },
+            "dsql": 0.14,
+            "cognito": 0,
+            "lambda": 0.6,
+            "traffic": 0.24,
+            "s3": 0.05,
+            "total": 1.03,
+            "savingsPercent": null
+          }
         },
         "supa": {
           "plan": "Free",
@@ -1449,8 +3801,7 @@
           "egressOverage": 0,
           "mauOverage": 0,
           "total": 0
-        },
-        "savingsPercent": null
+        }
       },
       {
         "workload": {
@@ -1468,30 +3819,137 @@
           "mau": 100000
         },
         "boa": {
-          "gross": {
-            "dsql": 95.89,
-            "cognito": 541,
-            "lambda": 246.67,
-            "s3": 7.81,
-            "total": 891.37
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 95.89,
+              "cognito": 541,
+              "lambda": 246.67,
+              "traffic": 0,
+              "s3": 7.81,
+              "total": 891.37
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 94.76,
+            "cognito": 486,
+            "lambda": 239.8,
+            "traffic": 0,
+            "s3": 7.68,
+            "total": 828.24,
+            "savingsPercent": -260.25
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 95.89,
+              "cognito": 541,
+              "lambda": 246.67,
+              "traffic": 422.7,
+              "s3": 7.81,
+              "total": 1314.07
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 32.7,
+              "s3": 0.13,
+              "total": 95.83,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 94.76,
+            "cognito": 486,
+            "lambda": 239.8,
+            "traffic": 390,
+            "s3": 7.68,
+            "total": 1218.24,
+            "savingsPercent": -429.88
           },
-          "dsql": 94.76,
-          "cognito": 486,
-          "lambda": 239.8,
-          "apiGateway": 0,
-          "s3": 7.68,
-          "total": 828.24
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 95.89,
+              "cognito": 541,
+              "lambda": 246.67,
+              "traffic": 1353.1,
+              "s3": 7.81,
+              "total": 2244.47
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 94.76,
+            "cognito": 486,
+            "lambda": 239.8,
+            "traffic": 1349.6,
+            "s3": 7.68,
+            "total": 2177.84,
+            "savingsPercent": -847.26
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 95.89,
+              "cognito": 541,
+              "lambda": 246.67,
+              "traffic": 51.98,
+              "s3": 7.81,
+              "total": 943.35
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 35.56
+            },
+            "dsql": 94.76,
+            "cognito": 486,
+            "lambda": 239.8,
+            "traffic": 35.44,
+            "s3": 7.68,
+            "total": 863.68,
+            "savingsPercent": -275.66
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1502,8 +3960,7 @@
           "egressOverage": 1.53,
           "mauOverage": 0,
           "total": 229.91
-        },
-        "savingsPercent": -260.25
+        }
       },
       {
         "workload": {
@@ -1521,30 +3978,137 @@
           "mau": 2000000
         },
         "boa": {
-          "gross": {
-            "dsql": 1917.8,
-            "cognito": 7917.5,
-            "lambda": 4933.34,
-            "s3": 156.2,
-            "total": 14924.84
+          "none": {
+            "extension": "none",
+            "gross": {
+              "dsql": 1917.8,
+              "cognito": 7917.5,
+              "lambda": 4933.34,
+              "traffic": 0,
+              "s3": 156.2,
+              "total": 14924.84
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 0,
+              "s3": 0.13,
+              "total": 63.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": null,
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1916.67,
+            "cognito": 7862.5,
+            "lambda": 4926.47,
+            "traffic": 0,
+            "s3": 156.07,
+            "total": 14861.71,
+            "savingsPercent": -42.02
           },
-          "freeTier": {
-            "dsql": 1.13,
-            "cognito": 55,
-            "lambda": 6.87,
-            "s3": 0.13,
-            "total": 63.13,
-            "dsqlType": "always",
-            "cognitoType": "always",
-            "lambdaType": "always",
-            "s3Type": "12mo"
+          "cloudfront": {
+            "extension": "cloudfront",
+            "gross": {
+              "dsql": 1917.8,
+              "cognito": 7917.5,
+              "lambda": 4933.34,
+              "traffic": 8453.95,
+              "s3": 156.2,
+              "total": 23378.79
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 95,
+              "s3": 0.13,
+              "total": 158.13,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "always",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1916.67,
+            "cognito": 7862.5,
+            "lambda": 4926.47,
+            "traffic": 8358.95,
+            "s3": 156.07,
+            "total": 23220.66,
+            "savingsPercent": -121.9
           },
-          "dsql": 1916.67,
-          "cognito": 7862.5,
-          "lambda": 4926.47,
-          "apiGateway": 0,
-          "s3": 156.07,
-          "total": 14861.71
+          "apigateway": {
+            "extension": "apigateway",
+            "gross": {
+              "dsql": 1917.8,
+              "cognito": 7917.5,
+              "lambda": 4933.34,
+              "traffic": 19693.1,
+              "s3": 156.2,
+              "total": 34617.94
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 3.5,
+              "s3": 0.13,
+              "total": 66.63,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": null,
+            "dsql": 1916.67,
+            "cognito": 7862.5,
+            "lambda": 4926.47,
+            "traffic": 19689.6,
+            "s3": 156.07,
+            "total": 34551.31,
+            "savingsPercent": -230.17
+          },
+          "alb": {
+            "extension": "alb",
+            "gross": {
+              "dsql": 1917.8,
+              "cognito": 7917.5,
+              "lambda": 4933.34,
+              "traffic": 727.54,
+              "s3": 156.2,
+              "total": 15652.38
+            },
+            "freeTier": {
+              "dsql": 1.13,
+              "cognito": 55,
+              "lambda": 6.87,
+              "traffic": 16.55,
+              "s3": 0.13,
+              "total": 79.68,
+              "dsqlType": "always",
+              "cognitoType": "always",
+              "lambdaType": "always",
+              "trafficType": "12mo",
+              "s3Type": "12mo"
+            },
+            "trafficLayer": {
+              "fixedCost": 16.43,
+              "lcuCost": 711.11
+            },
+            "dsql": 1916.67,
+            "cognito": 7862.5,
+            "lambda": 4926.47,
+            "traffic": 710.99,
+            "s3": 156.07,
+            "total": 15572.7,
+            "savingsPercent": -48.81
+          }
         },
         "supa": {
           "plan": "Pro",
@@ -1555,8 +4119,7 @@
           "egressOverage": 458.15,
           "mauOverage": 6175,
           "total": 10464.65
-        },
-        "savingsPercent": -42.02
+        }
       }
     ]
   }

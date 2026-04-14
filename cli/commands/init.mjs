@@ -10,8 +10,9 @@ import * as config from '../lib/config.mjs';
 import { generateKeys } from '../lib/keys.mjs';
 import { ok, header } from '../lib/output.mjs';
 import {
-  TOOLS, DSQL_REGIONS, getOutputValue, REPO_URL, REPO_RAW_URL,
+  TOOLS, DSQL_REGIONS, getOutputValue, REPO_URL,
 } from '../lib/constants.mjs';
+import { copySkill } from '../lib/skill.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
@@ -54,20 +55,20 @@ This project has a BOA backend deployed on AWS. Use the \`boa\` CLI for all back
 
 ## Full Skill Reference
 
-For detailed patterns (REST API filtering, auth flows, storage, migrations, access policies, DSQL constraints, pitfalls), fetch the full BOA skill and docs from the repository:
+The complete BOA skill and docs are bundled locally in \`.boa/skill/\`. Load these on demand when you need detailed patterns:
 
-- **Skill**: ${REPO_RAW_URL}/plugin/skills/boa/SKILL.md
-- **REST API**: ${REPO_RAW_URL}/plugin/docs/REST-API.md
-- **Access Policies**: ${REPO_RAW_URL}/plugin/docs/POLICIES.md
-- **Auth Patterns**: ${REPO_RAW_URL}/plugin/docs/AUTH-PATTERNS.md
-- **DSQL Patterns**: ${REPO_RAW_URL}/plugin/docs/DSQL-PATTERNS.md
-- **Migrations**: ${REPO_RAW_URL}/plugin/docs/MIGRATIONS.md
-- **Storage**: ${REPO_RAW_URL}/plugin/docs/STORAGE-PATTERNS.md
-- **Functions**: ${REPO_RAW_URL}/plugin/docs/FUNCTIONS.md
-- **Architecture**: ${REPO_RAW_URL}/plugin/docs/ARCHITECTURE.md
-- **Pitfalls**: ${REPO_RAW_URL}/plugin/docs/PITFALLS.md
+- **Skill**: .boa/skill/SKILL.md — Full skill instructions (start here)
+- **REST API**: .boa/skill/docs/REST-API.md
+- **Access Policies**: .boa/skill/docs/POLICIES.md
+- **Auth Patterns**: .boa/skill/docs/AUTH-PATTERNS.md
+- **DSQL Patterns**: .boa/skill/docs/DSQL-PATTERNS.md
+- **Migrations**: .boa/skill/docs/MIGRATIONS.md
+- **Storage**: .boa/skill/docs/STORAGE-PATTERNS.md
+- **Functions**: .boa/skill/docs/FUNCTIONS.md
+- **Architecture**: .boa/skill/docs/ARCHITECTURE.md
+- **Pitfalls**: .boa/skill/docs/PITFALLS.md
 
-Load these on demand when you need detailed patterns for a specific area.
+These are updated whenever you run \`boa deploy\`.
 
 ## Communication Style
 
@@ -83,6 +84,9 @@ You are a confident backend engineer pair-programming with the developer.
 
 \`\`\`
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
+    │
+    ▼
+CloudFront + WAF (DDoS protection, rate limiting)
     │
     ▼
 Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
@@ -233,7 +237,9 @@ For Vite: add \`define: { global: 'globalThis' }\` to \`vite.config.js\` (requir
 ## Configuration
 
 Backend configuration is in \`.boa/config.json\`:
-- **apiUrl**: ${cfg.apiUrl}
+- **apiUrl**: ${cfg.apiUrl} (CloudFront domain, primary entry point)
+- **functionUrl**: Raw Lambda Function URL (internal, behind CloudFront)
+- **cloudfront**: Distribution ID and domain name
 - **anonKey**: Public key for client-side access
 - **serviceRoleKey**: Admin key (server-side only, bypasses authorization)
 - **userPoolId**: ${cfg.userPoolId}
@@ -358,6 +364,9 @@ export default async function init(args) {
 
   // 11. SAM deploy
   console.log(`Deploying stack '${name}' to ${region}...`);
+  console.log(
+    '  (CloudFront distribution takes ~10 minutes)'
+  );
   const builtTemplate = join(buildDir, 'template.yaml');
   sam.deploy(builtTemplate, name, region);
 
@@ -365,13 +374,23 @@ export default async function init(args) {
   console.log('');
   console.log('Extracting stack outputs...');
   const outputs = aws.cfnDescribeStacks(name, region);
-  const apiUrl = getOutputValue(outputs, 'ApiFunctionUrl');
+  const functionUrl = getOutputValue(outputs, 'ApiFunctionUrl');
+  const cloudFrontUrl = getOutputValue(outputs, 'CloudFrontUrl');
+  const distributionId = getOutputValue(
+    outputs, 'CloudFrontDistributionId'
+  );
+  const throttleTopicArn = getOutputValue(
+    outputs, 'ThrottleAlarmTopicArn'
+  );
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
   );
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
+
+  // apiUrl is the CloudFront domain (primary entry point)
+  const apiUrl = cloudFrontUrl || functionUrl;
 
   // 13. Generate keys
   console.log('Generating BOA keys...');
@@ -384,6 +403,12 @@ export default async function init(args) {
     region,
     accountId,
     apiUrl,
+    functionUrl,
+    cloudfront: distributionId && cloudFrontUrl ? {
+      distributionId,
+      domainName: new URL(cloudFrontUrl).hostname,
+      throttleTopicArn: throttleTopicArn || undefined,
+    } : undefined,
     anonKey,
     serviceRoleKey,
     userPoolId,
@@ -410,16 +435,20 @@ export default async function init(args) {
     }
   }
 
-  // 16. Write CLAUDE.md for Claude Code skill discovery
+  // 16. Bundle skill and docs into .boa/skill/
+  copySkill(process.cwd());
+  ok('Skill and docs bundled in .boa/skill/');
+
+  // 17. Write CLAUDE.md for Claude Code skill discovery
   if (!existsSync('CLAUDE.md')) {
     writeFileSync('CLAUDE.md', generateClaudeMd(name, {
-      apiUrl, anonKey, serviceRoleKey, userPoolId, userPoolClientId,
-      bucketName, dsqlEndpoint, region,
+      apiUrl, functionUrl, anonKey, serviceRoleKey, userPoolId,
+      userPoolClientId, bucketName, dsqlEndpoint, region,
     }));
     ok('CLAUDE.md written (Claude Code will load the BOA skill automatically)');
   }
 
-  // 17. Write .claude/settings.json for auto-approved tools
+  // 18. Write .claude/settings.json for auto-approved tools
   const claudeSettingsDir = join(process.cwd(), '.claude');
   const claudeSettingsPath = join(claudeSettingsDir, 'settings.json');
   if (!existsSync(claudeSettingsPath)) {
@@ -437,11 +466,16 @@ export default async function init(args) {
     ok('.claude/settings.json written (boa commands auto-approved)');
   }
 
-  // 18. Print summary
+  // 19. Print summary
   console.log('');
   header('BOA deployment complete');
   console.log('');
-  console.log(`  API URL:          ${apiUrl}`);
+  console.log(`  API URL:      ${apiUrl}`);
+  if (functionUrl && functionUrl !== apiUrl) {
+    console.log(
+      `  Function URL: ${functionUrl} (internal)`
+    );
+  }
   console.log(`  Anon Key:         ${anonKey.slice(0, 20)}...`);
   console.log(
     `  Service Role Key: ${serviceRoleKey.slice(0, 20)}...`

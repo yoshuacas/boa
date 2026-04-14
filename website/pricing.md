@@ -11,7 +11,7 @@ import PricingCalculator from './.vitepress/theme/PricingCalculator.vue'
 
 <div class="pricing-hero">
   <h1>Free until your users show up.</h1>
-  <p class="pricing-subtitle">No fees, no tiers, no paid plans. BOA is open source. You only pay for the AWS services your backend uses — and the free tier covers most of it.</p>
+  <p class="pricing-subtitle">No fees, no tiers, no paid plans. BOA is open source. You only pay for the AWS services your backend uses, and the free tier covers most of it.</p>
 </div>
 
 <PricingCalculator />
@@ -34,6 +34,8 @@ import PricingCalculator from './.vitepress/theme/PricingCalculator.vue'
   font-size: 2.5rem;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.3;
+  padding-bottom: 0.1em;
   margin-bottom: 1rem;
   background: linear-gradient(135deg, #FF9900, #FF6600);
   -webkit-background-clip: text;

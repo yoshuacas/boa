@@ -1,53 +1,8 @@
 # API Patterns
 
-CloudFront + WAF is the default traffic layer for every
-BOA backend. It provides DDoS protection, rate limiting,
-and edge caching at the CDN level.
+API Gateway + Lambda patterns for the BOA backend.
 
-> **Note:** API Gateway REST is available as an extension
-> (`boa extend api-gateway`) for teams needing usage plans,
-> API keys, or custom domains. The patterns below cover
-> both the default CloudFront layer and the API Gateway
-> extension.
-
----
-
-## CloudFront Default Traffic Layer
-
-Every `boa init` deployment places CloudFront in front of
-the Lambda Function URL:
-
-- **DDoS absorption**: AWS Shield Standard (included free)
-- **WAF rate limiting**: 1000 requests per 5 minutes per IP
-  (configurable in the WAF rule)
-- **Edge caching**: GET requests cached for 60 seconds.
-  Cache key includes `Authorization` header and query
-  string, so different users and queries get separate
-  cache entries
-- **Origin auth**: CloudFront uses OAC with SigV4 to
-  invoke the Function URL (`AuthType: AWS_IAM`). Direct
-  access to the Function URL returns 403
-
-### Cache Behavior
-
-- GET and HEAD requests are cached (60s TTL)
-- POST, PUT, PATCH, DELETE always forward to origin
-- Add `Cache-Control: no-cache` to bypass cache for
-  fresh reads
-- Cache key includes `Authorization` and `apikey` headers
-  plus all query string parameters
-
-### CORS
-
-CloudFront passes through CORS headers from pgrest-lambda.
-No CloudFront-level CORS configuration is needed.
-
-### Rate Limit Tuning
-
-The default WAF rate limit is 1000 requests per 5 minutes
-per IP. To increase it, modify the `RateBasedStatement`
-`Limit` in `.boa/template.yaml` (or the base template if
-no local override exists) and run `boa deploy`.
+> **Note:** The default backend uses Lambda Function URLs (free). The API Gateway patterns below only apply when you enable the API Gateway extension with `boa extend api-gateway`. Use this extension when you need rate limiting, WAF, or custom domains.
 
 ---
 

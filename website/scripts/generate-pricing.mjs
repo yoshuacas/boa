@@ -345,6 +345,37 @@ function fetchS3Pricing() {
 }
 
 // ---------------------------------------------------------------------------
+// CloudFront flat-rate pricing (manually maintained — not in AWS Pricing API)
+// ---------------------------------------------------------------------------
+
+const CLOUDFRONT_PRICING = {
+  source: 'https://aws.amazon.com/cloudfront/pricing/',
+  lastVerified: new Date().toISOString().slice(0, 10),
+  requestPricePerMillion: 1.00,    // HTTPS requests, US/EU
+  dataTransferPerGB: 0.085,         // first 10 TB to internet
+  // Always-free tier (perpetual, all accounts)
+  freeTierRequests: 10_000_000,     // 10M requests/month
+  freeTierTransferGB: 1000,         // 1 TB/month
+};
+
+// ---------------------------------------------------------------------------
+// ALB pricing (manually maintained — ELB Pricing API is hard to parse)
+// ---------------------------------------------------------------------------
+
+const ALB_PRICING = {
+  source: 'https://aws.amazon.com/elasticloadbalancing/pricing/',
+  lastVerified: new Date().toISOString().slice(0, 10),
+  hourlyRate: 0.0225,          // per ALB-hour
+  lcuHourlyRate: 0.008,        // per LCU-hour
+  hoursPerMonth: 730,
+  lcuProcessedBytesGB: 0.4,   // GB per hour per LCU (Lambda targets)
+  lcuNewConnections: 25,       // new connections per second per LCU
+  // Free tier: 12 months for new AWS accounts
+  freeTierHours: 750,          // shared between Classic and ALB
+  freeTierLCUs: 15,            // per month
+};
+
+// ---------------------------------------------------------------------------
 // Supabase pricing (manually maintained — they don't have a public API)
 // ---------------------------------------------------------------------------
 
@@ -499,8 +530,12 @@ function deriveWorkload(profileKey, sizeKey) {
   };
 }
 
-function calculateBOA(workload, rates) {
-  const { dsql, cognito, lambda, apiGateway, s3 } = rates;
+// ---------------------------------------------------------------------------
+// Base services calculator (shared across all extension variants)
+// ---------------------------------------------------------------------------
+
+function calculateBaseServices(workload, rates) {
+  const { dsql, cognito, lambda, s3 } = rates;
 
   // 1. Aurora DSQL — always free tier (permanent)
   const readDPUs = workload.reads * dsql.dpuPerRead;
@@ -515,7 +550,7 @@ function calculateBOA(workload, rates) {
 
   // 2. Amazon Cognito — always free tier (permanent, 10K MAU)
   let cognitoGross = 0;
-  let cognitoFreeMAU = 10000;
+  const cognitoFreeMAU = 10000;
   let remainingMAU = workload.mau;
   let prevLimit = 0;
   for (const tier of cognito.tiers) {
@@ -525,10 +560,7 @@ function calculateBOA(workload, rates) {
     remainingMAU -= tierUsers;
     prevLimit = tier.upTo;
   }
-  // Cognito tiers already have first 10K at $0, so gross == net for Cognito
   const cognitoNet = cognitoGross;
-  // But we want to show what those 10K MAU would cost if not free
-  // Use the first paid tier rate for the free tier value
   const firstPaidRate = cognito.tiers.find(t => t.pricePerMAU > 0)?.pricePerMAU || 0;
   const cognitoFreeSavings = Math.min(workload.mau, cognitoFreeMAU) * firstPaidRate;
 
@@ -545,10 +577,7 @@ function calculateBOA(workload, rates) {
     + Math.min(totalGBSeconds, lambda.freeTierGBSeconds) * lambda.gbSecondPrice);
   const lambdaNet = Math.max(0, lambdaGross - lambdaFreeSavings);
 
-  // 4. API Gateway — NOT in default stack (Lambda Function URLs are free).
-  const apigwCost = 0;
-
-  // 5. Amazon S3 — 12-month free tier (expires after first year)
+  // 4. Amazon S3 — 12-month free tier (expires after first year)
   const FILE_REQUEST_RATIO = 0.01;
   const s3Puts = Math.round(workload.writes * FILE_REQUEST_RATIO);
   const s3Gets = Math.round(workload.reads * FILE_REQUEST_RATIO);
@@ -562,39 +591,127 @@ function calculateBOA(workload, rates) {
     + (Math.min(s3Gets, s3.freeTierGetRequests) / 1000) * s3.getPricePer1000);
   const s3Net = Math.max(0, s3Gross - s3FreeSavings);
 
-  const grossTotal = dsqlGross + cognitoGross + lambdaGross + s3Gross;
-  const freeSavingsTotal = dsqlFreeSavings + cognitoFreeSavings + lambdaFreeSavings + s3FreeSavings;
-  const netTotal = dsqlNet + cognitoNet + lambdaNet + s3Net;
+  return {
+    dsql:    { gross: round2(dsqlGross), freeSavings: round2(dsqlFreeSavings), net: round2(dsqlNet) },
+    cognito: { gross: round2(cognitoGross + cognitoFreeSavings), freeSavings: round2(cognitoFreeSavings), net: round2(cognitoNet) },
+    lambda:  { gross: round2(lambdaGross), freeSavings: round2(lambdaFreeSavings), net: round2(lambdaNet) },
+    s3:      { gross: round2(s3Gross), freeSavings: round2(s3FreeSavings), net: round2(s3Net) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Traffic layer calculators (one per extension)
+// ---------------------------------------------------------------------------
+
+function calculateTrafficNone() {
+  return { gross: 0, freeSavings: 0, net: 0, trafficType: null, trafficLayer: null };
+}
+
+function calculateTrafficCloudfront(workload) {
+  const cf = CLOUDFRONT_PRICING;
+  const requestCost = (workload.totalRequests / 1_000_000) * cf.requestPricePerMillion;
+  const transferCost = workload.egressGB * cf.dataTransferPerGB;
+  const gross = requestCost + transferCost;
+
+  // Always-free tier: 10M requests + 1 TB transfer/month
+  const freeRequestSavings = (Math.min(workload.totalRequests, cf.freeTierRequests) / 1_000_000) * cf.requestPricePerMillion;
+  const freeTransferSavings = Math.min(workload.egressGB, cf.freeTierTransferGB) * cf.dataTransferPerGB;
+  const freeSavings = Math.min(gross, freeRequestSavings + freeTransferSavings);
+  const net = Math.max(0, gross - freeSavings);
 
   return {
-    // Gross cost (before free tier)
+    gross: round2(gross), freeSavings: round2(freeSavings), net: round2(net),
+    trafficType: 'always',
+    trafficLayer: null,
+  };
+}
+
+function calculateTrafficApiGateway(workload, rates) {
+  const tiers = rates.apiGateway.tiers;
+  let remaining = workload.totalRequests;
+  let cost = 0;
+  let prevLimit = 0;
+  for (const tier of tiers) {
+    const tierRequests = Math.min(remaining, tier.upTo - prevLimit);
+    if (tierRequests <= 0) break;
+    cost += (tierRequests / 1_000_000) * tier.pricePerMillion;
+    remaining -= tierRequests;
+    prevLimit = tier.upTo;
+  }
+  const freeSavings = (Math.min(workload.totalRequests, rates.apiGateway.freeTierRequests) / 1_000_000)
+                    * tiers[0].pricePerMillion;
+  const net = Math.max(0, cost - freeSavings);
+  return {
+    gross: round2(cost), freeSavings: round2(freeSavings), net: round2(net),
+    trafficType: '12mo',
+    trafficLayer: null,
+  };
+}
+
+function calculateTrafficAlb(workload) {
+  const alb = ALB_PRICING;
+  const fixedCost = alb.hoursPerMonth * alb.hourlyRate;
+
+  // LCU — dominant dimension for Lambda targets
+  const avgEgressGBPerHour = workload.egressGB / alb.hoursPerMonth;
+  const processedBytesLCU = avgEgressGBPerHour / alb.lcuProcessedBytesGB;
+  const avgReqPerSec = workload.totalRequests / (alb.hoursPerMonth * 3600);
+  const newConnectionsLCU = avgReqPerSec / alb.lcuNewConnections;
+  const lcuPerHour = Math.max(processedBytesLCU, newConnectionsLCU, 0);
+  const totalLCUHours = lcuPerHour * alb.hoursPerMonth;
+  const lcuCost = totalLCUHours * alb.lcuHourlyRate;
+
+  const gross = fixedCost + lcuCost;
+
+  // Free tier: 750 hours + 15 LCUs/month, 12 months for new accounts
+  const freeHoursSavings = Math.min(alb.hoursPerMonth, alb.freeTierHours) * alb.hourlyRate;
+  const freeLCUSavings = Math.min(totalLCUHours, alb.freeTierLCUs) * alb.lcuHourlyRate;
+  const freeSavings = Math.min(gross, freeHoursSavings + freeLCUSavings);
+  const net = Math.max(0, gross - freeSavings);
+
+  return {
+    gross: round2(gross), freeSavings: round2(freeSavings), net: round2(net),
+    trafficType: '12mo',
+    trafficLayer: { fixedCost: round2(fixedCost), lcuCost: round2(lcuCost) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Assemble a complete BOA variant (base services + traffic layer)
+// ---------------------------------------------------------------------------
+
+const EXTENSIONS = ['none', 'cloudfront', 'apigateway', 'alb'];
+
+function calculateBOAVariant(workload, rates, extension) {
+  const base = calculateBaseServices(workload, rates);
+
+  let traffic;
+  switch (extension) {
+    case 'cloudfront':  traffic = calculateTrafficCloudfront(workload); break;
+    case 'apigateway':  traffic = calculateTrafficApiGateway(workload, rates); break;
+    case 'alb':         traffic = calculateTrafficAlb(workload); break;
+    default:            traffic = calculateTrafficNone(); break;
+  }
+
+  const grossTotal = base.dsql.gross + base.cognito.gross + base.lambda.gross + traffic.gross + base.s3.gross;
+  const freeTotal = base.dsql.freeSavings + base.cognito.freeSavings + base.lambda.freeSavings + traffic.freeSavings + base.s3.freeSavings;
+  const netTotal = base.dsql.net + base.cognito.net + base.lambda.net + traffic.net + base.s3.net;
+
+  return {
+    extension,
     gross: {
-      dsql: round2(dsqlGross),
-      cognito: round2(cognitoGross + cognitoFreeSavings), // include what free MAU would cost
-      lambda: round2(lambdaGross),
-      s3: round2(s3Gross),
-      total: round2(dsqlGross + (cognitoGross + cognitoFreeSavings) + lambdaGross + s3Gross),
+      dsql: base.dsql.gross, cognito: base.cognito.gross, lambda: base.lambda.gross,
+      traffic: traffic.gross, s3: base.s3.gross, total: round2(grossTotal),
     },
-    // Free tier savings
     freeTier: {
-      dsql: round2(dsqlFreeSavings),
-      cognito: round2(cognitoFreeSavings),
-      lambda: round2(lambdaFreeSavings),
-      s3: round2(s3FreeSavings),
-      total: round2(dsqlFreeSavings + cognitoFreeSavings + lambdaFreeSavings + s3FreeSavings),
-      // Free tier types
-      dsqlType: 'always',      // permanent
-      cognitoType: 'always',   // permanent
-      lambdaType: 'always',    // permanent
-      s3Type: '12mo',          // expires after 12 months
+      dsql: base.dsql.freeSavings, cognito: base.cognito.freeSavings, lambda: base.lambda.freeSavings,
+      traffic: traffic.freeSavings, s3: base.s3.freeSavings, total: round2(freeTotal),
+      dsqlType: 'always', cognitoType: 'always', lambdaType: 'always',
+      trafficType: traffic.trafficType, s3Type: '12mo',
     },
-    // Net cost (what you actually pay)
-    dsql: round2(dsqlNet),
-    cognito: round2(cognitoNet),
-    lambda: round2(lambdaNet),
-    apiGateway: 0,
-    s3: round2(s3Net),
-    total: round2(netTotal),
+    trafficLayer: traffic.trafficLayer,
+    dsql: base.dsql.net, cognito: base.cognito.net, lambda: base.lambda.net,
+    traffic: traffic.net, s3: base.s3.net, total: round2(netTotal),
   };
 }
 
@@ -692,29 +809,37 @@ function main() {
   console.log(`  DSQL:        $${rates.dsql.dpuPrice}/DPU, $${rates.dsql.storagePricePerGB}/GB-mo`);
   console.log(`  Cognito:     ${rates.cognito.tiers.length} tiers (model: ${rates.cognito.tierModel})`);
   console.log(`  Lambda:      $${rates.lambda.requestPricePerMillion}/1M req, $${rates.lambda.gbSecondPrice}/GB-s`);
+  console.log(`  CloudFront:  $${CLOUDFRONT_PRICING.requestPricePerMillion}/1M req, $${CLOUDFRONT_PRICING.dataTransferPerGB}/GB, free: ${CLOUDFRONT_PRICING.freeTierRequests/1e6}M req + ${CLOUDFRONT_PRICING.freeTierTransferGB/1000} TB`);
   console.log(`  API Gateway: ${rates.apiGateway.tiers.length} tiers, first at $${rates.apiGateway.tiers[0].pricePerMillion}/1M`);
+  console.log(`  ALB:         $${ALB_PRICING.hourlyRate}/hr + $${ALB_PRICING.lcuHourlyRate}/LCU-hr`);
   console.log(`  S3:          $${rates.s3.storagePricePerGB}/GB, PUT $${rates.s3.putPricePer1000}/1K, GET $${rates.s3.getPricePer1000}/1K`);
 
-  // Compute all scenarios
+  // Compute all scenarios — four extension variants per scenario
   console.log('\nComputing scenarios...');
   const scenarios = {};
   for (const profileKey of Object.keys(APP_PROFILES)) {
     scenarios[profileKey] = [];
     for (const sizeKey of Object.keys(SIZE_TIERS)) {
       const workload = deriveWorkload(profileKey, sizeKey);
-      const boa = calculateBOA(workload, rates);
       const supa = calculateSupabase(workload);
 
-      let savings = null;
-      if (supa.total > 0 && boa.total > 0) {
-        savings = round2(((supa.total - boa.total) / supa.total) * 100);
-      } else if (supa.total === 0 && boa.total === 0) {
-        savings = 0;
-      } else if (boa.total === 0 && supa.total > 0) {
-        savings = 100;
+      const boa = {};
+      for (const ext of EXTENSIONS) {
+        const variant = calculateBOAVariant(workload, rates, ext);
+        // Compute savings vs Supabase per variant
+        if (supa.total > 0 && variant.total > 0) {
+          variant.savingsPercent = round2(((supa.total - variant.total) / supa.total) * 100);
+        } else if (supa.total === 0 && variant.total === 0) {
+          variant.savingsPercent = 0;
+        } else if (variant.total === 0 && supa.total > 0) {
+          variant.savingsPercent = 100;
+        } else {
+          variant.savingsPercent = null;
+        }
+        boa[ext] = variant;
       }
 
-      scenarios[profileKey].push({ workload, boa, supa, savingsPercent: savings });
+      scenarios[profileKey].push({ workload, boa, supa });
     }
   }
 
@@ -731,7 +856,9 @@ function main() {
       dsql: rates.dsql,
       cognito: rates.cognito,
       lambda: rates.lambda,
+      cloudfront: CLOUDFRONT_PRICING,
       apiGateway: rates.apiGateway,
+      alb: ALB_PRICING,
       s3: rates.s3,
     },
     supabasePricing: SUPABASE_PRICING,
@@ -745,14 +872,17 @@ function main() {
 
   // Print summary table
   console.log('\n--- Summary ---\n');
+  const extLabels = { none: 'None', cloudfront: 'CF', apigateway: 'APIGW', alb: 'ALB' };
   for (const [profileKey, profile] of Object.entries(APP_PROFILES)) {
     console.log(`${profile.name}:`);
     for (const s of scenarios[profileKey]) {
       const size = SIZE_TIERS[s.workload.sizeKey];
-      const boaStr = s.boa.total === 0 ? '$0 (free)' : `$${s.boa.total.toFixed(2)}`;
-      const supaStr = s.supa.total === 0 ? '$0 (free)' : `$${s.supa.total.toFixed(2)}`;
-      const saveStr = s.savingsPercent !== null ? `${s.savingsPercent}%` : 'n/a';
-      console.log(`  ${size.name.padEnd(12)} ${size.users.toString().padStart(10)} users | BOA: ${boaStr.padStart(12)} | Supa: ${supaStr.padStart(12)} | Save: ${saveStr}`);
+      const supaStr = s.supa.total === 0 ? '$0' : `$${s.supa.total.toFixed(0)}`;
+      const parts = EXTENSIONS.map(ext => {
+        const v = s.boa[ext];
+        return `${extLabels[ext]}:$${v.total.toFixed(0)}`;
+      });
+      console.log(`  ${size.name.padEnd(10)} ${size.users.toString().padStart(9)} users | ${parts.join(' | ')} | Supa:${supaStr}`);
     }
   }
 }
