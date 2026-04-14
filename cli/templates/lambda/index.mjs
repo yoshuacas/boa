@@ -1,7 +1,86 @@
 import { createPgrest } from 'pgrest-lambda';
 import { handler as uploadHandler } from './presigned-upload.mjs';
 
-const pgrest = createPgrest();
+function getStorageOpenApiPaths(baseUrl) {
+  const storageUrl = baseUrl.replace(/\/rest\/v1\/?$/, '');
+  const server = [{ url: storageUrl }];
+  const tag = 'Storage';
+
+  return {
+    paths: {
+      '/upload': {
+        servers: server,
+        post: {
+          tags: [tag],
+          summary: 'Get presigned upload URL',
+          description: 'Generate a presigned S3 URL for file upload.',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['filename', 'contentType'],
+                  properties: {
+                    filename: { type: 'string' },
+                    contentType: { type: 'string', example: 'image/jpeg' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: 'Presigned URL generated', content: { 'application/json': { schema: { $ref: '#/components/schemas/UploadResponse' } } } },
+            400: { description: 'Validation error' },
+          },
+        },
+      },
+      '/download': {
+        servers: server,
+        get: {
+          tags: [tag],
+          summary: 'Get presigned download URL',
+          description: 'Generate a presigned S3 URL for file download.',
+          parameters: [{
+            name: 'key',
+            in: 'query',
+            required: true,
+            description: 'S3 object key',
+            schema: { type: 'string' },
+          }],
+          responses: {
+            200: { description: 'Presigned URL generated', content: { 'application/json': { schema: { $ref: '#/components/schemas/DownloadResponse' } } } },
+            400: { description: 'Missing key parameter' },
+            403: { description: 'Access denied' },
+          },
+        },
+      },
+    },
+    schemas: {
+      UploadResponse: {
+        type: 'object',
+        properties: {
+          uploadUrl: { type: 'string', format: 'uri' },
+          key: { type: 'string' },
+          expiresIn: { type: 'integer', example: 3600 },
+          maxSizeBytes: { type: 'integer', example: 10485760 },
+          message: { type: 'string' },
+        },
+      },
+      DownloadResponse: {
+        type: 'object',
+        properties: {
+          downloadUrl: { type: 'string', format: 'uri' },
+          expiresIn: { type: 'integer', example: 3600 },
+        },
+      },
+    },
+  };
+}
+
+const pgrest = createPgrest({
+  contributions: [getStorageOpenApiPaths],
+});
 
 // Bridge Function URL v2.0 events to the v1.0 format pgrest-lambda expects.
 // API Gateway REST events have event.path and event.requestContext.authorizer;

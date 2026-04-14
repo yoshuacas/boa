@@ -162,11 +162,18 @@ Resources:
             BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
-  # Function URL permission — required since October 2025
-  # SAM v1.101.0+ auto-generates this, but older versions
-  # do not. Explicit declaration is a safe no-op on new
-  # SAM and a fix on old SAM.
+  # Function URL permissions — both required since Oct 2025
+  # SAM should auto-generate these for AuthType: NONE, but
+  # older versions do not. Explicit is safe on all versions.
   # -------------------------------------------------------
+  ApiFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ApiFunction.Arn
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
   ApiFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
