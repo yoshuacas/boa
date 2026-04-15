@@ -162,8 +162,8 @@ Resources:
     Properties:
       CachePolicyConfig:
         Name: !Sub '${ProjectName}-api-cache'
-        DefaultTTL: 60
-        MaxTTL: 60
+        DefaultTTL: 0
+        MaxTTL: 1
         MinTTL: 0
         ParametersInCacheKeyAndForwardedToOrigin:
           CookiesConfig:
