@@ -12,11 +12,15 @@ export class BoaApi {
     spec: object | null
     error: BoaError | null
   }> {
-    throw new Error('not implemented')
-  }
+    const { data, error } = await this._http.request<object>({
+      method: 'GET',
+      path: '/rest/v1/',
+    })
 
-  // Suppress unused warnings
-  private _suppress() {
-    void this._http
+    if (error || !data) {
+      return { spec: null, error }
+    }
+
+    return { spec: data, error: null }
   }
 }

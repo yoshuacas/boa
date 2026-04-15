@@ -12,19 +12,52 @@ export class BoaStorage {
   }
 
   async createUploadUrl(
-    _params: { filename: string; contentType: string }
+    params: { filename: string; contentType: string }
   ): Promise<StorageUploadResult> {
-    throw new Error('not implemented')
+    const { data, error } = await this._http.request<{
+      uploadUrl: string
+      key: string
+      expiresIn: number
+      maxSizeBytes: number
+      message: string
+    }>({
+      method: 'POST',
+      path: '/upload',
+      body: {
+        filename: params.filename,
+        contentType: params.contentType,
+      },
+    })
+
+    if (error || !data) {
+      return { key: null, uploadUrl: null, error }
+    }
+
+    return {
+      uploadUrl: data.uploadUrl,
+      key: data.key,
+      error: null,
+    }
   }
 
   async createDownloadUrl(
-    _key: string
+    key: string
   ): Promise<StorageDownloadResult> {
-    throw new Error('not implemented')
-  }
+    const encodedKey = encodeURIComponent(key)
+    const { data, error } = await this._http.request<{
+      downloadUrl: string
+    }>({
+      method: 'GET',
+      path: `/download?key=${encodedKey}`,
+    })
 
-  // Suppress unused warnings
-  private _suppress() {
-    void this._http
+    if (error || !data) {
+      return { downloadUrl: null, error }
+    }
+
+    return {
+      downloadUrl: data.downloadUrl,
+      error: null,
+    }
   }
 }
