@@ -137,14 +137,21 @@ function normalizeEvent(raw) {
     } catch { /* not a JWT apikey */ }
   }
 
+  // ALB may base64-encode the body — decode it so downstream
+  // handlers can JSON.parse(event.body) directly.
+  let body = raw.body || null;
+  if (body && raw.isBase64Encoded) {
+    body = Buffer.from(body, 'base64').toString('utf-8');
+  }
+
   return {
     ...raw,
     path: raw.path || raw.rawPath || '/',
     httpMethod: raw.httpMethod || raw.requestContext?.http?.method || 'GET',
     headers,
     queryStringParameters: raw.queryStringParameters || null,
-    body: raw.body || null,
-    isBase64Encoded: raw.isBase64Encoded || false,
+    body,
+    isBase64Encoded: false,
     requestContext: {
       ...raw.requestContext,
       authorizer: { role, userId, email },
