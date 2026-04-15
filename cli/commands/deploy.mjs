@@ -69,7 +69,12 @@ export default async function deploy(_args) {
   // 7. SAM deploy
   console.log('Deploying...');
   const builtTemplate = join(buildDir, 'template.yaml');
-  sam.deploy(builtTemplate, stackName, region);
+  // Pass ApiBaseUrl from previous deploy so OpenAPI spec uses the public URL
+  const cfDomain = cfg.cloudfront?.domainName;
+  const extraParams = cfDomain
+    ? { ApiBaseUrl: `https://${cfDomain}/rest/v1` }
+    : {};
+  sam.deploy(builtTemplate, stackName, region, extraParams);
 
   // 8. Extract fresh CloudFormation outputs
   console.log('');

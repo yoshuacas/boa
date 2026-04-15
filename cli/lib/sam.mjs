@@ -4,7 +4,12 @@ export function build(templateFile, buildDir, region) {
   run(`sam build --template-file ${shellEscape(templateFile)} --build-dir ${shellEscape(buildDir)} --region ${shellEscape(region)}`);
 }
 
-export function deploy(templateFile, stackName, region) {
+export function deploy(templateFile, stackName, region, extraParams = {}) {
+  const params = { ProjectName: stackName, ...extraParams };
+  const overrides = Object.entries(params)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' ');
   run([
     `sam deploy`,
     `--template-file ${shellEscape(templateFile)}`,
@@ -14,7 +19,7 @@ export function deploy(templateFile, stackName, region) {
     `--resolve-s3`,
     `--no-confirm-changeset`,
     `--no-fail-on-empty-changeset`,
-    `--parameter-overrides "ProjectName=${stackName}"`,
+    `--parameter-overrides ${overrides}`,
   ].join(' '));
 }
 

@@ -9,6 +9,10 @@ Parameters:
     Default: boa-app
     AllowedPattern: '[a-z0-9\-]+'
     ConstraintDescription: Lowercase alphanumeric characters and hyphens only
+  ApiBaseUrl:
+    Type: String
+    Description: Public base URL for OpenAPI spec (e.g. https://d111.cloudfront.net/rest/v1)
+    Default: ''
 
 Globals:
   Function:
@@ -18,6 +22,7 @@ Globals:
 
 Conditions:
   IsUsEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
+  HasApiBaseUrl: !Not [!Equals [!Ref ApiBaseUrl, '']]
 
 Resources:
   # -------------------------------------------------------
@@ -142,6 +147,10 @@ Resources:
           ORIGIN_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/origin-secret}}'
           AUTH_PROVIDER: cognito
           POLICIES_PATH: ./policies
+          API_BASE_URL: !If
+            - HasApiBaseUrl
+            - !Ref ApiBaseUrl
+            - !Ref 'AWS::NoValue'
       Policies:
         - Statement:
             - Effect: Allow
