@@ -1,3 +1,10 @@
+// Integration tests against the live boa-cars-test backend.
+//
+// These tests create real Cognito users with unique emails per run
+// (e.g., test-<timestamp>@boa-integration.test). There is no
+// automated cleanup -- Cognito users persist until manually deleted
+// via the AWS Console or CLI.
+
 import { describe, it, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -96,11 +103,18 @@ describe('Integration Tests', { skip: SKIP }, () => {
       const session = (await client.auth.getSession()).session
       assert.notEqual(session, null, 'Session should exist')
 
-      // Corrupt the access token to force a 401
+      // Corrupt the JWT signature to force a 401 from the server.
+      // A non-JWT string like 'expired-token' makes pgrest-lambda
+      // fall back to anon role (403 from Cedar), not 401. We need
+      // a structurally valid JWT with a bad signature so the server
+      // rejects it with 401, triggering the client's refresh logic.
       // @ts-expect-error -- accessing internal state for testing
       if (client.auth._session) {
         // @ts-expect-error -- accessing internal state for testing
-        client.auth._session.access_token = 'expired-token'
+        const parts = client.auth._session.access_token.split('.')
+        parts[2] = 'invalidsignature'
+        // @ts-expect-error -- accessing internal state for testing
+        client.auth._session.access_token = parts.join('.')
       }
 
       // This request should trigger 401 -> refresh -> retry
@@ -122,12 +136,15 @@ describe('Integration Tests', { skip: SKIP }, () => {
 
   describe('data CRUD (cars table)', () => {
     let carId: string
+    let userId: string
 
     before(async () => {
       await client.auth.signIn({
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
       })
+      const { user } = await client.auth.getUser()
+      userId = user!.id
     })
 
     it('inserts a car', async () => {
@@ -138,6 +155,7 @@ describe('Integration Tests', { skip: SKIP }, () => {
           model: `Car-${RUN_ID}`,
           year: 2024,
           color: 'blue',
+          user_id: userId,
         })
 
       assert.equal(error, null, `Insert should succeed: ${error?.message}`)
@@ -212,12 +230,15 @@ describe('Integration Tests', { skip: SKIP }, () => {
 
   describe('filters and ordering', () => {
     const testCars: Array<{ id: string }> = []
+    let userId: string
 
     before(async () => {
       await client.auth.signIn({
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
       })
+      const { user } = await client.auth.getUser()
+      userId = user!.id
 
       for (const year of [2022, 2023, 2024]) {
         const { data } = await client
@@ -227,6 +248,7 @@ describe('Integration Tests', { skip: SKIP }, () => {
             model: `Model-${RUN_ID}`,
             year,
             color: 'white',
+            user_id: userId,
           })
         if (data && (data as unknown[]).length > 0) {
           testCars.push({ id: ((data as Array<Record<string, unknown>>)[0]).id as string })
@@ -313,12 +335,15 @@ describe('Integration Tests', { skip: SKIP }, () => {
 
   describe('count', () => {
     const testCars: Array<{ id: string }> = []
+    let userId: string
 
     before(async () => {
       await client.auth.signIn({
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
       })
+      const { user } = await client.auth.getUser()
+      userId = user!.id
 
       for (let i = 0; i < 3; i++) {
         const { data } = await client
@@ -328,6 +353,7 @@ describe('Integration Tests', { skip: SKIP }, () => {
             model: `Count-${RUN_ID}`,
             year: 2020 + i,
             color: 'black',
+            user_id: userId,
           })
         if (data && (data as unknown[]).length > 0) {
           testCars.push({ id: ((data as Array<Record<string, unknown>>)[0]).id as string })
@@ -361,6 +387,7 @@ describe('Integration Tests', { skip: SKIP }, () => {
 
   describe('storage', { skip: SKIP ? true : undefined }, () => {
     let uploadedKey: string
+    let presignedUploadUrl: string
 
     before(async () => {
       await client.auth.signIn({
@@ -379,21 +406,21 @@ describe('Integration Tests', { skip: SKIP }, () => {
       assert.ok(uploadUrl, 'uploadUrl should be returned')
       assert.ok(key, 'key should be returned')
       uploadedKey = key!
+      presignedUploadUrl = uploadUrl!
     })
 
     it('uploads a file to the presigned URL', async () => {
       const content = `Integration test content ${RUN_ID}`
-      const resp = await fetch(uploadedKey ? uploadedKey : '', {
+      const resp = await fetch(presignedUploadUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'text/plain' },
         body: content,
       })
-      // Note: This uses the uploadUrl, not the key.
-      // The test structure is intentionally checking the
-      // round-trip. If uploadedKey is from previous test,
-      // we need the uploadUrl. Adjusting in the actual test.
-      void resp
-      assert.ok(true, 'Upload test placeholder')
+
+      assert.ok(
+        resp.ok,
+        `Upload should succeed, got status ${resp.status}`
+      )
     })
 
     it('creates a download URL', async () => {
