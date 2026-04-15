@@ -67,105 +67,220 @@ export class QueryBuilder<T = unknown> {
     return clone
   }
 
+  // --- Mutation methods ---
+
   select(
-    _columns?: string,
-    _options?: { count?: 'exact' }
+    columns?: string,
+    options?: { count?: 'exact' }
   ): QueryBuilder<T> {
-    throw new Error('not implemented')
+    const overrides: Parameters<typeof this._clone>[0] = {
+      _method: 'GET' as const,
+      _selectColumns: columns ?? '*',
+    }
+    if (options?.count === 'exact') {
+      overrides._count = 'exact'
+    }
+    return this._clone(overrides)
   }
 
-  insert(_data: Partial<T> | Partial<T>[]): QueryBuilder<T> {
-    throw new Error('not implemented')
+  insert(data: Partial<T> | Partial<T>[]): QueryBuilder<T> {
+    return this._clone({
+      _method: 'POST',
+      _body: data,
+      _prefer: [...this._prefer, 'return=representation'],
+    })
   }
 
-  update(_data: Partial<T>): QueryBuilder<T> {
-    throw new Error('not implemented')
+  update(data: Partial<T>): QueryBuilder<T> {
+    return this._clone({
+      _method: 'PATCH',
+      _body: data,
+      _prefer: [...this._prefer, 'return=representation'],
+    })
   }
 
   delete(): QueryBuilder<T> {
-    throw new Error('not implemented')
+    return this._clone({
+      _method: 'DELETE',
+    })
   }
 
   upsert(
-    _data: Partial<T> | Partial<T>[],
-    _options?: { onConflict?: string }
+    data: Partial<T> | Partial<T>[],
+    options?: { onConflict?: string }
   ): QueryBuilder<T> {
-    throw new Error('not implemented')
+    return this._clone({
+      _method: 'POST',
+      _body: data,
+      _onConflict: options?.onConflict ?? null,
+      _prefer: [
+        ...this._prefer,
+        'resolution=merge-duplicates',
+        'return=representation',
+      ],
+    })
   }
 
-  eq(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  // --- Filter methods ---
+
+  eq(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=eq.${value}`],
+    })
   }
 
-  neq(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  neq(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=neq.${value}`],
+    })
   }
 
-  gt(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  gt(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=gt.${value}`],
+    })
   }
 
-  gte(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  gte(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=gte.${value}`],
+    })
   }
 
-  lt(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  lt(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=lt.${value}`],
+    })
   }
 
-  lte(_column: string, _value: unknown): QueryBuilder<T> {
-    throw new Error('not implemented')
+  lte(column: string, value: unknown): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=lte.${value}`],
+    })
   }
 
-  like(_column: string, _pattern: string): QueryBuilder<T> {
-    throw new Error('not implemented')
+  like(column: string, pattern: string): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=like.${pattern}`],
+    })
   }
 
-  ilike(_column: string, _pattern: string): QueryBuilder<T> {
-    throw new Error('not implemented')
+  ilike(column: string, pattern: string): QueryBuilder<T> {
+    return this._clone({
+      _filters: [...this._filters, `${column}=ilike.${pattern}`],
+    })
   }
 
-  in(_column: string, _values: unknown[]): QueryBuilder<T> {
-    throw new Error('not implemented')
+  in(column: string, values: unknown[]): QueryBuilder<T> {
+    const formatted = `${column}=in.(${values.join(',')})`
+    return this._clone({
+      _filters: [...this._filters, formatted],
+    })
   }
 
-  is(_column: string, _value: null | boolean): QueryBuilder<T> {
-    throw new Error('not implemented')
+  is(column: string, value: null | boolean): QueryBuilder<T> {
+    const strVal = value === null ? 'null' : String(value)
+    return this._clone({
+      _filters: [...this._filters, `${column}=is.${strVal}`],
+    })
   }
 
   not(
-    _column: string,
-    _operator: string,
-    _value: unknown
+    column: string,
+    operator: string,
+    value: unknown
   ): QueryBuilder<T> {
-    throw new Error('not implemented')
+    return this._clone({
+      _filters: [
+        ...this._filters,
+        `${column}=not.${operator}.${value}`,
+      ],
+    })
   }
+
+  // --- Modifier methods ---
 
   order(
-    _column: string,
-    _options?: { ascending?: boolean }
+    column: string,
+    options?: { ascending?: boolean }
   ): QueryBuilder<T> {
-    throw new Error('not implemented')
+    const direction =
+      options?.ascending === false ? 'desc' : 'asc'
+    return this._clone({
+      _order: `${column}.${direction}`,
+    })
   }
 
-  limit(_count: number): QueryBuilder<T> {
-    throw new Error('not implemented')
+  limit(count: number): QueryBuilder<T> {
+    return this._clone({
+      _limitVal: count,
+    })
   }
 
-  range(_from: number, _to: number): QueryBuilder<T> {
-    throw new Error('not implemented')
+  range(from: number, to: number): QueryBuilder<T> {
+    return this._clone({
+      _limitVal: to - from + 1,
+      _offset: from,
+    })
   }
 
   single(): QueryBuilder<T> {
-    throw new Error('not implemented')
+    return this._clone({
+      _single: true,
+    })
   }
 
+  // --- URL and header construction ---
+
   _buildUrl(): string {
-    throw new Error('not implemented')
+    const parts: string[] = []
+
+    if (this._selectColumns !== null) {
+      parts.push(`select=${this._selectColumns}`)
+    }
+
+    for (const filter of this._filters) {
+      parts.push(filter)
+    }
+
+    if (this._order !== null) {
+      parts.push(`order=${this._order}`)
+    }
+
+    if (this._limitVal !== null) {
+      parts.push(`limit=${this._limitVal}`)
+    }
+
+    if (this._offset !== null) {
+      parts.push(`offset=${this._offset}`)
+    }
+
+    if (this._onConflict !== null) {
+      parts.push(`on_conflict=${this._onConflict}`)
+    }
+
+    const qs = parts.length > 0 ? `?${parts.join('&')}` : ''
+    return `/rest/v1/${this._table}${qs}`
   }
 
   _buildHeaders(): Record<string, string> {
-    throw new Error('not implemented')
+    const headers: Record<string, string> = {
+      ...this._headers,
+    }
+
+    const preferParts = [...this._prefer]
+    if (this._count === 'exact') {
+      preferParts.push('count=exact')
+    }
+    if (preferParts.length > 0) {
+      headers['Prefer'] = preferParts.join(',')
+    }
+
+    if (this._single) {
+      headers['Accept'] = 'application/vnd.pgrst.object+json'
+    }
+
+    return headers
   }
 
   _getMethod(): HttpMethod {
@@ -176,8 +291,37 @@ export class QueryBuilder<T = unknown> {
     return this._body
   }
 
+  // --- Execution ---
+
   private async _execute(): Promise<QueryResult<T>> {
-    throw new Error('not implemented')
+    const url = this._buildUrl()
+    const headers = this._buildHeaders()
+
+    const response = await this._http.request<T[]>({
+      method: this._method,
+      path: url,
+      body: this._body ?? undefined,
+      headers,
+    })
+
+    if (response.error) {
+      return { data: null, error: response.error, count: null }
+    }
+
+    let count: number | null = null
+    const contentRange = response.headers.get('Content-Range')
+    if (contentRange) {
+      const match = contentRange.match(/\/(\d+)/)
+      if (match) {
+        count = parseInt(match[1], 10)
+      }
+    }
+
+    return {
+      data: response.data,
+      error: null,
+      count,
+    }
   }
 
   then<TResult1 = QueryResult<T>, TResult2 = never>(
@@ -189,10 +333,5 @@ export class QueryBuilder<T = unknown> {
       | null
   ): Promise<TResult1 | TResult2> {
     return this._execute().then(onfulfilled, onrejected)
-  }
-
-  // Suppress unused warnings
-  private _suppress() {
-    void this._clone
   }
 }
