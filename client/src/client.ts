@@ -32,13 +32,7 @@ export class BoaClient {
     this.storage = new BoaStorage(this._http)
     this.api = new BoaApi(this._http)
 
-    this._http.setTokenProvider({
-      getAccessToken: () => this.auth.session?.access_token ?? null,
-      getRefreshToken: () =>
-        this.auth.session?.refresh_token ?? null,
-      onRefreshSuccess: () => {},
-      onRefreshFailure: () => {},
-    })
+    this._http.setTokenProvider(this.auth)
   }
 
   from<T = unknown>(table: string): QueryBuilder<T> {
