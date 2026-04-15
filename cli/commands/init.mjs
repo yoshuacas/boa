@@ -471,4 +471,12 @@ export default async function init(args) {
   console.log(`  Client ID:        ${userPoolClientId}`);
   console.log(`  S3 Bucket:        ${bucketName}`);
   console.log(`  DSQL Endpoint:    ${dsqlEndpoint}`);
+  console.log('');
+  console.log(`  API Docs:     ${apiUrl}/rest/v1/_docs`);
+  console.log(
+    '  Your API documentation is live. Add tables and policies, then'
+  );
+  console.log(
+    '  run `boa deploy` to see your endpoints in the docs.'
+  );
 }
