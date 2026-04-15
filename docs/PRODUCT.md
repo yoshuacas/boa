@@ -57,7 +57,7 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | Authorization | Cedar policies | "access policies" |
 | Engine | pgrest-lambda (npm) | "the REST API" |
 | Compute | AWS Lambda (Node.js 20.x) | "functions" |
-| API | Lambda Function URLs (free) | "your API" |
+| API | ALB + WAF (default) | "your API" |
 | Storage | Amazon S3 | "file storage" |
 | Hosting | AWS Amplify | "frontend hosting" |
 | IaC | SAM / CloudFormation | "deploy" / "your backend" |

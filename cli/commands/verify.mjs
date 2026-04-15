@@ -5,7 +5,7 @@ import { pass, fail, header } from '../lib/output.mjs';
 export default async function verify(_args) {
   const cfg = config.requireConfig();
   const {
-    stackName, region, apiUrl, functionUrl,
+    stackName, region, apiUrl,
     userPoolId, bucketName,
   } = cfg;
 
@@ -55,71 +55,46 @@ export default async function verify(_args) {
 
   const functionName = `${stackName}-api`;
 
-  // Check 2: CloudFront distribution
-  if (cfg.cloudfront) {
-    console.log('Checking CloudFront distribution...');
-    let distStatus;
+  // Check 2: ALB target group health
+  if (cfg.alb) {
+    console.log('Checking ALB target group...');
+    let tgHealth;
     try {
-      distStatus = aws.exec(
-        `aws cloudfront get-distribution` +
-          ` --id ${cfg.cloudfront.distributionId}` +
-          ` --query 'Distribution.Status'` +
+      tgHealth = aws.exec(
+        `aws elbv2 describe-target-health` +
+          ` --target-group-arn ${cfg.alb.targetGroupArn}` +
+          ` --region ${region}` +
+          ` --query 'TargetHealthDescriptions[0].TargetHealth.State'` +
           ` --output text`
       );
     } catch {
-      distStatus = null;
+      tgHealth = null;
     }
     check(
-      distStatus === 'Deployed',
-      'CloudFront distribution is deployed'
+      tgHealth === 'healthy',
+      `ALB target group is healthy (${tgHealth})`
     );
 
-    // Check 3: WAF attached (us-east-1 only)
-    if (region === 'us-east-1') {
-      let wafArn;
-      try {
-        const distArn =
-          `arn:aws:cloudfront::${cfg.accountId}` +
-          `:distribution/` +
-          `${cfg.cloudfront.distributionId}`;
-        wafArn = aws.exec(
-          `aws wafv2 get-web-acl-for-resource` +
-            ` --resource-arn ${distArn}` +
-            ` --region us-east-1` +
-            ` --query 'WebACL.ARN' --output text`
-        );
-      } catch {
-        wafArn = null;
-      }
-      check(
-        wafArn && wafArn !== 'None',
-        'WAF WebACL is attached to distribution'
-      );
-    }
-  }
-
-  // Check 4: Direct Function URL returns 403 (origin secret)
-  const extensions = cfg.extensions || [];
-  const hasCloudFront = cfg.cloudfront && !extensions.includes('api-gateway');
-
-  if (hasCloudFront && cfg.functionUrl) {
-    console.log('Checking Function URL access...');
-    let directCode;
+    // Check 3: WAF attached to ALB
+    console.log('Checking WAF attachment...');
+    let wafArn;
     try {
-      directCode = aws.exec(
-        `curl -s -o /dev/null -w '%{http_code}'` +
-          ` ${cfg.functionUrl}/rest/v1/`
+      wafArn = aws.exec(
+        `aws wafv2 get-web-acl-for-resource` +
+          ` --resource-arn ${cfg.alb.arn}` +
+          ` --region ${region}` +
+          ` --query 'WebACL.ARN' --output text`
       );
     } catch {
-      directCode = '000';
+      wafArn = null;
     }
     check(
-      directCode === '403',
-      'Direct Function URL returns 403 (protected by origin secret)'
+      wafArn && wafArn !== 'None',
+      'WAF WebACL is attached to ALB'
     );
   }
 
-  // Check 6: API endpoint responding through CloudFront
+  // Check 4: API endpoint responding
   console.log('Checking API endpoint...');
   let httpCode;
   try {
@@ -134,7 +109,7 @@ export default async function verify(_args) {
   if (validCodes.includes(httpCode)) {
     check(
       true,
-      `API is responding through CloudFront (HTTP ${httpCode})`
+      `API is responding through ALB (HTTP ${httpCode})`
     );
   } else {
     check(
@@ -144,7 +119,7 @@ export default async function verify(_args) {
     );
   }
 
-  // Check 7: S3 bucket exists
+  // Check 5: S3 bucket exists
   console.log('Checking S3 bucket...');
   let bucketExists;
   try {
@@ -157,7 +132,7 @@ export default async function verify(_args) {
   }
   check(bucketExists, 'S3 bucket exists');
 
-  // Check 8: S3 bucket private
+  // Check 6: S3 bucket private
   let publicAccess;
   try {
     publicAccess = aws.exec(
@@ -178,7 +153,7 @@ export default async function verify(_args) {
     );
   }
 
-  // Check 9: Reserved concurrency
+  // Check 7: Reserved concurrency
   console.log('Checking Lambda concurrency...');
   let concurrency;
   try {

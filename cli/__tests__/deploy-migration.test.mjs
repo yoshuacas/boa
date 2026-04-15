@@ -3,50 +3,50 @@ import assert from 'node:assert/strict';
 import { needsMigrationWarning } from '../commands/deploy.mjs';
 
 describe('deploy migration warning', () => {
-  it('API Gateway URL and no extensions → warning', () => {
+  it('CloudFront config without alb triggers warning', () => {
+    assert.ok(needsMigrationWarning({
+      apiUrl: 'https://d111.cloudfront.net',
+      cloudfront: { distributionId: 'E123' },
+      extensions: [],
+    }));
+  });
+
+  it('Function URL without alb triggers warning', () => {
+    assert.ok(needsMigrationWarning({
+      apiUrl: 'https://abc123.lambda-url.us-east-1.on.aws/',
+      extensions: [],
+    }));
+  });
+
+  it('API Gateway URL without api-gateway extension triggers warning', () => {
     assert.ok(needsMigrationWarning({
       apiUrl: 'https://abc123.execute-api.us-east-1.amazonaws.com/prod',
       extensions: [],
     }));
   });
 
-  it('API Gateway URL with api-gateway extension → no warning', () => {
+  it('API Gateway URL with api-gateway extension does not trigger warning', () => {
     assert.ok(!needsMigrationWarning({
       apiUrl: 'https://abc123.execute-api.us-east-1.amazonaws.com/prod',
       extensions: ['api-gateway'],
     }));
   });
 
-  it('Function URL without cloudfront → warning', () => {
-    assert.ok(needsMigrationWarning({
-      apiUrl: 'https://abc123.lambda-url.us-east-1.on.aws/',
-      extensions: [],
-    }));
-  });
-
-  it('Function URL with cloudfront → no warning', () => {
+  it('ALB URL with alb config does not trigger warning', () => {
     assert.ok(!needsMigrationWarning({
-      apiUrl: 'https://abc123.lambda-url.us-east-1.on.aws/',
-      cloudfront: { distributionId: 'E123' },
+      apiUrl: 'http://my-alb-123.us-east-1.elb.amazonaws.com',
+      alb: { arn: 'arn:aws:elasticloadbalancing:...' },
       extensions: [],
     }));
   });
 
-  it('CloudFront URL → no warning', () => {
-    assert.ok(!needsMigrationWarning({
-      apiUrl: 'https://d111111abcdef8.cloudfront.net',
-      cloudfront: { distributionId: 'E123' },
-      extensions: [],
-    }));
-  });
-
-  it('no apiUrl → no warning', () => {
+  it('no apiUrl does not trigger warning', () => {
     assert.ok(!needsMigrationWarning({
       extensions: [],
     }));
   });
 
-  it('no extensions field → warning if API Gateway URL', () => {
+  it('no extensions field with API Gateway URL triggers warning', () => {
     assert.ok(needsMigrationWarning({
       apiUrl: 'https://abc123.execute-api.us-east-1.amazonaws.com/prod',
     }));

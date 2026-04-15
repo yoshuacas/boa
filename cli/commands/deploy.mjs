@@ -9,18 +9,22 @@ import { copySkill } from '../lib/skill.mjs';
 
 export function needsMigrationWarning(cfg) {
   const extensions = cfg.extensions || [];
-  // API Gateway -> CloudFront migration
+  // CloudFront -> ALB migration (old deploy used CloudFront)
+  if (cfg.cloudfront && !cfg.alb) {
+    return 'This version of BOA uses ALB + WAF by default instead of CloudFront.';
+  }
+  // Function URL -> ALB migration (old deploy with raw Function URL)
+  if (cfg.apiUrl &&
+    cfg.apiUrl.includes('lambda-url.') &&
+    !cfg.alb) {
+    return 'This version of BOA adds ALB + WAF protection.';
+  }
+  // API Gateway -> ALB migration
   if (cfg.apiUrl &&
     cfg.apiUrl.includes('execute-api.') &&
     cfg.apiUrl.includes('.amazonaws.com') &&
     !extensions.includes('api-gateway')) {
-    return 'This version of BOA uses CloudFront + WAF by default instead of API Gateway.';
-  }
-  // Function URL -> CloudFront migration
-  if (cfg.apiUrl &&
-    cfg.apiUrl.includes('lambda-url.') &&
-    !cfg.cloudfront) {
-    return 'This version of BOA adds CloudFront + WAF protection.';
+    return 'This version of BOA uses ALB + WAF by default instead of API Gateway.';
   }
   return null;
 }
@@ -38,7 +42,7 @@ export default async function deploy(_args) {
   );
   console.log('');
 
-  // Warn if API URL will change (API GW -> CloudFront, or Function URL -> CloudFront)
+  // Warn if API URL will change
   const migration = needsMigrationWarning(cfg);
   if (migration) {
     console.log(`  ! ${migration}`);
@@ -69,30 +73,17 @@ export default async function deploy(_args) {
   // 7. SAM deploy
   console.log('Deploying...');
   const builtTemplate = join(buildDir, 'template.yaml');
-  // Pass ApiBaseUrl from previous deploy so OpenAPI spec uses the public URL
-  const cfDomain = cfg.cloudfront?.domainName;
-  const extraParams = cfDomain
-    ? { ApiBaseUrl: `https://${cfDomain}/rest/v1` }
-    : {};
-  sam.deploy(builtTemplate, stackName, region, extraParams);
+  sam.deploy(builtTemplate, stackName, region);
 
   // 8. Extract fresh CloudFormation outputs
   console.log('');
   console.log('Updating configuration...');
   const outputs = aws.cfnDescribeStacks(stackName, region);
-  const cloudFrontUrl = getOutputValue(
-    outputs, 'CloudFrontUrl'
-  );
-  const distributionId = getOutputValue(
-    outputs, 'CloudFrontDistributionId'
-  );
-  const throttleTopicArn = getOutputValue(
-    outputs, 'ThrottleAlarmTopicArn'
-  );
-  const functionUrlOutput = getOutputValue(
-    outputs, 'ApiFunctionUrl'
-  );
-  let apiUrl = cloudFrontUrl || functionUrlOutput;
+  const albUrl = getOutputValue(outputs, 'AlbUrl');
+  const albArn = getOutputValue(outputs, 'AlbArn');
+  const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
+  const vpcId = getOutputValue(outputs, 'VpcId');
+  let apiUrl = albUrl;
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
@@ -107,7 +98,12 @@ export default async function deploy(_args) {
     region,
     accountId: cfg.accountId,
     apiUrl,
-    functionUrl: functionUrlOutput,
+    alb: albArn ? {
+      arn: albArn,
+      dnsName: new URL(apiUrl).hostname,
+      targetGroupArn,
+      vpcId,
+    } : undefined,
     anonKey: cfg.anonKey,
     serviceRoleKey: cfg.serviceRoleKey,
     userPoolId,
@@ -118,17 +114,8 @@ export default async function deploy(_args) {
     extensions,
   };
 
-  // Add cloudfront object when CloudFront is active
-  if (distributionId && cloudFrontUrl) {
-    updatedConfig.cloudfront = {
-      distributionId,
-      domainName: new URL(cloudFrontUrl).hostname,
-      throttleTopicArn: throttleTopicArn || undefined,
-    };
-  }
-
   // When api-gateway extension is active, use Gateway URL
-  // and remove cloudfront object
+  // and remove alb object
   if (extensions.includes('api-gateway')) {
     const gatewayUrl = getOutputValue(
       outputs, 'ApiGatewayUrl'
@@ -136,7 +123,7 @@ export default async function deploy(_args) {
     if (gatewayUrl) {
       updatedConfig.apiUrl = gatewayUrl;
     }
-    delete updatedConfig.cloudfront;
+    delete updatedConfig.alb;
   }
 
   config.write(updatedConfig);

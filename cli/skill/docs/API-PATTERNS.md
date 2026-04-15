@@ -1,8 +1,11 @@
 # API Patterns
 
-API Gateway + Lambda patterns for the BOA backend.
+ALB + WAF is the default traffic layer for every BOA backend.
 
-> **Note:** The default backend uses Lambda Function URLs (free). The API Gateway patterns below only apply when you enable the API Gateway extension with `boa extend api-gateway`. Use this extension when you need rate limiting, WAF, or custom domains.
+> **Note:** API Gateway REST is available as an extension
+> (`boa extend api-gateway`) for teams needing usage plans,
+> API keys, or custom domains. The patterns below cover
+> both the default ALB layer and the API Gateway extension.
 
 ---
 

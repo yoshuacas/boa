@@ -86,10 +86,10 @@ You are a confident backend engineer pair-programming with the developer.
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-CloudFront + WAF (DDoS protection, rate limiting)
+ALB + WAF (DDoS protection, rate limiting)
     │
     ▼
-Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
+Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + routing)
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)
@@ -237,9 +237,8 @@ For Vite: add \`define: { global: 'globalThis' }\` to \`vite.config.js\` (requir
 ## Configuration
 
 Backend configuration is in \`.boa/config.json\`:
-- **apiUrl**: ${cfg.apiUrl} (CloudFront domain, primary entry point)
-- **functionUrl**: Raw Lambda Function URL (internal, behind CloudFront)
-- **cloudfront**: Distribution ID and domain name
+- **apiUrl**: ${cfg.apiUrl} (ALB endpoint, primary entry point)
+- **alb**: Load balancer ARN, DNS name, target group ARN, VPC ID
 - **anonKey**: Public key for client-side access
 - **serviceRoleKey**: Admin key (server-side only, bypasses authorization)
 - **userPoolId**: ${cfg.userPoolId}
@@ -336,16 +335,13 @@ export default async function init(args) {
     writeFileSync('.gitignore', '.boa/\nnode_modules/\n');
   }
 
-  // 7. Generate JWT secret and origin secret
+  // 7. Generate JWT secret
   console.log('Generating secrets...');
   const jwtSecret = randomBytes(32).toString('base64');
-  const originSecret = randomBytes(32).toString('hex');
 
   // 8. Store in SSM
   aws.ssmPutParameter(`/${name}/jwt-secret`, jwtSecret, region);
   ok(`JWT secret stored at /${name}/jwt-secret`);
-  aws.ssmPutParameter(`/${name}/origin-secret`, originSecret, region);
-  ok(`Origin secret stored at /${name}/origin-secret`);
   console.log('');
 
   // 9. SAM build
@@ -367,9 +363,6 @@ export default async function init(args) {
 
   // 11. SAM deploy
   console.log(`Deploying stack '${name}' to ${region}...`);
-  console.log(
-    '  (CloudFront distribution takes ~10 minutes)'
-  );
   const builtTemplate = join(buildDir, 'template.yaml');
   sam.deploy(builtTemplate, name, region);
 
@@ -377,14 +370,10 @@ export default async function init(args) {
   console.log('');
   console.log('Extracting stack outputs...');
   const outputs = aws.cfnDescribeStacks(name, region);
-  const functionUrl = getOutputValue(outputs, 'ApiFunctionUrl');
-  const cloudFrontUrl = getOutputValue(outputs, 'CloudFrontUrl');
-  const distributionId = getOutputValue(
-    outputs, 'CloudFrontDistributionId'
-  );
-  const throttleTopicArn = getOutputValue(
-    outputs, 'ThrottleAlarmTopicArn'
-  );
+  const albUrl = getOutputValue(outputs, 'AlbUrl');
+  const albArn = getOutputValue(outputs, 'AlbArn');
+  const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
+  const vpcId = getOutputValue(outputs, 'VpcId');
   const userPoolId = getOutputValue(outputs, 'UserPoolId');
   const userPoolClientId = getOutputValue(
     outputs, 'UserPoolClientId'
@@ -392,8 +381,8 @@ export default async function init(args) {
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
-  // apiUrl is the CloudFront domain (primary entry point)
-  const apiUrl = cloudFrontUrl || functionUrl;
+  // apiUrl is the ALB endpoint (primary entry point)
+  const apiUrl = albUrl;
 
   // 13. Generate keys
   console.log('Generating BOA keys...');
@@ -406,11 +395,11 @@ export default async function init(args) {
     region,
     accountId,
     apiUrl,
-    functionUrl,
-    cloudfront: distributionId && cloudFrontUrl ? {
-      distributionId,
-      domainName: new URL(cloudFrontUrl).hostname,
-      throttleTopicArn: throttleTopicArn || undefined,
+    alb: albArn ? {
+      arn: albArn,
+      dnsName: new URL(apiUrl).hostname,
+      targetGroupArn,
+      vpcId,
     } : undefined,
     anonKey,
     serviceRoleKey,
@@ -445,7 +434,7 @@ export default async function init(args) {
   // 17. Write CLAUDE.md for Claude Code skill discovery
   if (!existsSync('CLAUDE.md')) {
     writeFileSync('CLAUDE.md', generateClaudeMd(name, {
-      apiUrl, functionUrl, anonKey, serviceRoleKey, userPoolId,
+      apiUrl, anonKey, serviceRoleKey, userPoolId,
       userPoolClientId, bucketName, dsqlEndpoint, region,
     }));
     ok('CLAUDE.md written (Claude Code will load the BOA skill automatically)');
@@ -474,11 +463,6 @@ export default async function init(args) {
   header('BOA deployment complete');
   console.log('');
   console.log(`  API URL:      ${apiUrl}`);
-  if (functionUrl && functionUrl !== apiUrl) {
-    console.log(
-      `  Function URL: ${functionUrl} (internal)`
-    );
-  }
   console.log(`  Anon Key:         ${anonKey.slice(0, 20)}...`);
   console.log(
     `  Service Role Key: ${serviceRoleKey.slice(0, 20)}...`

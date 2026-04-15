@@ -63,11 +63,23 @@ describe('template merging — base (no extensions)', () => {
     );
   });
 
-  it('mergeTemplate([]) result contains FunctionUrlConfig', () => {
+  it('mergeTemplate([]) result contains ALB resources', () => {
     const result = mergeTemplate([]);
     assert.ok(
-      result.includes('FunctionUrlConfig'),
-      'merged template should contain FunctionUrlConfig'
+      result.includes('ApplicationLoadBalancer'),
+      'base template should contain ApplicationLoadBalancer'
+    );
+    assert.ok(
+      result.includes('WafWebAcl'),
+      'base template should contain WafWebAcl'
+    );
+    assert.ok(
+      result.includes('WafAlbAssociation'),
+      'base template should contain WafAlbAssociation'
+    );
+    assert.ok(
+      result.includes('AlbTargetGroup'),
+      'base template should contain AlbTargetGroup'
     );
   });
 
@@ -84,39 +96,11 @@ describe('template merging — base (no extensions)', () => {
     );
   });
 
-  it('mergeTemplate([]) result does NOT contain AuthorizerFunction', () => {
+  it('mergeTemplate([]) result contains AlbUrl in Outputs', () => {
     const result = mergeTemplate([]);
     assert.ok(
-      result.length > 0,
-      'mergeTemplate([]) should return a non-empty template string'
-    );
-    assert.ok(
-      !result.includes('AuthorizerFunction'),
-      'merged template should NOT contain AuthorizerFunction'
-    );
-  });
-
-  it('mergeTemplate([]) result contains ApiFunctionUrl in Outputs', () => {
-    const result = mergeTemplate([]);
-    assert.ok(
-      result.includes('ApiFunctionUrl'),
-      'merged template should contain ApiFunctionUrl in Outputs'
-    );
-  });
-
-  it('mergeTemplate([]) result contains CloudFront resources', () => {
-    const result = mergeTemplate([]);
-    assert.ok(
-      result.includes('CloudFrontDistribution'),
-      'base template should contain CloudFrontDistribution'
-    );
-    assert.ok(
-      result.includes('WafWebAcl'),
-      'base template should contain WafWebAcl'
-    );
-    assert.ok(
-      result.includes('x-origin-verify'),
-      'base template should contain x-origin-verify custom header'
+      result.includes('AlbUrl'),
+      'merged template should contain AlbUrl in Outputs'
     );
   });
 });
@@ -129,10 +113,6 @@ describe('template merging — api-gateway extension', () => {
   it('result contains an Api resource (AWS::Serverless::Api)', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
       result.includes('AWS::Serverless::Api'),
       'merged template should contain AWS::Serverless::Api'
     );
@@ -141,28 +121,12 @@ describe('template merging — api-gateway extension', () => {
   it('result contains Events on ApiFunction with ProxyRoot and ProxyPlus', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
       result.includes('ProxyRoot'),
       'merged template should contain ProxyRoot event'
     );
     assert.ok(
       result.includes('ProxyPlus'),
       'merged template should contain ProxyPlus event'
-    );
-  });
-
-  it('Api resource does NOT have an Auth section', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
-      !result.includes('BoaAuthorizer'),
-      'Api resource should NOT have a BoaAuthorizer'
     );
   });
 
@@ -174,41 +138,32 @@ describe('template merging — api-gateway extension', () => {
     );
   });
 
-  it('result still contains ApiFunctionUrl in Outputs', () => {
+  it('result does NOT contain ApplicationLoadBalancer', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.includes('ApiFunctionUrl'),
-      'merged template should preserve ApiFunctionUrl alongside ApiGatewayUrl'
-    );
-  });
-
-  it('result does NOT contain AuthorizerFunction', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
-      !result.includes('AuthorizerFunction'),
-      'merged template should NOT contain AuthorizerFunction'
-    );
-  });
-
-  it('result does NOT contain CloudFrontDistribution', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      !result.includes('CloudFrontDistribution'),
-      'merged template should NOT contain CloudFrontDistribution'
+      !result.includes('ApplicationLoadBalancer'),
+      'merged template should NOT contain ApplicationLoadBalancer'
         + ' when api-gateway extension is active'
     );
   });
 
-  it('result does NOT contain ORIGIN_SECRET env var', () => {
+  it('result does NOT contain ALB VPC resources', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      !result.includes('ORIGIN_SECRET'),
-      'merged template should NOT contain ORIGIN_SECRET'
-        + ' when api-gateway extension is active'
+      !result.includes('AlbVpc'),
+      'merged template should NOT contain AlbVpc'
+    );
+    assert.ok(
+      !result.includes('AlbSecurityGroup'),
+      'merged template should NOT contain AlbSecurityGroup'
+    );
+  });
+
+  it('result does NOT contain WafAlbAssociation', () => {
+    const result = mergeTemplate(['api-gateway']);
+    assert.ok(
+      !result.includes('WafAlbAssociation'),
+      'merged template should NOT contain WafAlbAssociation'
     );
   });
 
@@ -218,6 +173,14 @@ describe('template merging — api-gateway extension', () => {
       !result.includes('ReservedConcurrentExecutions'),
       'merged template should NOT contain'
         + ' ReservedConcurrentExecutions when api-gateway is active'
+    );
+  });
+
+  it('result does NOT contain AlbUrl output', () => {
+    const result = mergeTemplate(['api-gateway']);
+    assert.ok(
+      !result.includes('AlbUrl'),
+      'merged template should NOT contain AlbUrl output'
     );
   });
 });
@@ -243,10 +206,6 @@ describe('template merging — CloudFormation tag preservation', () => {
   it('output string contains !Sub tags', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
       result.includes('!Sub'),
       'merged template should preserve !Sub CloudFormation tags'
     );
@@ -255,10 +214,6 @@ describe('template merging — CloudFormation tag preservation', () => {
   it('output string contains !Ref tags', () => {
     const result = mergeTemplate(['api-gateway']);
     assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
-    assert.ok(
       result.includes('!Ref'),
       'merged template should preserve !Ref CloudFormation tags'
     );
@@ -266,10 +221,6 @@ describe('template merging — CloudFormation tag preservation', () => {
 
   it('output string contains !GetAtt tags', () => {
     const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      result.length > 0,
-      'mergeTemplate should return a non-empty template string'
-    );
     assert.ok(
       result.includes('!GetAtt'),
       'merged template should preserve !GetAtt CloudFormation tags'

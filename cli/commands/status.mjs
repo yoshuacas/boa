@@ -18,10 +18,8 @@ export default async function status(_args) {
   console.log(`  Stack:       ${stackName}`);
   console.log(`  Region:      ${region}`);
   console.log(`  API URL:     ${apiUrl}`);
-  if (cfg.functionUrl) {
-    console.log(
-      `  Function URL: ${cfg.functionUrl} (internal)`
-    );
+  if (cfg.alb) {
+    console.log(`  ALB:         ${cfg.alb.dnsName}`);
   }
   console.log(`  Deployed at: ${deployedAt}`);
   const extensions = cfg.extensions || [];

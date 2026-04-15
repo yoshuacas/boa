@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (Function URLs), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (ALB + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -33,7 +33,10 @@ These rules shape every interaction:
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
+ALB + WAF ─── DDoS protection, rate limiting
+    │
+    ▼
+Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + routing)
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)

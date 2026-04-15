@@ -80,7 +80,7 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 | Term | Usage | Notes |
 |------|-------|-------|
 | **extension** | Optional infrastructure added via `boa extend` | "add API Gateway with `boa extend api-gateway`" |
-| **Lambda Function URL** | The default API endpoint (free, included in Lambda pricing) | No API Gateway required |
+| **ALB + WAF** | The default traffic layer (Application Load Balancer with AWS WAF) | DDoS protection, rate limiting |
 | **`boa extend <name>`** | Add an extension | "run `boa extend api-gateway`" |
 | **`boa remove <name>`** | Remove an extension | "run `boa remove api-gateway`" |
 | **`boa extensions`** | List available and enabled extensions | |

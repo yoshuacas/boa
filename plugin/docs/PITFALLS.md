@@ -25,9 +25,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
-| 25 | Direct Function URL returns 403 (expected, origin secret) | MEDIUM | See below |
-| 26 | CORS errors through CloudFront (missing origin request headers) | MEDIUM | See below |
-| 27 | Stale GET responses from CloudFront cache (60s TTL) | LOW | See below |
+| 25 | HTTP only by default (ALB needs ACM cert for HTTPS) | MEDIUM | See below |
 | **Functions** | | | |
 | 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
@@ -87,60 +85,14 @@ aws lambda add-permission \
   --invoked-via-function-url
 ```
 
-## Direct Function URL 403 — Expected with CloudFront
+## HTTP Only by Default — ALB Needs ACM Certificate
 
-With CloudFront as the default traffic layer, CloudFront
-adds a secret header (`x-origin-verify`) to every origin
-request. The Lambda handler rejects requests without the
-correct header. Curling the Function URL directly returns
-`{"message":"Forbidden"}` with HTTP 403.
+ALB uses HTTP (port 80) by default. For HTTPS, you need
+to add an ACM certificate and an HTTPS listener (port 443).
 
-**This is expected behavior, not a bug.** The API URL for
-clients is the CloudFront domain (from
-`.boa/config.json` `apiUrl`), not the raw Function URL.
+**Symptoms:** Browser shows "Not Secure" warning. Mixed
+content errors when calling the API from an HTTPS frontend.
 
-**Symptoms:** HTTP 403 when accessing the Function URL
-directly. Lambda CloudWatch logs show the request was
-rejected by the origin secret check.
-
-**Fix:** Use the CloudFront URL from `.boa/config.json`
-`apiUrl`. If you need to test Lambda directly, use
-`aws lambda invoke` with the AWS CLI.
-
-## CORS Through CloudFront
-
-CloudFront passes through CORS headers from the Lambda
-response. pgrest-lambda handles CORS internally. If CORS
-errors occur, the issue is in pgrest-lambda's CORS
-configuration, not CloudFront.
-
-**Symptoms:** Browser console shows CORS errors when
-making requests to the CloudFront URL.
-
-**Common causes:**
-1. The request origin is not allowed by pgrest-lambda
-2. A required header is missing from the CloudFront
-   origin request policy (not forwarded to Lambda)
-3. The preflight OPTIONS request is not handled correctly
-
-**Fix:** Check that the origin request policy forwards
-all required headers. The default policy includes
-`Content-Type`, `Accept`, `Prefer`, and Supabase client
-headers. If your app sends custom headers, add them to
-the origin request policy in the SAM template.
-
-## Stale GET Responses — CloudFront Cache
-
-CloudFront caches GET responses for 60 seconds (the
-default cache policy TTL). After updating data, a
-subsequent GET may return stale data if served from
-the CloudFront edge cache.
-
-**Symptoms:** Data appears unchanged after a write
-operation. Refreshing after 60 seconds shows the
-correct data.
-
-**Fix:** Add `Cache-Control: no-cache` to GET requests
-that must return fresh data. For real-time use cases,
-consider using POST requests (never cached) or reducing
-the TTL in the CloudFront cache policy.
+**Fix:** Request an ACM certificate for your domain, add
+an HTTPS listener to the ALB, and redirect HTTP to HTTPS.
+Update `.boa/config.json` `apiUrl` to use the HTTPS URL.

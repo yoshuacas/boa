@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: BOA — Backend on AWS serverless stack (CloudFront, WAF, Aurora DSQL, Cognito, Lambda, S3)
+Description: BOA — Backend on AWS serverless stack (ALB, WAF, Aurora DSQL, Cognito, Lambda, S3)
 
 Parameters:
   ProjectName:
@@ -9,20 +9,12 @@ Parameters:
     Default: boa-app
     AllowedPattern: '[a-z0-9\-]+'
     ConstraintDescription: Lowercase alphanumeric characters and hyphens only
-  ApiBaseUrl:
-    Type: String
-    Description: Public base URL for OpenAPI spec (e.g. https://d111.cloudfront.net/rest/v1)
-    Default: ''
 
 Globals:
   Function:
     Timeout: 30
     Runtime: nodejs20.x
     MemorySize: 256
-
-Conditions:
-  IsUsEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
-  HasApiBaseUrl: !Not [!Equals [!Ref ApiBaseUrl, '']]
 
 Resources:
   # -------------------------------------------------------
@@ -113,8 +105,6 @@ Resources:
       Handler: index.handler
       CodeUri: ./lambda/
       ReservedConcurrentExecutions: 50
-      FunctionUrlConfig:
-        AuthType: NONE
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -123,13 +113,8 @@ Resources:
           USER_POOL_ID: !Ref UserPool
           USER_POOL_CLIENT_ID: !Ref UserPoolClient
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
-          ORIGIN_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/origin-secret}}'
           AUTH_PROVIDER: cognito
           POLICIES_PATH: ./policies
-          API_BASE_URL: !If
-            - HasApiBaseUrl
-            - !Ref ApiBaseUrl
-            - !Ref 'AWS::NoValue'
       Policies:
         - Statement:
             - Effect: Allow
@@ -155,95 +140,138 @@ Resources:
             BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
-  # Traffic layer — CloudFront + WAF (DoW protection)
+  # VPC — Minimal networking for ALB (Lambda stays outside)
   # -------------------------------------------------------
-  CloudFrontCachePolicy:
-    Type: AWS::CloudFront::CachePolicy
+  AlbVpc:
+    Type: AWS::EC2::VPC
     Properties:
-      CachePolicyConfig:
-        Name: !Sub '${ProjectName}-api-cache'
-        DefaultTTL: 0
-        MaxTTL: 1
-        MinTTL: 0
-        ParametersInCacheKeyAndForwardedToOrigin:
-          CookiesConfig:
-            CookieBehavior: none
-          HeadersConfig:
-            HeaderBehavior: whitelist
-            Headers:
-              - Authorization
-              - apikey
-          QueryStringsConfig:
-            QueryStringBehavior: all
-          EnableAcceptEncodingGzip: true
-          EnableAcceptEncodingBrotli: true
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-alb-vpc'
 
-  # Uses managed AllViewerExceptHostHeader policy to forward all
-  # viewer headers (including Origin and CORS preflight headers)
-  # to the Lambda origin, except Host (which would break Function URL auth).
-
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
     Properties:
-      DistributionConfig:
-        Enabled: true
-        Comment: !Sub '${ProjectName} API'
-        DefaultCacheBehavior:
-          TargetOriginId: lambda-origin
-          ViewerProtocolPolicy: https-only
-          AllowedMethods:
-            - GET
-            - HEAD
-            - OPTIONS
-            - PUT
-            - PATCH
-            - POST
-            - DELETE
-          CachedMethods:
-            - GET
-            - HEAD
-          CachePolicyId: !Ref CloudFrontCachePolicy
-          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
-          Compress: true
-        Origins:
-          - Id: lambda-origin
-            DomainName: !Select
-              - 2
-              - !Split ['/', !GetAtt ApiFunctionUrl.FunctionUrl]
-            CustomOriginConfig:
-              HTTPSPort: 443
-              OriginProtocolPolicy: https-only
-            OriginCustomHeaders:
-              - HeaderName: x-origin-verify
-                HeaderValue: !Sub '{{resolve:ssm:/${ProjectName}/origin-secret}}'
-        WebACLId: !If
-          - IsUsEast1
-          - !GetAtt WafWebAcl.Arn
-          - !Ref 'AWS::NoValue'
-        HttpVersion: http2and3
-        PriceClass: PriceClass_100
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-igw'
 
-  ApiFunctionUrlPermission:
-    Type: AWS::Lambda::Permission
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      FunctionName: !GetAtt ApiFunction.Arn
-      Action: lambda:InvokeFunctionUrl
-      Principal: '*'
-      FunctionUrlAuthType: NONE
+      VpcId: !Ref AlbVpc
+      InternetGatewayId: !Ref InternetGateway
 
-  ApiFunctionInvokePermission:
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AlbVpc
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-1'
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AlbVpc
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-2'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AlbVpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet2RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub '${ProjectName} ALB - allow HTTP'
+      VpcId: !Ref AlbVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # -------------------------------------------------------
+  # Traffic layer — ALB + WAF (DDoS + rate limiting)
+  # -------------------------------------------------------
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ProjectName}-alb'
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref AlbSecurityGroup
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  AlbLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt ApiFunction.Arn
       Action: lambda:InvokeFunction
-      Principal: '*'
+      Principal: elasticloadbalancing.amazonaws.com
+
+  AlbTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: AlbLambdaPermission
+    Properties:
+      Name: !Sub '${ProjectName}-tg'
+      TargetType: lambda
+      Targets:
+        - Id: !GetAtt ApiFunction.Arn
+
+  AlbHttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AlbTargetGroup
 
   WafWebAcl:
     Type: AWS::WAFv2::WebACL
-    Condition: IsUsEast1
     Properties:
       Name: !Sub '${ProjectName}-waf'
-      Scope: CLOUDFRONT
+      Scope: REGIONAL
       DefaultAction:
         Allow: {}
       VisibilityConfig:
@@ -276,30 +304,11 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesAmazonIpReputationList
 
-  ThrottleAlarmTopic:
-    Type: AWS::SNS::Topic
+  WafAlbAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
     Properties:
-      TopicName: !Sub '${ProjectName}-throttle-alarm'
-
-  LambdaThrottleAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub '${ProjectName}-api-throttled'
-      AlarmDescription: >-
-        API function is being throttled. This may indicate
-        a traffic spike or denial-of-wallet attack.
-      Namespace: AWS/Lambda
-      MetricName: Throttles
-      Dimensions:
-        - Name: FunctionName
-          Value: !Sub '${ProjectName}-api'
-      Statistic: Sum
-      Period: 300
-      EvaluationPeriods: 1
-      Threshold: 0
-      ComparisonOperator: GreaterThanThreshold
-      AlarmActions:
-        - !Ref ThrottleAlarmTopic
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLArn: !GetAtt WafWebAcl.Arn
 
   # -------------------------------------------------------
   # Storage — S3 bucket (private, CORS for presigned URLs)
@@ -328,18 +337,21 @@ Resources:
             MaxAge: 3600
 
 Outputs:
-  ApiFunctionUrl:
-    Description: Lambda Function URL (internal, behind CloudFront)
-    Value: !GetAtt ApiFunctionUrl.FunctionUrl
+  AlbUrl:
+    Description: ALB endpoint URL (primary API endpoint)
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
 
-  CloudFrontUrl:
-    Description: CloudFront distribution URL (primary API endpoint)
-    Value: !Sub >-
-      https://${CloudFrontDistribution.DomainName}
+  AlbArn:
+    Description: Application Load Balancer ARN
+    Value: !Ref ApplicationLoadBalancer
 
-  CloudFrontDistributionId:
-    Description: CloudFront distribution ID
-    Value: !Ref CloudFrontDistribution
+  TargetGroupArn:
+    Description: ALB Target Group ARN
+    Value: !Ref AlbTargetGroup
+
+  VpcId:
+    Description: VPC ID for the ALB
+    Value: !Ref AlbVpc
 
   UserPoolId:
     Description: Cognito User Pool ID
@@ -356,7 +368,3 @@ Outputs:
   DsqlEndpoint:
     Description: Aurora DSQL cluster endpoint
     Value: !GetAtt DsqlCluster.Endpoint
-
-  ThrottleAlarmTopicArn:
-    Description: SNS topic for Lambda throttle alarms
-    Value: !Ref ThrottleAlarmTopic

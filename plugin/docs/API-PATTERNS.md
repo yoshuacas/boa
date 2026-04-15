@@ -1,47 +1,32 @@
 # API Patterns
 
-CloudFront + WAF is the default traffic layer for every
-BOA backend. It provides DDoS protection, rate limiting,
-and edge caching at the CDN level.
+ALB + WAF is the default traffic layer for every
+BOA backend. It provides DDoS protection and rate limiting.
 
 > **Note:** API Gateway REST is available as an extension
 > (`boa extend api-gateway`) for teams needing usage plans,
 > API keys, or custom domains. The patterns below cover
-> both the default CloudFront layer and the API Gateway
-> extension.
+> both the default ALB layer and the API Gateway extension.
 
 ---
 
-## CloudFront Default Traffic Layer
+## ALB Default Traffic Layer
 
-Every `boa init` deployment places CloudFront in front of
-the Lambda Function URL:
+Every `boa init` deployment places an Application Load
+Balancer in front of Lambda:
 
 - **DDoS absorption**: AWS Shield Standard (included free)
 - **WAF rate limiting**: 1000 requests per 5 minutes per IP
   (configurable in the WAF rule)
-- **Edge caching**: GET requests cached for 60 seconds.
-  Cache key includes `Authorization` header and query
-  string, so different users and queries get separate
-  cache entries
-- **Origin auth**: CloudFront adds a secret header
-  (`x-origin-verify`) to every origin request. The Lambda
-  handler rejects requests without the correct header.
-  Direct access to the Function URL returns 403
-
-### Cache Behavior
-
-- GET and HEAD requests are cached (60s TTL)
-- POST, PUT, PATCH, DELETE always forward to origin
-- Add `Cache-Control: no-cache` to bypass cache for
-  fresh reads
-- Cache key includes `Authorization` and `apikey` headers
-  plus all query string parameters
+- **Lambda integration**: ALB invokes Lambda directly via
+  IAM. There is no public Lambda endpoint
+- **Regional**: WAF attaches in the same region as the ALB
+  (no us-east-1 restriction)
 
 ### CORS
 
-CloudFront passes through CORS headers from pgrest-lambda.
-No CloudFront-level CORS configuration is needed.
+ALB passes through all headers. pgrest-lambda handles CORS
+internally. No ALB-level CORS configuration is needed.
 
 ### Rate Limit Tuning
 

@@ -56,18 +56,19 @@ export function mergeTemplate(extensions) {
   // SAM requires Events on the function resource itself —
   // a separate fragment cannot inject events into an existing function.
   if (extensions.includes('api-gateway')) {
-    // Remove CloudFront resources
-    const cloudFrontResources = [
-      'CloudFrontDistribution',
-      'CloudFrontCachePolicy',
-      'CloudFrontOriginRequestPolicy',
-      'ApiFunctionUrlPermission',
-      'ApiFunctionInvokePermission',
-      'WafWebAcl', 'WafAssociation',
-      'LambdaThrottleAlarm', 'ThrottleAlarmTopic',
+    // Remove ALB and VPC resources (API Gateway replaces ALB)
+    const albResources = [
+      'ApplicationLoadBalancer', 'AlbTargetGroup',
+      'AlbHttpListener', 'AlbLambdaPermission',
+      'AlbSecurityGroup',
+      'AlbVpc', 'InternetGateway', 'GatewayAttachment',
+      'PublicSubnet1', 'PublicSubnet2',
+      'PublicRouteTable', 'PublicRoute',
+      'Subnet1RouteTableAssoc', 'Subnet2RouteTableAssoc',
+      'WafWebAcl', 'WafAlbAssociation',
     ];
     const baseResources = doc.get('Resources', true);
-    for (const name of cloudFrontResources) {
+    for (const name of albResources) {
       baseResources.delete(name);
     }
 
@@ -78,82 +79,15 @@ export function mergeTemplate(extensions) {
     );
     apiProps.delete('ReservedConcurrentExecutions');
 
-    // Remove ORIGIN_SECRET env var (API Gateway doesn't
-    // need origin secret verification)
-    const envVars = doc.getIn(
-      ['Resources', 'ApiFunction', 'Properties',
-       'Environment', 'Variables'], true,
-    );
-    envVars.delete('ORIGIN_SECRET');
-
-    // Replace CORS on FunctionUrlConfig with API Gateway
-    // specific CORS (API Gateway handles CORS itself)
-    const corsNode = doc.createNode({
-      AllowHeaders: [
-        'Content-Type', 'Authorization', 'apikey',
-        'Prefer', 'Accept', 'x-client-info',
-        'X-Client-Info', 'X-Supabase-Api-Version',
-        'content-profile', 'accept-profile',
-      ],
-      AllowMethods: [
-        'GET', 'POST', 'PUT', 'PATCH', 'DELETE',
-      ],
-      AllowOrigins: ['*'],
-      MaxAge: 600,
-    });
-    const funcUrlConfig = doc.getIn(
-      ['Resources', 'ApiFunction', 'Properties',
-       'FunctionUrlConfig'], true,
-    );
-    funcUrlConfig.set('Cors', corsNode);
-
-    // Restore public invoke permissions
-    const urlPerm = doc.createNode({
-      Type: 'AWS::Lambda::Permission',
-      Properties: {
-        FunctionName: { 'Fn::GetAtt': ['ApiFunction', 'Arn'] },
-        Action: 'lambda:InvokeFunctionUrl',
-        Principal: '*',
-        FunctionUrlAuthType: 'NONE',
-      },
-    });
-    const invokePerm = doc.createNode({
-      Type: 'AWS::Lambda::Permission',
-      Properties: {
-        FunctionName: { 'Fn::GetAtt': ['ApiFunction', 'Arn'] },
-        Action: 'lambda:InvokeFunction',
-        Principal: '*',
-        InvokedViaFunctionUrl: true,
-      },
-    });
-    baseResources.set('ApiFunctionUrlPermission', urlPerm);
-    baseResources.set(
-      'ApiFunctionInvokePermission', invokePerm,
-    );
-
-    // Remove CloudFront-related outputs
+    // Remove ALB-related outputs
     const baseOutputs = doc.get('Outputs', true);
     for (const key of [
-      'CloudFrontUrl', 'CloudFrontDistributionId',
-      'ThrottleAlarmTopicArn',
+      'AlbUrl', 'AlbArn', 'TargetGroupArn', 'VpcId',
     ]) {
       baseOutputs.delete(key);
     }
 
-    // Remove CloudFront-only condition
-    const conditions = doc.get('Conditions', true);
-    if (conditions) {
-      conditions.delete('IsUsEast1');
-      // Remove empty Conditions section
-      if (conditions.items && conditions.items.length === 0) {
-        doc.delete('Conditions');
-      }
-    }
-
     // Add Events for API Gateway
-    const props = doc.getIn(
-      ['Resources', 'ApiFunction', 'Properties'], true,
-    );
     const events = doc.createNode({
       ProxyRoot: {
         Type: 'Api',
@@ -172,7 +106,7 @@ export function mergeTemplate(extensions) {
         },
       },
     });
-    props.set('Events', events);
+    apiProps.set('Events', events);
   }
 
   return doc.toString();

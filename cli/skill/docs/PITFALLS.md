@@ -25,6 +25,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
+| 25 | HTTP only by default (ALB needs ACM cert for HTTPS) | MEDIUM | See below |
 | **Functions** | | | |
 | 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
@@ -83,3 +84,15 @@ aws lambda add-permission \
   --principal "*" \
   --invoked-via-function-url
 ```
+
+## HTTP Only by Default — ALB Needs ACM Certificate
+
+ALB uses HTTP (port 80) by default. For HTTPS, you need
+to add an ACM certificate and an HTTPS listener (port 443).
+
+**Symptoms:** Browser shows "Not Secure" warning. Mixed
+content errors when calling the API from an HTTPS frontend.
+
+**Fix:** Request an ACM certificate for your domain, add
+an HTTPS listener to the ALB, and redirect HTTP to HTTPS.
+Update `.boa/config.json` `apiUrl` to use the HTTPS URL.

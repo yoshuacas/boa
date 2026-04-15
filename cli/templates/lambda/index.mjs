@@ -82,13 +82,33 @@ const pgrest = createPgrest({
   contributions: [getStorageOpenApiPaths],
 });
 
-// Bridge Function URL v2.0 events to the v1.0 format pgrest-lambda expects.
+// ALB requires statusDescription in responses (e.g. "200 OK").
+const STATUS_DESCRIPTIONS = {
+  200: '200 OK', 201: '201 Created', 204: '204 No Content',
+  301: '301 Moved Permanently', 302: '302 Found', 304: '304 Not Modified',
+  400: '400 Bad Request', 401: '401 Unauthorized', 403: '403 Forbidden',
+  404: '404 Not Found', 405: '405 Method Not Allowed', 406: '406 Not Acceptable',
+  409: '409 Conflict', 422: '422 Unprocessable Entity',
+  500: '500 Internal Server Error', 502: '502 Bad Gateway', 503: '503 Service Unavailable',
+};
+
+function addStatusDescription(response) {
+  if (!response.statusDescription) {
+    response.statusDescription = STATUS_DESCRIPTIONS[response.statusCode]
+      || `${response.statusCode} Unknown`;
+  }
+  return response;
+}
+
+// Bridge ALB and Function URL events to the v1.0 format pgrest-lambda expects.
 // API Gateway REST events have event.path and event.requestContext.authorizer;
+// ALB events have event.path and event.requestContext.elb (no authorizer);
 // Function URL events have event.rawPath and no authorizer context.
 // We decode the JWT from the Authorization header to populate the authorizer
 // context that pgrest-lambda relies on for role/userId/email.
 function normalizeEvent(raw) {
-  if (raw.path) return raw; // Already v1.0 (API Gateway REST)
+  // Already v1.0 with authorizer context (API Gateway REST)
+  if (raw.path && raw.requestContext?.authorizer?.role) return raw;
 
   const headers = raw.headers || {};
   // Extract role/userId/email from JWT if present
@@ -119,8 +139,8 @@ function normalizeEvent(raw) {
 
   return {
     ...raw,
-    path: raw.rawPath || '/',
-    httpMethod: raw.requestContext?.http?.method || 'GET',
+    path: raw.path || raw.rawPath || '/',
+    httpMethod: raw.httpMethod || raw.requestContext?.http?.method || 'GET',
     headers,
     queryStringParameters: raw.queryStringParameters || null,
     body: raw.body || null,
@@ -133,28 +153,14 @@ function normalizeEvent(raw) {
 }
 
 export async function handler(rawEvent) {
-  // Origin secret check — reject requests not from CloudFront.
-  // Only applies to Function URL events (no event.path).
-  // API Gateway events (have event.path) bypass this check.
-  if (!rawEvent.path && process.env.ORIGIN_SECRET) {
-    const headers = rawEvent.headers || {};
-    if (headers['x-origin-verify'] !== process.env.ORIGIN_SECRET) {
-      return {
-        statusCode: 403,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Forbidden' }),
-      };
-    }
-  }
-
   const event = normalizeEvent(rawEvent);
   const path = event.path || '';
 
   // Presigned upload/download routes
   if (path === '/upload' || path === '/download') {
-    return uploadHandler(event);
+    return addStatusDescription(await uploadHandler(event));
   }
 
   // Auth + REST engine (PostgREST-compatible API, GoTrue-compatible auth)
-  return pgrest.handler(event);
+  return addStatusDescription(await pgrest.handler(event));
 }

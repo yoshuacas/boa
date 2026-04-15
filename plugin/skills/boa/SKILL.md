@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (CloudFront + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (ALB + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -33,10 +33,10 @@ These rules shape every interaction:
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-CloudFront + WAF ─── DDoS protection, rate limiting, edge cache
+ALB + WAF ─── DDoS protection, rate limiting
     │
     ▼
-Lambda Function URL ─── pgrest-lambda engine (handles JWT + CORS + routing)
+Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + routing)
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)
@@ -47,14 +47,12 @@ Everything is serverless. No servers to manage. Scales to zero. Scales to millio
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
 
-CloudFront is the default traffic layer. All client
-requests go through CloudFront, which provides DDoS
-absorption (AWS Shield Standard), WAF rate limiting
-(1000 req/5min per IP), and edge caching (60s TTL for
-GET requests). CloudFront adds a secret header
-(`x-origin-verify`) to every origin request. The Lambda
-handler rejects requests without the correct header.
-Direct access to the Function URL returns 403 Forbidden.
+ALB is the default traffic layer. All client requests go
+through the Application Load Balancer, which provides DDoS
+absorption (AWS Shield Standard) and WAF rate limiting
+(1000 req/5min per IP). ALB invokes Lambda directly via
+IAM -- there is no public Lambda endpoint. WAF attaches
+in the same region as the ALB (no us-east-1 restriction).
 
 ## BOA CLI
 
@@ -115,11 +113,7 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
 11. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
 12. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
-13. **Function URLs are behind CloudFront**: The raw
-    Function URL is internal. Never share it with
-    frontend clients. Use the CloudFront URL from
-    `.boa/config.json` `apiUrl`.
-14. **WAF rate limiting**: Default is 1000 requests per
+13. **WAF rate limiting**: Default is 1000 requests per
     5 minutes per IP. Increase in the WAF rule if a
     legitimate app needs higher throughput.
 

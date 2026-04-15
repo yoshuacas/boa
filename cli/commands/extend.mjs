@@ -52,11 +52,6 @@ export default async function extend(args) {
   const updatedCfg = config.read();
   updatedCfg.extensions = newExtensions;
 
-  // Save the Function URL before overwriting apiUrl
-  if (!updatedCfg.functionUrl) {
-    updatedCfg.functionUrl = updatedCfg.apiUrl;
-  }
-
   // Extension-specific config updates
   if (name === 'api-gateway') {
     const outputs = aws.cfnDescribeStacks(
