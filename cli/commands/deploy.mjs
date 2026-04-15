@@ -91,6 +91,22 @@ export default async function deploy(_args) {
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
+  // 8b. Force Cognito self-signup (corp accounts may override this)
+  try {
+    const preSignUpArn = aws.exec(
+      `aws lambda get-function --function-name ${stackName}-pre-signup`
+        + ` --region ${region}`
+        + ` --query 'Configuration.FunctionArn' --output text`
+    );
+    aws.run(
+      `aws cognito-idp update-user-pool`
+        + ` --user-pool-id ${userPoolId} --region ${region}`
+        + ` --admin-create-user-config AllowAdminCreateUserOnly=false`
+        + ` --lambda-config PreSignUp=${preSignUpArn}`
+        + ` --auto-verified-attributes email`
+    );
+  } catch { /* best-effort */ }
+
   // 9. Build config — preserve keys and accountId
   const extensions = cfg.extensions || [];
   const updatedConfig = {

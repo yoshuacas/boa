@@ -384,6 +384,21 @@ export default async function init(args) {
   // apiUrl is the ALB endpoint (primary entry point)
   const apiUrl = albUrl;
 
+  // 12b. Force Cognito self-signup (corp accounts may override this)
+  const preSignUpArn = aws.exec(
+    `aws lambda get-function --function-name ${name}-pre-signup`
+      + ` --region ${region}`
+      + ` --query 'Configuration.FunctionArn' --output text`
+  );
+  aws.run(
+    `aws cognito-idp update-user-pool`
+      + ` --user-pool-id ${userPoolId} --region ${region}`
+      + ` --admin-create-user-config AllowAdminCreateUserOnly=false`
+      + ` --lambda-config PreSignUp=${preSignUpArn}`
+      + ` --auto-verified-attributes email`
+  );
+  ok('Cognito self-signup enforced');
+
   // 13. Generate keys
   console.log('Generating BOA keys...');
   const { anonKey, serviceRoleKey } = generateKeys(jwtSecret);
