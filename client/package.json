@@ -1,0 +1,25 @@
+{
+  "name": "@boa-cloud/client",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./ui": {
+      "import": "./dist/ui/index.mjs",
+      "types": "./dist/ui/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "BOA_INTEGRATION=1 node --import tsx --test tests/integration.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4",
+    "tsx": "^4.0"
+  }
+}

@@ -115,27 +115,6 @@ Resources:
       ReservedConcurrentExecutions: 50
       FunctionUrlConfig:
         AuthType: NONE
-        Cors:
-          AllowHeaders:
-            - Content-Type
-            - Authorization
-            - apikey
-            - Prefer
-            - Accept
-            - x-client-info
-            - X-Client-Info
-            - X-Supabase-Api-Version
-            - content-profile
-            - accept-profile
-          AllowMethods:
-            - GET
-            - POST
-            - PUT
-            - PATCH
-            - DELETE
-          AllowOrigins:
-            - '*'
-          MaxAge: 600
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -199,26 +178,9 @@ Resources:
           EnableAcceptEncodingGzip: true
           EnableAcceptEncodingBrotli: true
 
-  CloudFrontOriginRequestPolicy:
-    Type: AWS::CloudFront::OriginRequestPolicy
-    Properties:
-      OriginRequestPolicyConfig:
-        Name: !Sub '${ProjectName}-api-origin'
-        CookiesConfig:
-          CookieBehavior: none
-        HeadersConfig:
-          HeaderBehavior: whitelist
-          Headers:
-            - Content-Type
-            - Accept
-            - Prefer
-            - x-client-info
-            - X-Client-Info
-            - X-Supabase-Api-Version
-            - content-profile
-            - accept-profile
-        QueryStringsConfig:
-          QueryStringBehavior: all
+  # Uses managed AllViewerExceptHostHeader policy to forward all
+  # viewer headers (including Origin and CORS preflight headers)
+  # to the Lambda origin, except Host (which would break Function URL auth).
 
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -241,7 +203,7 @@ Resources:
             - GET
             - HEAD
           CachePolicyId: !Ref CloudFrontCachePolicy
-          OriginRequestPolicyId: !Ref CloudFrontOriginRequestPolicy
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
           Compress: true
         Origins:
           - Id: lambda-origin

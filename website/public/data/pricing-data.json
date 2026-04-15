@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-14T19:24:37.936Z",
+  "generatedAt": "2026-04-15T02:20:09.918Z",
   "region": "us-east-1",
   "regionName": "US East (N. Virginia)",
   "sources": {
@@ -53,7 +53,7 @@
     },
     "cloudfront": {
       "source": "https://aws.amazon.com/cloudfront/pricing/",
-      "lastVerified": "2026-04-14",
+      "lastVerified": "2026-04-15",
       "requestPricePerMillion": 1,
       "dataTransferPerGB": 0.085,
       "freeTierRequests": 10000000,
@@ -82,7 +82,7 @@
     },
     "alb": {
       "source": "https://aws.amazon.com/elasticloadbalancing/pricing/",
-      "lastVerified": "2026-04-14",
+      "lastVerified": "2026-04-15",
       "hourlyRate": 0.0225,
       "lcuHourlyRate": 0.008,
       "hoursPerMonth": 730,
@@ -102,7 +102,7 @@
   },
   "supabasePricing": {
     "source": "https://supabase.com/pricing",
-    "lastVerified": "2026-04-14",
+    "lastVerified": "2026-04-15",
     "plans": {
       "free": {
         "name": "Free",
