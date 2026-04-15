@@ -115,6 +115,7 @@ Resources:
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
           AUTH_PROVIDER: cognito
           POLICIES_PATH: ./policies
+          API_BASE_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}/rest/v1'
       Policies:
         - Statement:
             - Effect: Allow
