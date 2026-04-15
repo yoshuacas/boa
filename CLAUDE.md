@@ -30,7 +30,6 @@ boa/
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/boa/SKILL.md         # Main skill (<500 lines)
 │   ├── docs/                        # Agent-readable docs (bundled)
-│   ├── templates/backend.yaml       # SAM template (full stack)
 │   ├── lambda-templates/            # Thin wrappers around pgrest-lambda
 │   ├── CLAUDE.md                    # Plugin quick-ref for skill discovery
 │   └── AGENTS.md                    # VS Code Copilot / Codex cross-compat

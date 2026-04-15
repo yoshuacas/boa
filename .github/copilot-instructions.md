@@ -42,5 +42,5 @@ For full skill instructions, patterns, and templates, see:
 - **Auth patterns:** `plugin/docs/AUTH-PATTERNS.md`
 - **API patterns:** `plugin/docs/API-PATTERNS.md`
 - **Storage patterns:** `plugin/docs/STORAGE-PATTERNS.md`
-- **SAM template:** `plugin/templates/backend.yaml`
+- **SAM template:** `cli/templates/backend.yaml`
 - **Lambda handlers:** `plugin/lambda-templates/`

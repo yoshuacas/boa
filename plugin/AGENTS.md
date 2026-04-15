@@ -33,5 +33,4 @@ API Gateway is available as an extension (`boa extend api-gateway`) for rate lim
 - Full skill: `skills/boa/SKILL.md`
 - Pitfalls: `docs/PITFALLS.md`
 - Architecture: `docs/ARCHITECTURE.md`
-- SAM template: `templates/backend.yaml`
-- Lambda handlers: `lambda-templates/index.mjs` (pgrest-lambda engine), `lambda-templates/authorizer.mjs`, `lambda-templates/presigned-upload.mjs`
+- Lambda handlers: `lambda-templates/index.mjs` (pgrest-lambda engine), `lambda-templates/presigned-upload.mjs`

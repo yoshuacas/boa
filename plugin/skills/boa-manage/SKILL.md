@@ -201,13 +201,10 @@ boa migrate
 ### Test API locally with SAM
 
 ```bash
-BOA_PLUGIN="$(dirname "$(dirname "$CLAUDE_SKILL_DIR")")"
-
-# Build first
-sam build -t $BOA_PLUGIN/templates/backend.yaml
-
-# Start local API (requires Docker)
+# Build and start local API (requires Docker)
+boa deploy  # builds the SAM template
 sam local start-api \
+  --template .boa/.aws-sam/build/template.yaml \
   --env-vars <(jq -n --arg ep "$DSQL_ENDPOINT" --arg r "$REGION" \
     '{"Parameters": {"DSQL_ENDPOINT": $ep, "REGION_NAME": $r}}') \
   --port 3001
