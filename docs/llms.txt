@@ -1,0 +1,43 @@
+# BOA — Backend on AWS, without the complexity
+
+> A complete backend on AWS in under a minute. Built for agents. Free until your users show up. No ceiling when they do.
+
+## Getting Started
+
+- [Getting Started](guides/getting-started.md): Prerequisites, installation, first backend in 10 minutes
+- [How It Works](guides/how-it-works.md): Architecture overview, the opinionated stack, what happens when you build
+- [FAQ](guides/faq.md): Pricing, comparisons, common questions
+
+## Database (Aurora DSQL)
+
+- [Database Overview](guides/database/overview.md): Serverless PostgreSQL, DSQL vs standard Postgres, supported features
+- [Tables and Data](guides/database/tables.md): Creating tables, data types, schema patterns by app type
+- [Migrations](guides/database/migrations.md): File-based schema management, naming, content rules, runner
+- [Connecting](guides/database/connecting.md): IAM auth from Lambda, psql, environment variables
+- [Querying](guides/database/querying.md): CRUD, pagination, full-text search, aggregation
+
+## Auth (Amazon Cognito)
+
+- [Auth Overview](guides/auth/overview.md): Cognito setup, Supabase-JS compatibility, accessing users in Lambda
+- [Email & Password](guides/auth/email-password.md): Sign-up, sign-in, password reset, auto-confirm
+- [Social Login](guides/auth/social-login.md): Google, Apple, and other identity providers
+- [JWTs](guides/auth/jwts.md): Token lifecycle, refresh, roles (anon, authenticated, service_role)
+- [MFA](guides/auth/mfa.md): TOTP setup with Google Authenticator / Authy
+
+## API (API Gateway + pgrest-lambda)
+
+- [API Overview](guides/api/overview.md): REST endpoints, auto-generated CRUD, API keys
+- [REST Endpoints](guides/api/rest.md): Filtering, sorting, pagination, error handling
+- [Authorization](guides/api/authorization.md): BOA authorizer, roles, access policies, CORS
+
+## Storage (Amazon S3)
+
+- [Storage Overview](guides/storage/overview.md): Presigned URLs, upload/download flow, file organization
+
+## Functions (AWS Lambda)
+
+- [Functions Overview](guides/functions/overview.md): API functions, webhooks, scheduled jobs, environment variables
+
+## Deployment (SAM / CloudFormation)
+
+- [Deployment Overview](guides/deployment/overview.md): SAM template, environments, Amplify hosting, teardown

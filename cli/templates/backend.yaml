@@ -1,0 +1,371 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: BOA — Backend on AWS serverless stack (ALB, WAF, Aurora DSQL, Cognito, Lambda, S3)
+
+Parameters:
+  ProjectName:
+    Type: String
+    Description: Prefix for all resource names
+    Default: boa-app
+    AllowedPattern: '[a-z0-9\-]+'
+    ConstraintDescription: Lowercase alphanumeric characters and hyphens only
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 256
+
+Resources:
+  # -------------------------------------------------------
+  # Database — Aurora DSQL (serverless PostgreSQL-compatible)
+  # -------------------------------------------------------
+  DsqlCluster:
+    Type: AWS::DSQL::Cluster
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # -------------------------------------------------------
+  # Auth — Amazon Cognito
+  # -------------------------------------------------------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub '${ProjectName}-user-pool'
+      DeletionProtection: ACTIVE
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+      LambdaConfig:
+        PreSignUp: !GetAtt PreSignUpFunction.Arn
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${ProjectName}-client'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  # -------------------------------------------------------
+  # Pre-Signup Lambda trigger — auto-confirms users
+  # -------------------------------------------------------
+  PreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-pre-signup'
+      Handler: index.handler
+      InlineCode: |
+        exports.handler = async (event) => {
+          event.response.autoConfirmUser = true;
+          event.response.autoVerifyEmail = true;
+          return event;
+        };
+
+  PreSignUpPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt PreSignUpFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
+  # -------------------------------------------------------
+  # Compute — Lambda API function
+  # -------------------------------------------------------
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-api'
+      Handler: index.handler
+      CodeUri: ./lambda/
+      ReservedConcurrentExecutions: 50
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
+          REGION_NAME: !Ref 'AWS::Region'
+          BUCKET_NAME: !Ref StorageBucket
+          USER_POOL_ID: !Ref UserPool
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+          JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
+          AUTH_PROVIDER: cognito
+          POLICIES_PATH: ./policies
+          API_BASE_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}/rest/v1'
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dsql:DbConnect
+                - dsql:DbConnectAdmin
+              Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:InitiateAuth
+                - cognito-idp:RespondToAuthChallenge
+                - cognito-idp:GetUser
+                - cognito-idp:GlobalSignOut
+                - cognito-idp:RevokeToken
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminInitiateAuth
+                - cognito-idp:AdminRespondToAuthChallenge
+                - cognito-idp:AdminConfirmSignUp
+              Resource: !GetAtt UserPool.Arn
+        - S3CrudPolicy:
+            BucketName: !Ref StorageBucket
+
+  # -------------------------------------------------------
+  # VPC — Minimal networking for ALB (Lambda stays outside)
+  # -------------------------------------------------------
+  AlbVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-alb-vpc'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-igw'
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref AlbVpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AlbVpc
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-1'
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref AlbVpc
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-public-2'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref AlbVpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet2RouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub '${ProjectName} ALB - allow HTTP'
+      VpcId: !Ref AlbVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # -------------------------------------------------------
+  # Traffic layer — ALB + WAF (DDoS + rate limiting)
+  # -------------------------------------------------------
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ProjectName}-alb'
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref AlbSecurityGroup
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  AlbLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt ApiFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: elasticloadbalancing.amazonaws.com
+
+  AlbTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: AlbLambdaPermission
+    Properties:
+      Name: !Sub '${ProjectName}-tg'
+      TargetType: lambda
+      Targets:
+        - Id: !GetAtt ApiFunction.Arn
+
+  AlbHttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AlbTargetGroup
+
+  WafWebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${ProjectName}-waf'
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-waf'
+      Rules:
+        - Name: rate-limit
+          Priority: 1
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-rate-limit'
+          Statement:
+            RateBasedStatement:
+              Limit: 1000
+              AggregateKeyType: IP
+        - Name: ip-reputation
+          Priority: 2
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-ip-reputation'
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+
+  WafAlbAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref ApplicationLoadBalancer
+      WebACLArn: !GetAtt WafWebAcl.Arn
+
+  # -------------------------------------------------------
+  # Storage — S3 bucket (private, CORS for presigned URLs)
+  # -------------------------------------------------------
+  StorageBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${ProjectName}-storage-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3600
+
+Outputs:
+  AlbUrl:
+    Description: ALB endpoint URL (primary API endpoint)
+    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+
+  AlbArn:
+    Description: Application Load Balancer ARN
+    Value: !Ref ApplicationLoadBalancer
+
+  TargetGroupArn:
+    Description: ALB Target Group ARN
+    Value: !Ref AlbTargetGroup
+
+  VpcId:
+    Description: VPC ID for the ALB
+    Value: !Ref AlbVpc
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+
+  BucketName:
+    Description: S3 storage bucket name
+    Value: !Ref StorageBucket
+
+  DsqlEndpoint:
+    Description: Aurora DSQL cluster endpoint
+    Value: !GetAtt DsqlCluster.Endpoint

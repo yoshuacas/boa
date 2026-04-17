@@ -1,0 +1,22 @@
+{
+  "name": "website",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "docs:copy": "rm -rf docs && cp -r ../docs/guides docs",
+    "docs:dev": "npm run docs:copy && vitepress dev",
+    "docs:build": "npm run docs:copy && vitepress build",
+    "docs:preview": "vitepress preview",
+    "generate-pricing": "node scripts/generate-pricing.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOA Dashboard — Database (DSQL)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar"></aside>
+    <div class="main-content">
+      <header class="topbar"></header>
+      <main class="page-content" id="pageContent"></main>
+    </div>
+  </div>
+
+  <script src="js/dashboard-core.js"></script>
+  <script src="js/aws-cli-bridge.js"></script>
+  <script>
+    BOA.init({
+      activePage: 'database',
+      pageTitle: 'Database (DSQL)',
+      onConfig: renderDatabase,
+    });
+
+    function renderDatabase(cfg) {
+      const el = document.getElementById('pageContent');
+
+      if (!cfg) {
+        BOA.renderGettingStarted(el);
+        return;
+      }
+
+      const endpoint = CLIBridge.getDsqlEndpoint(cfg);
+      const region = BOA.getRegion();
+      const dbName = cfg.dsql_database || cfg.database?.name || 'postgres';
+
+      if (!endpoint) {
+        el.innerHTML = `
+          <div class="page-header">
+            <h1>Database (DSQL)</h1>
+            <p>No DSQL endpoint found in your config.</p>
+          </div>
+          <div class="callout callout-warning">
+            <p>
+              Your <code>.boa/config.json</code> does not include a DSQL endpoint.
+              Make sure your bootstrap has completed successfully and that the config
+              contains a <strong>dsql_endpoint</strong> or <strong>database.endpoint</strong> field.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      const commands = CLIBridge.getDsqlCommands(cfg);
+
+      el.innerHTML = `
+        <div class="page-header">
+          <h1>Database (DSQL)</h1>
+          <p>Aurora DSQL &mdash; Serverless PostgreSQL</p>
+        </div>
+
+        <!-- Hero card -->
+        <div class="detail-hero">
+          <div class="detail-service">Aurora DSQL</div>
+          <div class="detail-title">Cluster Endpoint</div>
+          <div class="detail-info">
+            <div>
+              <div class="info-row">
+                <span class="info-label">Endpoint</span>
+                <span class="info-value">${BOA.escapeHtml(endpoint)}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Database</span>
+                <span class="info-value">${BOA.escapeHtml(dbName)}</span>
+              </div>
+            </div>
+            <div>
+              <div class="info-row">
+                <span class="info-label">Region</span>
+                <span class="info-value">${BOA.escapeHtml(region)}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Auth</span>
+                <span class="info-value">IAM token (auto-generated)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Commands -->
+        <div class="section-header">
+          <span class="section-icon">\u26C1</span>
+          <h2>Database Commands</h2>
+        </div>
+        <div class="command-list">
+          ${commands.map(c => BOA.commandBlockHtml(c)).join('')}
+        </div>
+
+        <!-- Migrations note -->
+        <div class="section-header">
+          <span class="section-icon">\u{1F4CB}</span>
+          <h2>Running Migrations</h2>
+        </div>
+        <div class="callout">
+          <p>
+            DSQL is PostgreSQL-compatible, so standard migration tools work. BOA places
+            migration files in <code>.boa/migrations/</code>. To run them manually:
+          </p>
+        </div>
+        ${BOA.commandBlockHtml({
+          title: 'Run migrations manually',
+          description: 'Apply all .sql files in the migrations directory',
+          command: `# Generate auth token\nDSQL_TOKEN=$(aws dsql generate-db-connect-admin-auth-token \\\\\n  --hostname ${endpoint} \\\\\n  --region ${region} \\\\\n  --expires-in 3600)\n\n# Run each migration file\nfor f in .boa/migrations/*.sql; do\n  echo "Applying $f ..."\n  psql "host=${endpoint} dbname=${dbName} user=admin password=$DSQL_TOKEN sslmode=require" \\\\\n    -f "$f"\ndone`,
+        })}
+      `;
+    }
+  </script>
+</body>
+</html>

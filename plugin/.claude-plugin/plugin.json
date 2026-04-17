@@ -1,0 +1,11 @@
+{
+  "name": "boa",
+  "description": "Opinionated, lightweight backend on AWS — from prototype to millions of users. Database, auth, APIs, storage, all serverless. Works with any coding agent.",
+  "version": "0.1.0",
+  "author": {
+    "name": "AWS"
+  },
+  "homepage": "https://backendonaws.com",
+  "repository": "https://github.com/yoshuacas/boa",
+  "license": "Apache-2.0"
+}

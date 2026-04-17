@@ -1,0 +1,275 @@
+{
+  "skill_name": "boa",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to build a backend on AWS. I'm on a fresh machine — before we start building anything, can you check what tools and CLIs I need and make sure everything is set up? I already have an AWS account.",
+      "expected_output": "The skill detects the platform, checks for all required tools (AWS CLI >= 2.32, SAM CLI, Node.js >= 18, psql, jq), provides install commands for any missing tools, verifies AWS credentials with sts get-caller-identity, and confirms the region supports DSQL.",
+      "files": [],
+      "expectations": [
+        "Runs uname or equivalent to detect the operating system",
+        "Checks for AWS CLI and verifies version >= 2.32",
+        "Checks for SAM CLI",
+        "Checks for Node.js and verifies version >= 18",
+        "Checks for psql",
+        "Checks for jq",
+        "Provides platform-appropriate install commands (brew for macOS, apt for Linux)",
+        "Runs aws sts get-caller-identity to verify credentials",
+        "Mentions that DSQL is only available in us-east-1 and us-east-2"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Set up an AWS backend for me. I don't have a specific app in mind yet — just deploy the infrastructure so it's ready when I need it. Use us-east-1.",
+      "expected_output": "The skill runs the 'infrastructure only' path: checks tools, runs boa init with a stack name and region, and reports the connection details from .boa/config.json. Does NOT create any tables, migrations, or Cedar policies.",
+      "files": [],
+      "expectations": [
+        "Runs the setup/tool check sequence before deploying",
+        "Calls boa init with --region us-east-1",
+        "Does NOT create any migration SQL files",
+        "Does NOT create any Cedar policy files",
+        "References .boa/config.json for API URL and keys after deploy",
+        "Mentions that auth endpoints (signup, signin) work immediately",
+        "Does NOT attempt to create tables or run boa migrate"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Build me a simple app to track my soccer team's games. I want to log each game with the opponent name, date, location, and final score (home and away). Only I should be able to see and edit my games. Deploy it to AWS on us-east-1.",
+      "expected_output": "The skill deploys infrastructure via boa init, creates a games table with DSQL-compatible DDL, writes a Cedar ownership policy, connects a frontend with @supabase/supabase-js, and deploys everything.",
+      "files": [],
+      "expectations": [
+        "Creates a migration file for a games table",
+        "Migration uses TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text for the id column",
+        "Migration does NOT use SERIAL, BIGSERIAL, or REFERENCES",
+        "Migration includes columns for opponent, game_date, location, home_score, away_score",
+        "Migration includes a user_id column for ownership",
+        "Creates a Cedar policy file that grants owner-only access based on user_id",
+        "Cedar policy uses PgrestLambda::User and PgrestLambda::Action entity types",
+        "Calls boa init before creating tables",
+        "Calls boa deploy to bundle policies",
+        "Calls boa migrate to create tables",
+        "Frontend code imports createClient from @supabase/supabase-js",
+        "Frontend reads apiUrl and anonKey from .boa/config.json or hardcodes from its values",
+        "Does NOT set AWS_REGION as a Lambda environment variable"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Build me a full soccer team management app and deploy it to AWS on us-east-1. Here's what I need:\n\n1. Game tracking — log each game with opponent, date, location, home/away score, and notes\n2. Player roster — name, jersey number, position for each player on the team\n3. Per-game player stats — goals, assists, minutes played, yellow cards, red cards per player per game\n4. Media — upload team photos and player profile pictures\n5. League support — multiple teams in a league, where team admins manage their roster, coaches set lineups, and players can only view their own stats. League admins can see everything.\n\nI want role-based access control: admin, coach, player roles per team. Public visitors should be able to see league standings and game results but not player details.",
+      "expected_output": "A comprehensive backend with 7+ tables, DSQL-safe DDL, role-based Cedar policies, S3 presigned URLs for media, and a frontend using @supabase/supabase-js. Exercises every major BOA capability.",
+      "files": [],
+      "expectations": [
+        "Creates migration files for at least 6 tables (games, players, game_stats, team_photos, teams, team_members)",
+        "All migrations use TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text",
+        "No migration uses SERIAL, BIGSERIAL, REFERENCES, triggers, or stored procedures",
+        "Uses CREATE INDEX ASYNC (not bare CREATE INDEX) for all indexes",
+        "Table relationships are documented in SQL comments, not enforced by foreign keys",
+        "Creates Cedar policies that differentiate by role (admin, coach, player)",
+        "Cedar policies include a service_role policy using PgrestLambda::ServiceRole",
+        "Cedar policies allow public read access to league standings and game results",
+        "Creates S3 presigned URL integration for photo uploads",
+        "S3 bucket config does NOT include PublicRead or public-read",
+        "team_members table includes a role column",
+        "Frontend imports createClient from @supabase/supabase-js",
+        "Does NOT use AWS_REGION as a Lambda environment variable (uses REGION_NAME if needed)",
+        "Calls boa init, boa deploy, and boa migrate in the correct order",
+        "Calls boa verify to validate the deployment"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have my soccer app deployed with BOA. Now I need to integrate Stripe payments — when a player pays their league registration fee, I need to handle the Stripe checkout webhook, update their payment status in the database, and send them a confirmation. The Stripe webhook URL needs to be publicly accessible (no JWT). I already have my Stripe secret key and webhook signing secret.",
+      "expected_output": "The agent creates a webhook function under functions/stripe-webhook/ with Auth: NONE in the SAM template, Stripe signature verification in the handler, service role supabase client for DB updates, and secrets stored in SSM Parameter Store.",
+      "files": [],
+      "expectations": [
+        "Creates functions/stripe-webhook/index.mjs (or similar path under functions/)",
+        "The handler verifies the Stripe webhook signature (constructEvent or similar verification)",
+        "The handler uses SERVICE_ROLE_KEY to create a supabase client (not ANON_KEY)",
+        "The handler updates the database after successful webhook verification",
+        "SAM template resource has Auth: NONE or Authorizer: NONE on the route",
+        "SAM template route path follows /functions/v1/stripe-webhook pattern",
+        "Stripe secrets are stored in SSM Parameter Store (not hardcoded in template or code)",
+        "Lambda environment references SSM parameters via resolve:ssm syntax or similar",
+        "Handler returns 200 with a body indicating receipt (e.g., {received: true})",
+        "Handler returns 400 if signature verification fails",
+        "Does NOT set AWS_REGION as a Lambda environment variable",
+        "Lambda runtime is nodejs20.x (not Python)"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Add a custom API endpoint to my soccer app. When the frontend calls it, it should calculate the league standings — total wins, losses, draws, goals for, goals against, and points (3 for win, 1 for draw) for each team. This needs a complex SQL query that joins games with teams, so the regular REST API won't cut it. Only authenticated users should be able to call it.",
+      "expected_output": "The agent creates an API function under functions/ with the BOA authorizer protecting it, direct DSQL access for the complex aggregation query, and the frontend calls it via supabase.functions.invoke().",
+      "files": [],
+      "expectations": [
+        "Creates a function directory under functions/ (e.g., functions/league-standings/index.mjs)",
+        "The handler reads userId or role from event.requestContext.authorizer",
+        "The handler uses direct database access (pg client with DSQL IAM auth) for the aggregation query",
+        "The SQL query aggregates wins, losses, draws, goals for, goals against, and points",
+        "The SQL query is parameterized (no string interpolation of user input)",
+        "SAM template route does NOT have Auth: NONE (JWT required by default)",
+        "SAM template route path follows /functions/v1/{function-name} pattern",
+        "Lambda environment includes DSQL_ENDPOINT and REGION_NAME",
+        "The handler initializes the database pool outside the handler function (module scope)",
+        "Uses DsqlSigner or equivalent for IAM auth token generation (not hardcoded credentials)",
+        "Frontend calls the function via supabase.functions.invoke() or shows how to",
+        "Lambda runtime is nodejs20.x"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I want a nightly job that runs at midnight UTC to calculate and store daily stats summaries for my soccer league. It should aggregate all game stats from the previous day — total goals, top scorer, average goals per game — and insert a summary row into a daily_reports table. No HTTP endpoint needed, just run it automatically every night.",
+      "expected_output": "The agent creates a scheduled function triggered by EventBridge cron, not an API Gateway route. Uses service role for DB access. Creates the daily_reports migration.",
+      "files": [],
+      "expectations": [
+        "Creates a function directory under functions/ (e.g., functions/daily-report/index.mjs)",
+        "SAM template uses ScheduleV2 or Schedule event type (NOT Api event type)",
+        "Schedule expression is a cron for midnight UTC (cron(0 0 * * ? *) or equivalent)",
+        "The handler does NOT read from event.body or event.requestContext (no HTTP context)",
+        "The handler uses SERVICE_ROLE_KEY for supabase client or direct DSQL access",
+        "Creates a migration for a daily_reports table with DSQL-compatible DDL",
+        "The daily_reports migration uses TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text",
+        "The handler queries game_stats for the previous day's data",
+        "The handler inserts a summary row into daily_reports",
+        "There is NO Api event in the SAM template for this function (no HTTP endpoint)",
+        "Lambda runtime is nodejs20.x",
+        "Lambda environment includes REGION_NAME (not AWS_REGION)"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "My soccer league app needs three custom functions:\n1. A Stripe webhook to handle payment events (publicly accessible, no JWT)\n2. An endpoint that generates a PDF game report for a specific game — only authenticated users can call it, and it needs the game data plus player stats from the database\n3. A weekly job every Monday at 8am UTC that emails the league standings to all team admins using SES\n\nI already have the BOA backend deployed with teams, games, players, and game_stats tables.",
+      "expected_output": "The agent creates three functions, each with the correct pattern: webhook (Auth: NONE, signature verification), API function (JWT-protected, complex DB query), and scheduled function (EventBridge cron, SES permissions). All three share the auto-injected env vars but have different SAM event types.",
+      "files": [],
+      "expectations": [
+        "Creates three separate function directories under functions/",
+        "Stripe webhook function has Auth: NONE in the SAM template",
+        "Stripe webhook handler verifies the webhook signature",
+        "PDF report function does NOT have Auth: NONE (JWT required)",
+        "PDF report function reads from event.requestContext.authorizer for user identity",
+        "PDF report function queries the database for game and player stats",
+        "Weekly email function uses ScheduleV2 event type (not Api)",
+        "Weekly email schedule is cron for Monday 8am UTC",
+        "Weekly email function has SES permissions in its IAM policy",
+        "All three functions have REGION_NAME in environment (not AWS_REGION)",
+        "All three functions use nodejs20.x runtime",
+        "Stripe secrets are in SSM Parameter Store (not hardcoded)",
+        "Each function has the correct SAM event type matching its trigger (Api, Api with Auth:NONE, ScheduleV2)",
+        "No function uses Python runtime"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Build me a simple app where people can sign up with their email and password, create a profile with their name and bio, and browse other people's profiles. Everyone can see all profiles but only edit their own. Deploy to us-east-1.",
+      "expected_output": "The agent builds a standard app with Cognito auth. The critical checks are that AllowAdminCreateUserOnly is false, the pre-signup auto-confirm trigger is attached, and Cedar policies enforce profile ownership.",
+      "files": [],
+      "expectations": [
+        "SAM template sets AllowAdminCreateUserOnly to false (not omitted, explicitly false)",
+        "SAM template includes a pre-signup Lambda trigger that auto-confirms users",
+        "The pre-signup Lambda sets event.response.autoConfirmUser = true",
+        "The pre-signup Lambda is wired to the UserPool via LambdaConfig.PreSignUp",
+        "Creates a profiles table with user_id column for ownership",
+        "Cedar policy allows authenticated users to select all profiles (public read)",
+        "Cedar policy restricts update/delete to rows where user_id matches the principal",
+        "Frontend uses @supabase/supabase-js auth.signUp() for registration",
+        "Does NOT use aws cognito-idp admin-create-user for user creation",
+        "Calls boa init, boa deploy, and boa migrate"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Users are complaining they can't sign up for my BOA app. When they try to register, they get an error. I checked and the Cognito user pool has AllowAdminCreateUserOnly set to true. Can you fix it? The stack is called my-app in us-east-1.",
+      "expected_output": "The agent fixes the Cognito config through CloudFormation/SAM (not direct CLI), warns about the update-user-pool pitfall, and verifies the pre-signup trigger is still attached after the fix.",
+      "files": [],
+      "expectations": [
+        "Identifies AllowAdminCreateUserOnly: true as the root cause",
+        "Fixes it by updating the SAM template (not by running aws cognito-idp update-user-pool directly)",
+        "If it does use update-user-pool CLI, includes --lambda-config to preserve the pre-signup trigger",
+        "Warns about or avoids the update-user-pool pitfall (wiping Lambda triggers)",
+        "Verifies the pre-signup trigger is still attached after the fix",
+        "Deploys the fix via boa deploy or sam deploy (not just a CLI tweak)",
+        "Tests that signup works after the fix (curl to /auth/v1/signup or similar)",
+        "Does NOT hardcode AllowAdminCreateUserOnly to true anywhere"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I need to add Cognito user pool settings to my deployed BOA app — specifically I want to require a minimum password length of 12 characters and enable MFA. Can you update the Cognito configuration?",
+      "expected_output": "The agent modifies the SAM template to change the password policy and MFA settings, then redeploys. It does NOT use aws cognito-idp update-user-pool directly, and it preserves existing settings (AllowAdminCreateUserOnly: false, pre-signup trigger).",
+      "files": [],
+      "expectations": [
+        "Modifies the SAM template UserPool resource to change MinimumLength to 12",
+        "Modifies the SAM template to add MfaConfiguration (OPTIONAL or ON)",
+        "Does NOT run aws cognito-idp update-user-pool directly",
+        "Preserves AllowAdminCreateUserOnly: false in the template",
+        "Preserves the pre-signup Lambda trigger (LambdaConfig.PreSignUp) in the template",
+        "Deploys via boa deploy or sam deploy",
+        "Does NOT remove or modify existing working auth configuration while adding new settings"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "My BOA app's deploy keeps failing with a CloudFormation error. The stack is stuck in UPDATE_ROLLBACK_COMPLETE. I've been trying different things for an hour and nothing works. Can you just tear it all down and start fresh?",
+      "expected_output": "The agent should NOT tear down the stack. It should diagnose why the stack is stuck and fix it without destroying data. A stack in UPDATE_ROLLBACK_COMPLETE can receive new updates — it doesn't need to be deleted.",
+      "files": [],
+      "expectations": [
+        "Does NOT run boa teardown",
+        "Does NOT run aws cloudformation delete-stack",
+        "Does NOT suggest deleting the stack as a solution",
+        "Explains that UPDATE_ROLLBACK_COMPLETE means the stack can still be updated",
+        "Checks the stack events to find the actual failure cause (aws cloudformation describe-stack-events)",
+        "Attempts to fix the root cause and redeploy",
+        "Warns that teardown would destroy the database, user accounts, and uploaded files"
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "Build me a simple notes app where users can create, read, update, and delete their notes. Deploy to us-east-1. Stack name: my-notes-app.",
+      "expected_output": "The agent builds the app with deletion protection enabled on all stateful resources (DSQL, Cognito, S3). The template should have DeletionPolicy: Retain and service-level deletion protection.",
+      "files": [],
+      "expectations": [
+        "SAM template includes DeletionProtectionEnabled: true on the DSQL cluster",
+        "SAM template includes DeletionPolicy: Retain on the DSQL cluster",
+        "SAM template includes DeletionProtection: ACTIVE on the Cognito user pool",
+        "SAM template includes DeletionPolicy: Retain on the Cognito user pool",
+        "SAM template includes DeletionPolicy: Retain on the S3 bucket",
+        "Does NOT set DeletionProtectionEnabled to false on any stateful resource",
+        "Creates a notes table with DSQL-compatible DDL",
+        "Creates Cedar policies for the notes table",
+        "Calls boa init and boa deploy"
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "I have a soccer league app with games, players, and game_stats tables. I need a frontend page that shows a game detail view — the game info plus all player stats for that game, with each player's name and jersey number. Right now I'm making 3 separate API calls and it's slow. Can you help me fetch all this data in one request?",
+      "expected_output": "The agent uses resource embedding (select with parentheses) to fetch games with nested game_stats and players in a single query, instead of multiple separate queries.",
+      "files": [],
+      "expectations": [
+        "Uses supabase .select() with parenthetical embedding syntax (not multiple separate queries)",
+        "The select string includes game_stats(...) to embed stats within the game",
+        "The select string includes players(...) nested inside game_stats to embed player details",
+        "Does NOT make separate .from('game_stats') and .from('players') calls",
+        "Uses .single() or .eq('id', gameId) to fetch one game",
+        "The migration columns use _id suffix for foreign keys (game_id, player_id)",
+        "Explains that _id naming convention enables automatic relationship detection on DSQL"
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "Build me a blog platform with posts, comments, and user profiles. Each post belongs to a user, each comment belongs to both a post and a user. I want the post listing page to show the author name and comment count for each post, and the post detail page to show all comments with the commenter's name. Deploy to us-east-1.",
+      "expected_output": "The agent creates tables with _id suffix columns (user_id, post_id), uses resource embedding for the frontend queries, and does NOT create separate API calls for related data.",
+      "files": [],
+      "expectations": [
+        "Migration for posts table includes user_id column (not user or author)",
+        "Migration for comments table includes post_id and user_id columns (with _id suffix)",
+        "Frontend post listing uses embedding: .from('posts').select('*, users(name)') or similar",
+        "Frontend post detail uses nested embedding: .from('posts').select('*, comments(*, users(name))') or similar",
+        "Does NOT use multiple separate .from() calls where embedding would work",
+        "All _id columns use TEXT type (DSQL-compatible)",
+        "No SERIAL, BIGSERIAL, or REFERENCES in migrations",
+        "Creates Cedar policies for all three tables"
+      ]
+    }
+  ]
+}

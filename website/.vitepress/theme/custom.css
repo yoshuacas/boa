@@ -1,0 +1,103 @@
+/* ============================================================
+   BOA — Homepage dark, Docs light
+   Homepage uses HomeLayout.vue (self-contained dark styles).
+   Doc pages use VitePress default light theme with orange accents.
+   ============================================================ */
+
+/* --- Brand Colors --- */
+:root {
+  --boa-orange: #FF9900;
+  --boa-orange-dark: #EC7211;
+  --boa-orange-light: #FFAD33;
+
+  --vp-c-brand-1: #EC7211;
+  --vp-c-brand-2: #FF9900;
+  --vp-c-brand-3: #FFAD33;
+  --vp-c-brand-soft: rgba(255, 153, 0, 0.12);
+
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* --- Doc Pages: Orange accents on default light theme --- */
+.vp-doc a {
+  color: var(--boa-orange-dark);
+}
+
+.vp-doc a:hover {
+  color: var(--boa-orange);
+}
+
+.VPSidebarItem.is-active > .item > .indicator {
+  background-color: var(--boa-orange) !important;
+}
+
+.VPSidebarItem.is-active > .item .link > .text {
+  color: var(--boa-orange-dark) !important;
+}
+
+.vp-doc .custom-block.tip {
+  border-color: var(--boa-orange);
+}
+
+/* --- Homepage Overrides --- */
+.vp-doc .home-layout {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.VPContent:has(.home-layout) ~ .VPFooter {
+  display: none !important;
+}
+
+body:has(.home-layout) .VPLocalNav {
+  display: none !important;
+}
+
+body:has(.home-layout) {
+  background-color: #0A0A0A !important;
+}
+
+body:has(.home-layout) .VPContent {
+  background-color: #0A0A0A !important;
+}
+
+/* Dark nav only on homepage */
+body:has(.home-layout) .VPNav,
+body:has(.home-layout) .VPNavBar {
+  background-color: rgba(10, 10, 10, 0.95) !important;
+  border-bottom-color: #2A2A2A !important;
+}
+
+body:has(.home-layout) .VPNavBarTitle .title {
+  color: #FF9900 !important;
+}
+
+body:has(.home-layout) .VPNavBarMenuLink {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPNavBarMenuLink:hover,
+body:has(.home-layout) .VPNavBarMenuLink.active {
+  color: #FF9900 !important;
+}
+
+body:has(.home-layout) .VPSocialLink {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPFlyout .button .text {
+  color: #CCCCCC !important;
+}
+
+body:has(.home-layout) .VPNavBar .divider-line {
+  background-color: #2A2A2A !important;
+}
+
+/* --- Hero fallback --- */
+.VPHero .name .clip {
+  background: linear-gradient(135deg, #FF9900, #EC7211);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

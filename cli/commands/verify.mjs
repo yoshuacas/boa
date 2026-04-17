@@ -1,0 +1,189 @@
+import * as aws from '../lib/aws.mjs';
+import * as config from '../lib/config.mjs';
+import { pass, fail, header } from '../lib/output.mjs';
+
+export default async function verify(_args) {
+  const cfg = config.requireConfig();
+  const {
+    stackName, region, apiUrl,
+    userPoolId, bucketName,
+  } = cfg;
+
+  let passed = 0;
+  let failed = 0;
+
+  function check(ok, msg) {
+    if (ok) {
+      pass(msg);
+      passed++;
+    } else {
+      fail(msg);
+      failed++;
+    }
+  }
+
+  header('BOA Verification');
+  console.log('');
+  console.log(`  Stack:  ${stackName}`);
+  console.log(`  Region: ${region}`);
+  console.log('');
+
+  // Check 1: Cognito self-signup
+  console.log('Checking Cognito configuration...');
+  let adminOnly;
+  try {
+    adminOnly = aws.exec(
+      `aws cognito-idp describe-user-pool` +
+        ` --user-pool-id ${userPoolId} --region ${region}` +
+        ` --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'` +
+        ` --output text`
+    );
+  } catch {
+    adminOnly = 'ERROR';
+  }
+  if (adminOnly === 'False') {
+    check(
+      true,
+      'Cognito self-signup enabled (AllowAdminCreateUserOnly=false)'
+    );
+  } else {
+    check(
+      false,
+      `Cognito self-signup enabled (AllowAdminCreateUserOnly=false) — got: ${adminOnly}`
+    );
+  }
+
+  const functionName = `${stackName}-api`;
+
+  // Check 2: ALB target group health
+  if (cfg.alb) {
+    console.log('Checking ALB target group...');
+    let tgHealth;
+    try {
+      tgHealth = aws.exec(
+        `aws elbv2 describe-target-health` +
+          ` --target-group-arn ${cfg.alb.targetGroupArn}` +
+          ` --region ${region}` +
+          ` --query 'TargetHealthDescriptions[0].TargetHealth.State'` +
+          ` --output text`
+      );
+    } catch {
+      tgHealth = null;
+    }
+    check(
+      tgHealth === 'healthy',
+      `ALB target group is healthy (${tgHealth})`
+    );
+
+    // Check 3: WAF attached to ALB
+    console.log('Checking WAF attachment...');
+    let wafArn;
+    try {
+      wafArn = aws.exec(
+        `aws wafv2 get-web-acl-for-resource` +
+          ` --resource-arn ${cfg.alb.arn}` +
+          ` --region ${region}` +
+          ` --query 'WebACL.ARN' --output text`
+      );
+    } catch {
+      wafArn = null;
+    }
+    check(
+      wafArn && wafArn !== 'None',
+      'WAF WebACL is attached to ALB'
+    );
+  }
+
+  // Check 4: API endpoint responding
+  console.log('Checking API endpoint...');
+  let httpCode;
+  try {
+    httpCode = aws.exec(
+      `curl -s -o /dev/null -w '%{http_code}'` +
+        ` ${apiUrl}/rest/v1/`
+    );
+  } catch {
+    httpCode = '000';
+  }
+  const validCodes = ['200', '401', '404'];
+  if (validCodes.includes(httpCode)) {
+    check(
+      true,
+      `API is responding through ALB (HTTP ${httpCode})`
+    );
+  } else {
+    check(
+      false,
+      `API returns unexpected HTTP ${httpCode}`
+      + ` (expected 200/401/404)`
+    );
+  }
+
+  // Check 5: S3 bucket exists
+  console.log('Checking S3 bucket...');
+  let bucketExists;
+  try {
+    aws.exec(
+      `aws s3api head-bucket --bucket ${bucketName} --region ${region}`
+    );
+    bucketExists = true;
+  } catch {
+    bucketExists = false;
+  }
+  check(bucketExists, 'S3 bucket exists');
+
+  // Check 6: S3 bucket private
+  let publicAccess;
+  try {
+    publicAccess = aws.exec(
+      `aws s3api get-public-access-block --bucket ${bucketName}` +
+        ` --region ${region}` +
+        ` --query 'PublicAccessBlockConfiguration.BlockPublicAcls'` +
+        ` --output text`
+    );
+  } catch {
+    publicAccess = 'ERROR';
+  }
+  if (publicAccess === 'True') {
+    check(true, 'S3 bucket has Block Public Access enabled');
+  } else {
+    check(
+      false,
+      `S3 bucket has Block Public Access enabled — got: ${publicAccess}`
+    );
+  }
+
+  // Check 7: Reserved concurrency
+  console.log('Checking Lambda concurrency...');
+  let concurrency;
+  try {
+    concurrency = aws.exec(
+      `aws lambda get-function` +
+        ` --function-name ${functionName}` +
+        ` --region ${region}` +
+        ` --query` +
+        ` 'Concurrency.ReservedConcurrentExecutions'` +
+        ` --output text`
+    );
+  } catch {
+    concurrency = null;
+  }
+  check(
+    concurrency && concurrency !== 'None',
+    `Reserved concurrency is set (${concurrency})`
+  );
+
+  // Summary
+  const total = passed + failed;
+  console.log('');
+  console.log('======================================');
+  console.log(`  Results: ${passed}/${total} checks passed`);
+  if (failed > 0) {
+    console.log(`  ${failed} check(s) FAILED`);
+    console.log('======================================');
+    process.exit(1);
+  } else {
+    console.log('  All checks passed');
+    console.log('======================================');
+  }
+}
