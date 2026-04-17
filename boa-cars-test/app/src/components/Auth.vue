@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { supabase } from '../lib/supabase'
+import { boa } from '../lib/boa'
 
 const emit = defineEmits(['signed-in'])
 
@@ -15,18 +15,18 @@ async function handleSubmit() {
   loading.value = true
   try {
     if (isSignUp.value) {
-      const { error: err } = await supabase.auth.signUp({
+      const { error: err } = await boa.auth.signUp({
         email: email.value,
         password: password.value,
       })
       if (err) throw err
     }
-    const { data, error: err } = await supabase.auth.signInWithPassword({
+    const { user, error: err } = await boa.auth.signIn({
       email: email.value,
       password: password.value,
     })
     if (err) throw err
-    emit('signed-in', data.user)
+    emit('signed-in', user)
   } catch (err) {
     error.value = err.message || 'Something went wrong'
   } finally {

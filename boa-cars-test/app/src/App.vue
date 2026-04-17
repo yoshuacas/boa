@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { supabase } from './lib/supabase'
+import { boa } from './lib/boa'
 import Auth from './components/Auth.vue'
 import CarForm from './components/CarForm.vue'
 import CarList from './components/CarList.vue'
@@ -13,16 +13,16 @@ const loading = ref(false)
 const error = ref('')
 
 onMounted(async () => {
-  const { data } = await supabase.auth.getUser()
-  if (data?.user) {
-    user.value = data.user
+  const { user: currentUser } = await boa.auth.getUser()
+  if (currentUser) {
+    user.value = currentUser
     await fetchCars()
   }
 })
 
 async function fetchCars() {
   loading.value = true
-  const { data, error: err } = await supabase
+  const { data, error: err } = await boa
     .from('cars')
     .select('*')
     .order('created_at', { ascending: false })
@@ -40,7 +40,7 @@ async function handleSignedIn(u) {
 }
 
 async function handleSignOut() {
-  await supabase.auth.signOut()
+  await boa.auth.signOut()
   user.value = null
   cars.value = []
 }
@@ -58,7 +58,7 @@ function startEdit(car) {
 async function handleSave(carData) {
   error.value = ''
   if (editingCar.value) {
-    const { error: err } = await supabase
+    const { error: err } = await boa
       .from('cars')
       .update(carData)
       .eq('id', editingCar.value.id)
@@ -67,7 +67,7 @@ async function handleSave(carData) {
       return
     }
   } else {
-    const { error: err } = await supabase
+    const { error: err } = await boa
       .from('cars')
       .insert({ ...carData, user_id: user.value.id })
     if (err) {
@@ -82,7 +82,7 @@ async function handleSave(carData) {
 
 async function handleDelete(car) {
   if (!confirm(`Delete ${car.year} ${car.make} ${car.model}?`)) return
-  const { error: err } = await supabase
+  const { error: err } = await boa
     .from('cars')
     .delete()
     .eq('id', car.id)
