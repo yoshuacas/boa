@@ -33,6 +33,7 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/docs/getting-started' },
           { text: 'How It Works', link: '/docs/how-it-works' },
+          { text: 'Architecture', link: '/docs/architecture' },
           {
             text: 'Guides',
             items: [
@@ -58,6 +59,7 @@ export default defineConfig({
           items: [
             { text: 'Getting Started', link: '/docs/getting-started' },
             { text: 'How It Works', link: '/docs/how-it-works' },
+            { text: 'Architecture', link: '/docs/architecture' },
           ]
         },
         {
