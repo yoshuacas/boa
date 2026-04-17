@@ -80,19 +80,23 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 - Evaluating whether BOA's opinions are good ones
 - Cares about architecture decisions and escape hatches
 
-## Competitive Positioning
+## Positioning
 
-| | BOA | Supabase | Firebase | Amplify Gen 2 |
-|---|---|---|---|---|
-| You own the infrastructure | Yes | No | No | Partial |
-| Scales to zero ($0 idle) | Yes | No ($25/mo min) | Partial | Yes |
-| PostgreSQL | Yes (DSQL) | Yes | No (Firestore) | No (DynamoDB) |
-| Agent-ready skill | Yes | No | No | No |
-| No vendor lock-in | Yes | No | No | AWS only |
+BOA's external positioning focuses on what BOA does -- not on how it compares to other tools. We do not publish comparison tables, "alternative to X" framing, or competitive benchmarks in any external material (website, README, docs, blog posts).
 
-**We do not position against Supabase.** Supabase is a valid choice. We don't claim to be a Supabase alternative or replacement. The comparison exists in the docs (FAQ) for developers evaluating their options. The homepage and pricing page focus on what BOA costs on AWS — developers can compare on their own.
+**What we say:** BOA deploys a serverless backend into your own AWS account. You own the infrastructure, it scales to zero, and it grows without re-architecture.
 
-**On Supabase compatibility:** BOA's REST API is PostgREST-compatible and the auth API is GoTrue-compatible, which means `@supabase/supabase-js` works as a client library. This is a convenience for developers who already know the Supabase SDK — not a value proposition. We do not promise full Supabase compatibility, we do not track Supabase API changes, and we do not position this compatibility as a reason to choose BOA. It is an implementation detail that makes the developer experience familiar, nothing more.
+**What we don't say:** We never disparage or draw public comparisons to Supabase, Firebase, Amplify, or any other open source project or service. Developers evaluating their options can compare on their own.
+
+**Internal competitive context** is in [docs/internal/COMPETITIVE.md](internal/COMPETITIVE.md) for team use only.
+
+## Open Source Acknowledgment
+
+BOA implements the [PostgREST](https://postgrest.org/) and [GoTrue](https://github.com/supabase/auth) open source API standards. Tools built for those ecosystems -- including `@supabase/supabase-js` -- work as client libraries. We are grateful to the PostgREST, GoTrue, and Supabase communities for defining the API patterns that BOA builds on.
+
+BOA also depends on [Cedar](https://www.cedarpolicy.com/), an open source policy language created by AWS, for authorization.
+
+We do not promise full compatibility with any upstream project, and we do not track upstream API changes. BOA implements a subset of these open standards sufficient for its use case.
 
 ## Nomenclature
 
