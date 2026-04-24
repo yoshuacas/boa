@@ -4,7 +4,7 @@
   "description": "BOA serverless backend Lambda handlers",
   "type": "module",
   "dependencies": {
-    "pgrest-lambda": "github:yoshuacas/pgrest-lambda",
+    "pgrest-lambda": "github:yoshuacas/pgrest-lambda#v0.2.0",
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0"
   }

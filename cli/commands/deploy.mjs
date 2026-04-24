@@ -5,6 +5,7 @@ import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 import { resolveTemplate } from '../lib/extensions.mjs';
+import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
 
 export function needsMigrationWarning(cfg) {
@@ -52,7 +53,10 @@ export default async function deploy(_args) {
     console.log('');
   }
 
-  // 4-5. SAM build
+  // 4. Ensure lambda dependencies match the pinned pgrest-lambda version
+  ensureLambdaDepsInstalled();
+
+  // 5. SAM build
   console.log('Building SAM application...');
   const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
   const templatePath = resolveTemplate(process.cwd());

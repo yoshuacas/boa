@@ -12,6 +12,7 @@ import { ok, header } from '../lib/output.mjs';
 import {
   TOOLS, DSQL_REGIONS, getOutputValue, REPO_URL,
 } from '../lib/constants.mjs';
+import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -344,7 +345,10 @@ export default async function init(args) {
   ok(`JWT secret stored at /${name}/jwt-secret`);
   console.log('');
 
-  // 9. SAM build
+  // 9. Ensure lambda dependencies match the pinned pgrest-lambda version
+  ensureLambdaDepsInstalled();
+
+  // 10. SAM build
   console.log('Building SAM application...');
   const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
   sam.build(TEMPLATE_PATH, buildDir, region);
