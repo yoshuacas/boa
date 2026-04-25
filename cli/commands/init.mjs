@@ -472,9 +472,12 @@ export default async function init(args) {
           'Bash(npx vite*)',
           'Bash(npx serve*)',
         ],
+        deny: [
+          'Bash(boa teardown*)',
+        ],
       },
     }, null, 2) + '\n');
-    ok('.claude/settings.json written (boa commands auto-approved)');
+    ok('.claude/settings.json written (boa commands auto-approved, teardown requires human approval)');
   }
 
   // 19. Print summary

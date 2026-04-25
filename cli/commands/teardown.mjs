@@ -5,7 +5,7 @@ import * as aws from '../lib/aws.mjs';
 import { shellEscape } from '../lib/aws.mjs';
 import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
-import { ok } from '../lib/output.mjs';
+import { ok, fail } from '../lib/output.mjs';
 
 async function confirm(prompt) {
   const rl = createInterface({
@@ -21,6 +21,22 @@ async function confirm(prompt) {
 }
 
 export default async function teardown(_args) {
+  if (!process.stdin.isTTY) {
+    console.error(
+      'Error: boa teardown must be run interactively'
+        + ' from a terminal.\n'
+    );
+    console.error(
+      'Teardown is a destructive operation that requires'
+        + ' human confirmation.'
+    );
+    console.error(
+      'It cannot be run from scripts, pipes, or automated'
+        + ' tools.'
+    );
+    process.exit(1);
+  }
+
   // 1. Load config with teardown-specific error message
   const cfg = config.read();
   if (!cfg) {
@@ -147,7 +163,60 @@ export default async function teardown(_args) {
   sam.remove(stackName, region);
   ok('Stack deleted');
 
-  // 11. Clean up SSM parameters
+  // 11-13. Delete retained resources
+  console.log('');
+  console.log('Deleting retained resources...');
+
+  try {
+    aws.exec(
+      `aws dsql delete-cluster`
+        + ` --identifier ${shellEscape(dsqlClusterId)}`
+        + ` --region ${shellEscape(region)}`
+    );
+    ok(`DSQL cluster '${dsqlClusterId}' delete initiated`);
+  } catch (e) {
+    if (e.message?.includes('ResourceNotFoundException')) {
+      ok(`DSQL cluster '${dsqlClusterId}' already gone`);
+    } else {
+      fail(`DSQL cluster '${dsqlClusterId}' delete failed:`
+        + ` ${e.message}`);
+    }
+  }
+
+  try {
+    aws.exec(
+      `aws cognito-idp delete-user-pool`
+        + ` --user-pool-id ${shellEscape(userPoolId)}`
+        + ` --region ${shellEscape(region)}`
+    );
+    ok(`Cognito user pool '${userPoolId}' deleted`);
+  } catch (e) {
+    if (e.message?.includes('ResourceNotFoundException')) {
+      ok(`Cognito user pool '${userPoolId}' already gone`);
+    } else {
+      fail(`Cognito user pool '${userPoolId}' delete failed:`
+        + ` ${e.message}`);
+    }
+  }
+
+  try {
+    aws.exec(
+      `aws s3api delete-bucket`
+        + ` --bucket ${shellEscape(bucketName)}`
+        + ` --region ${shellEscape(region)}`
+    );
+    ok(`S3 bucket '${bucketName}' deleted`);
+  } catch (e) {
+    if (e.message?.includes('NoSuchBucket')
+        || e.message?.includes('not found')) {
+      ok(`S3 bucket '${bucketName}' already gone`);
+    } else {
+      fail(`S3 bucket '${bucketName}' delete failed:`
+        + ` ${e.message}`);
+    }
+  }
+
+  // 15. Clean up SSM parameters
   console.log('');
   console.log('Cleaning up SSM parameters...');
   try {
@@ -172,7 +241,7 @@ export default async function teardown(_args) {
   }
   ok('SSM parameters removed');
 
-  // 12. Remove .boa/ directory
+  // 16. Remove .boa/ directory
   console.log('');
   console.log('Removing .boa/...');
   rmSync(join(process.cwd(), '.boa'), {
@@ -181,9 +250,89 @@ export default async function teardown(_args) {
   });
   ok('Local configuration removed');
 
-  // 13. Print completion message
+  // 17. Verify resource cleanup
+  console.log('');
+  console.log('Verifying resource cleanup...');
+  let allClean = true;
+  const manualCommands = [];
+
+  try {
+    const clusterJson = aws.exec(
+      `aws dsql get-cluster`
+        + ` --identifier ${shellEscape(dsqlClusterId)}`
+        + ` --region ${shellEscape(region)}`
+        + ` --output json`
+    );
+    const cluster = JSON.parse(clusterJson);
+    if (cluster.status === 'DELETING'
+        || cluster.status === 'DELETED') {
+      ok(`DSQL cluster: ${cluster.status}`);
+    } else {
+      fail(`DSQL cluster still exists`
+        + ` (status: ${cluster.status})`);
+      allClean = false;
+      manualCommands.push(
+        `aws dsql delete-cluster`
+          + ` --identifier ${dsqlClusterId}`
+          + ` --region ${region}`
+      );
+    }
+  } catch {
+    ok('DSQL cluster: gone');
+  }
+
+  try {
+    aws.exec(
+      `aws cognito-idp describe-user-pool`
+        + ` --user-pool-id ${shellEscape(userPoolId)}`
+        + ` --region ${shellEscape(region)}`
+    );
+    fail('Cognito user pool still exists');
+    allClean = false;
+    manualCommands.push(
+      `aws cognito-idp delete-user-pool`
+        + ` --user-pool-id ${userPoolId}`
+        + ` --region ${region}`
+    );
+  } catch {
+    ok('Cognito user pool: gone');
+  }
+
+  try {
+    aws.exec(
+      `aws s3api head-bucket`
+        + ` --bucket ${shellEscape(bucketName)}`
+        + ` --region ${shellEscape(region)}`
+    );
+    fail('S3 bucket still exists');
+    allClean = false;
+    manualCommands.push(
+      `aws s3api delete-bucket`
+        + ` --bucket ${bucketName}`
+        + ` --region ${region}`
+    );
+  } catch {
+    ok('S3 bucket: gone');
+  }
+
+  if (!allClean) {
+    console.log('');
+    console.log(
+      'WARNING: Some resources were not fully cleaned up.'
+    );
+    console.log('Run these commands manually to finish:');
+    for (const cmd of manualCommands) {
+      console.log(`  ${cmd}`);
+    }
+  }
+
+  // 18. Print completion message
   console.log('');
   console.log(
     `Teardown complete. Stack '${stackName}' has been destroyed.`
   );
+
+  if (!allClean) {
+    process.exit(1);
+  }
 }
