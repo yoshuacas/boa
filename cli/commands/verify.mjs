@@ -1,12 +1,13 @@
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
 import { pass, fail, header } from '../lib/output.mjs';
+import { hasBetterAuthSchema } from '../lib/auth-schema.mjs';
 
 export default async function verify(_args) {
   const cfg = config.requireConfig();
   const {
     stackName, region, apiUrl,
-    userPoolId, bucketName,
+    dsqlEndpoint, bucketName,
   } = cfg;
 
   let passed = 0;
@@ -28,28 +29,23 @@ export default async function verify(_args) {
   console.log(`  Region: ${region}`);
   console.log('');
 
-  // Check 1: Cognito self-signup
-  console.log('Checking Cognito configuration...');
-  let adminOnly;
+  // Check 1: Auth schema
+  console.log('Checking auth schema...');
+  let authReady = false;
   try {
-    adminOnly = aws.exec(
-      `aws cognito-idp describe-user-pool` +
-        ` --user-pool-id ${userPoolId} --region ${region}` +
-        ` --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'` +
-        ` --output text`
-    );
+    authReady = hasBetterAuthSchema(dsqlEndpoint, region);
   } catch {
-    adminOnly = 'ERROR';
+    authReady = false;
   }
-  if (adminOnly === 'False') {
+  if (authReady) {
     check(
       true,
-      'Cognito self-signup enabled (AllowAdminCreateUserOnly=false)'
+      'better-auth schema is ready'
     );
   } else {
     check(
       false,
-      `Cognito self-signup enabled (AllowAdminCreateUserOnly=false) — got: ${adminOnly}`
+      'better-auth schema is missing or incomplete'
     );
   }
 
@@ -59,6 +55,7 @@ export default async function verify(_args) {
   if (cfg.alb) {
     console.log('Checking ALB target group...');
     let tgHealth;
+    let tgReason;
     try {
       tgHealth = aws.exec(
         `aws elbv2 describe-target-health` +
@@ -67,12 +64,23 @@ export default async function verify(_args) {
           ` --query 'TargetHealthDescriptions[0].TargetHealth.State'` +
           ` --output text`
       );
+      tgReason = aws.exec(
+        `aws elbv2 describe-target-health` +
+          ` --target-group-arn ${cfg.alb.targetGroupArn}` +
+          ` --region ${region}` +
+          ` --query 'TargetHealthDescriptions[0].TargetHealth.Reason'` +
+          ` --output text`
+      );
     } catch {
       tgHealth = null;
+      tgReason = null;
     }
+    const healthOk = tgHealth === 'healthy'
+      || (tgHealth === 'unavailable'
+        && tgReason === 'Target.HealthCheckDisabled');
     check(
-      tgHealth === 'healthy',
-      `ALB target group is healthy (${tgHealth})`
+      healthOk,
+      `ALB target group is ready (${tgHealth})`
     );
 
     // Check 3: WAF attached to ALB

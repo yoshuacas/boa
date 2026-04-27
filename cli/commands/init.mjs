@@ -12,8 +12,12 @@ import { ok, header } from '../lib/output.mjs';
 import {
   TOOLS, DSQL_REGIONS, getOutputValue, REPO_URL,
 } from '../lib/constants.mjs';
-import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
+import {
+  ensureLambdaDepsInstalled,
+  getPinnedPgrestLambdaVersion,
+} from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
+import { bootstrapBetterAuthSchema } from '../lib/auth-schema.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
@@ -94,7 +98,7 @@ Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + rout
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)
-    └──▶ Cognito ─── User management (GoTrue-compatible auth)
+    └──▶ better-auth ─── User management (GoTrue-compatible auth)
 \`\`\`
 
 Everything is serverless. No servers to manage. Scales to zero, scales to millions.
@@ -120,18 +124,16 @@ All operations go through the \`boa\` CLI. The developer can also run these comm
 
 These come from hundreds of real AI-built backends. Every rule prevents a real failure.
 
-1. **Cognito self-sign-up**: Always set \`AllowAdminCreateUserOnly: false\`
-2. **Pre-signup trigger**: Always deploy a Lambda that auto-confirms users
-3. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures)
-4. **Reserved env vars**: Never set \`AWS_REGION\` as Lambda env var — use \`REGION_NAME\`
-5. **S3 security**: Never make buckets public — always use presigned URLs
-6. **Vite polyfill**: Always add \`global: 'globalThis'\` in Vite config for Cognito SDK
-7. **Amplify redirects**: Never use \`/<*>\` as SPA redirect — use regex excluding static assets
-8. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
-9. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
-10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. \`boa teardown\` destroys the database, user accounts, and uploaded files — all irreplaceable.
-11. **Deletion protection on stateful resources**: DSQL cluster, Cognito user pool, and S3 bucket have \`DeletionPolicy: Retain\`. Never disable these protections.
-12. **Extensions are optional**: The default backend works without any extensions.
+1. **Auth provider**: New projects use \`AUTH_PROVIDER=better-auth\`; do not add Cognito unless the developer explicitly asks for a legacy provider.
+2. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures)
+3. **Reserved env vars**: Never set \`AWS_REGION\` as Lambda env var — use \`REGION_NAME\`
+4. **S3 security**: Never make buckets public — always use presigned URLs
+5. **Amplify redirects**: Never use \`/<*>\` as SPA redirect — use regex excluding static assets
+6. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
+7. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
+8. **Never tear down to fix a problem**: Diagnose and fix the specific issue. \`boa teardown\` destroys the database, user accounts, and uploaded files — all irreplaceable.
+9. **Deletion protection on stateful resources**: DSQL cluster and S3 bucket have \`DeletionPolicy: Retain\`. Never disable these protections.
+10. **Extensions are optional**: The default backend works without any extensions.
 
 ## Adding Tables and Policies
 
@@ -233,8 +235,6 @@ const { data } = await supabase.from('todos').select('*');
 await supabase.from('todos').insert({ title: 'Buy milk', user_id: userId });
 \`\`\`
 
-For Vite: add \`define: { global: 'globalThis' }\` to \`vite.config.js\` (required for Cognito SDK).
-
 ## Configuration
 
 Backend configuration is in \`.boa/config.json\`:
@@ -242,7 +242,8 @@ Backend configuration is in \`.boa/config.json\`:
 - **alb**: Load balancer ARN, DNS name, target group ARN, VPC ID
 - **anonKey**: Public key for client-side access
 - **serviceRoleKey**: Admin key (server-side only, bypasses authorization)
-- **userPoolId**: ${cfg.userPoolId}
+- **authProvider**: ${cfg.authProvider}
+- **pgrestLambdaVersion**: ${cfg.pgrestLambdaVersion}
 - **bucketName**: ${cfg.bucketName}
 - **dsqlEndpoint**: ${cfg.dsqlEndpoint}
 - **region**: ${cfg.region}
@@ -339,10 +340,15 @@ export default async function init(args) {
   // 7. Generate JWT secret
   console.log('Generating secrets...');
   const jwtSecret = randomBytes(32).toString('base64');
+  const betterAuthSecret = randomBytes(48).toString('base64');
 
   // 8. Store in SSM
   aws.ssmPutParameter(`/${name}/jwt-secret`, jwtSecret, region);
   ok(`JWT secret stored at /${name}/jwt-secret`);
+  aws.ssmPutParameter(
+    `/${name}/better-auth-secret`, betterAuthSecret, region
+  );
+  ok(`better-auth secret stored at /${name}/better-auth-secret`);
   console.log('');
 
   // 9. Ensure lambda dependencies match the pinned pgrest-lambda version
@@ -378,35 +384,22 @@ export default async function init(args) {
   const albArn = getOutputValue(outputs, 'AlbArn');
   const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
   const vpcId = getOutputValue(outputs, 'VpcId');
-  const userPoolId = getOutputValue(outputs, 'UserPoolId');
-  const userPoolClientId = getOutputValue(
-    outputs, 'UserPoolClientId'
-  );
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
   // apiUrl is the ALB endpoint (primary entry point)
   const apiUrl = albUrl;
 
-  // 12b. Force Cognito self-signup (corp accounts may override this)
-  const preSignUpArn = aws.exec(
-    `aws lambda get-function --function-name ${name}-pre-signup`
-      + ` --region ${region}`
-      + ` --query 'Configuration.FunctionArn' --output text`
-  );
-  aws.run(
-    `aws cognito-idp update-user-pool`
-      + ` --user-pool-id ${userPoolId} --region ${region}`
-      + ` --admin-create-user-config AllowAdminCreateUserOnly=false`
-      + ` --lambda-config PreSignUp=${preSignUpArn}`
-      + ` --auto-verified-attributes email`
-  );
-  ok('Cognito self-signup enforced');
+  // 12b. Bootstrap better-auth's private schema.
+  console.log('Creating auth tables...');
+  bootstrapBetterAuthSchema(dsqlEndpoint, region);
+  ok('better-auth schema ready');
 
   // 13. Generate keys
   console.log('Generating BOA keys...');
   const { anonKey, serviceRoleKey } = generateKeys(jwtSecret);
   ok('Anon key and service role key generated');
+  const pgrestLambdaVersion = getPinnedPgrestLambdaVersion();
 
   // 14. Write config
   config.write({
@@ -422,8 +415,8 @@ export default async function init(args) {
     } : undefined,
     anonKey,
     serviceRoleKey,
-    userPoolId,
-    userPoolClientId,
+    authProvider: 'better-auth',
+    pgrestLambdaVersion,
     bucketName,
     dsqlEndpoint,
     deployedAt: new Date().toISOString(),
@@ -453,8 +446,9 @@ export default async function init(args) {
   // 17. Write CLAUDE.md for Claude Code skill discovery
   if (!existsSync('CLAUDE.md')) {
     writeFileSync('CLAUDE.md', generateClaudeMd(name, {
-      apiUrl, anonKey, serviceRoleKey, userPoolId,
-      userPoolClientId, bucketName, dsqlEndpoint, region,
+      apiUrl, anonKey, serviceRoleKey,
+      authProvider: 'better-auth', pgrestLambdaVersion,
+      bucketName, dsqlEndpoint, region,
     }));
     ok('CLAUDE.md written (Claude Code will load the BOA skill automatically)');
   }
@@ -489,8 +483,8 @@ export default async function init(args) {
   console.log(
     `  Service Role Key: ${serviceRoleKey.slice(0, 20)}...`
   );
-  console.log(`  User Pool ID:     ${userPoolId}`);
-  console.log(`  Client ID:        ${userPoolClientId}`);
+  console.log('  Auth Provider:    better-auth');
+  console.log(`  pgrest-lambda:    ${pgrestLambdaVersion}`);
   console.log(`  S3 Bucket:        ${bucketName}`);
   console.log(`  DSQL Endpoint:    ${dsqlEndpoint}`);
   console.log('');

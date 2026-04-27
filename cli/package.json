@@ -6,6 +6,11 @@
   "bin": {
     "boa": "./bin/boa.mjs"
   },
+  "scripts": {
+    "sync:skill": "node scripts/sync-skill.mjs",
+    "prepack": "node scripts/sync-skill.mjs",
+    "prepublishOnly": "node scripts/sync-skill.mjs"
+  },
   "engines": {
     "node": ">=18"
   },

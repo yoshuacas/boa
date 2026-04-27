@@ -1,11 +1,39 @@
 # API Patterns
 
-ALB + WAF is the default traffic layer for every BOA backend.
+ALB + WAF is the default traffic layer for every
+BOA backend. It provides DDoS protection and rate limiting.
 
 > **Note:** API Gateway REST is available as an extension
 > (`boa extend api-gateway`) for teams needing usage plans,
 > API keys, or custom domains. The patterns below cover
 > both the default ALB layer and the API Gateway extension.
+
+---
+
+## ALB Default Traffic Layer
+
+Every `boa init` deployment places an Application Load
+Balancer in front of Lambda:
+
+- **DDoS absorption**: AWS Shield Standard (included free)
+- **WAF rate limiting**: 1000 requests per 5 minutes per IP
+  (configurable in the WAF rule)
+- **Lambda integration**: ALB invokes Lambda directly via
+  IAM. There is no public Lambda endpoint
+- **Regional**: WAF attaches in the same region as the ALB
+  (no us-east-1 restriction)
+
+### CORS
+
+ALB passes through all headers. pgrest-lambda handles CORS
+internally. No ALB-level CORS configuration is needed.
+
+### Rate Limit Tuning
+
+The default WAF rate limit is 1000 requests per 5 minutes
+per IP. To increase it, modify the `RateBasedStatement`
+`Limit` in `.boa/template.yaml` (or the base template if
+no local override exists) and run `boa deploy`.
 
 ---
 

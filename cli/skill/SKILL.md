@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, Cognito, Lambda (ALB + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, better-auth, Lambda (ALB + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -21,11 +21,12 @@ These rules shape every interaction:
 
 - **Narrate, don't dump.** Before running a command, explain what you're doing in one plain sentence. After it finishes, summarize the outcome. Never paste raw bash into your explanation text.
 - **Summarize results visually.** After checking tools or deploying, show a clean summary table or checklist — not raw terminal output.
-- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up sign-in" not "deploying a Cognito user pool with pre-signup Lambda trigger." Translate AWS jargon into what it means for their app.
+- **Use the developer's language.** Say "creating your database" not "provisioning an Aurora DSQL cluster." Say "setting up sign-in" not "configuring the auth provider." Translate AWS jargon into what it means for their app.
 - **Hide backend plumbing.** The developer doesn't need to see IAM token generation, CloudFormation resource IDs, or internal connection strings mid-flow. Show them outcomes: "Your backend is live at https://...", "Sign-in is working", "Tables created."
 - **Be brief and direct.** One sentence before an action, one sentence after. No walls of text explaining what you're about to do.
 - **When something fails, explain the fix — not the internals.** Say "Your AWS session expired — run `aws sso login` in your terminal to refresh it" not "STS AssumeRole returned ExpiredTokenException for ARN arn:aws:iam::..."
 - **Never open HTML via `file://`.** When building a frontend, always start a local dev server (`npx vite`, `npx serve`, `python3 -m http.server`) instead of opening `index.html` directly. Browsers block API requests from `file://` origins due to CORS. If the developer opens a file directly and gets CORS errors, tell them to use `http://localhost` instead.
+- **Preserve form references across async handlers.** In vanilla JavaScript submit handlers, store `const form = event.currentTarget` before any `await`. Event objects can be cleared after async boundaries, causing `Cannot read properties of null` when code later calls `event.currentTarget.reset()` or reads form fields.
 
 ## Architecture
 
@@ -40,12 +41,19 @@ Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + rout
     │
     ├──▶ Aurora DSQL ─── PostgreSQL (PostgREST-compatible REST API)
     ├──▶ Amazon S3 ─── File storage (presigned URLs only)
-    └──▶ Cognito ─── User management (GoTrue-compatible auth)
+    └──▶ better-auth ─── User management (GoTrue-compatible auth)
 ```
 
 Everything is serverless. No servers to manage. Scales to zero. Scales to millions.
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
+
+ALB is the default traffic layer. All client requests go
+through the Application Load Balancer, which provides DDoS
+absorption (AWS Shield Standard) and WAF rate limiting
+(1000 req/5min per IP). ALB invokes Lambda directly via
+IAM -- there is no public Lambda endpoint. WAF attaches
+in the same region as the ALB (no us-east-1 restriction).
 
 ## BOA CLI
 
@@ -94,18 +102,19 @@ The developer described what they want. Create the backend, then build on it.
 
 These come from hundreds of real AI-built backends. Every rule prevents a real failure.
 
-1. **Cognito self-sign-up**: Always set `AllowAdminCreateUserOnly: false`
-2. **Pre-signup trigger**: Always deploy a Lambda that auto-confirms users
-3. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
-4. **Reserved env vars**: Never set `AWS_REGION` as Lambda env var — use `REGION_NAME`
-5. **S3 security**: Never make buckets public — always use presigned URLs
-6. **Vite polyfill**: Always add `global: 'globalThis'` in Vite config for Cognito SDK
-7. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
-8. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
-9. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
-10. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
-11. **Deletion protection on stateful resources**: The DSQL cluster, Cognito user pool, and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
-12. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
+1. **Auth provider**: New projects use `AUTH_PROVIDER=better-auth`; do not add Cognito unless the developer explicitly asks for a legacy provider.
+2. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
+3. **Reserved env vars**: Never set `AWS_REGION` as Lambda env var — use `REGION_NAME`
+4. **S3 security**: Never make buckets public — always use presigned URLs
+5. **Amplify redirects**: Never use `/<*>` as SPA redirect — use regex excluding static assets
+6. **DSQL auth**: Always use IAM authentication tokens — never hardcode credentials
+7. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
+8. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
+9. **Deletion protection on stateful resources**: The DSQL cluster and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
+10. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
+11. **WAF rate limiting**: Default is 1000 requests per
+    5 minutes per IP. Increase in the WAF rule if a
+    legitimate app needs higher throughput.
 
 ## Step 1: Setup
 
@@ -281,9 +290,26 @@ POST /auth/v1/logout                         — sign out
 - **anonKey** — role `anon`, for public access
 - **serviceRoleKey** — role `service_role`, bypasses authorization (server-side only)
 
-For Cognito flows, social sign-in, MFA, and token handling details, see [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md).
+For auth endpoint behavior, token handling, and future provider options, see [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md).
 
 ## Frontend Configuration
+
+When building a plain HTML/JavaScript frontend, keep DOM event references out of async gaps:
+
+```javascript
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = Object.fromEntries(new FormData(form).entries());
+
+  await api('/rest/v1/todos', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  form.reset();
+});
+```
 
 ### Option A: @supabase/supabase-js (recommended)
 
@@ -319,8 +345,6 @@ export const config = {
 };
 ```
 
-For Vite: add `define: { global: 'globalThis' }` to `vite.config.js` (required for Cognito SDK).
-
 ## Dashboard
 
 ```bash
@@ -345,7 +369,7 @@ Load these on demand when you need detailed patterns:
 - [PITFALLS.md](docs/PITFALLS.md) — Quick reference index of all known failures (details in each pattern doc)
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) — DSQL schema patterns per app type
 - [DSQL-PATTERNS.md](docs/DSQL-PATTERNS.md) — DSQL constraints, schema patterns, query patterns
-- [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md) — Cognito flows, token handling, MFA
+- [AUTH-PATTERNS.md](docs/AUTH-PATTERNS.md) — Auth flows and token handling
 - [API-PATTERNS.md](docs/API-PATTERNS.md) — API Gateway + Lambda patterns
 - [STORAGE-PATTERNS.md](docs/STORAGE-PATTERNS.md) — S3 presigned URLs, file management
 - [FUNCTIONS.md](docs/FUNCTIONS.md) — Custom functions: API endpoints, webhooks, scheduled jobs

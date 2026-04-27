@@ -53,7 +53,7 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | Layer | Service | Developer-Facing Term |
 |-------|---------|----------------------|
 | Database | Aurora DSQL | "your database" (PostgreSQL) |
-| Auth | Amazon Cognito | "the auth API" |
+| Auth | better-auth via pgrest-lambda | "the auth API" |
 | Authorization | Cedar policies | "access policies" |
 | Engine | pgrest-lambda (npm) | "the REST API" |
 | Compute | AWS Lambda (Node.js 20.x) | "functions" |

@@ -33,6 +33,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 18 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #8 |
 | 19 | CORS errors — Lambda missing headers or OPTIONS not configured | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 20 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
+| 26 | Async form submit handler reads `event.currentTarget` after `await` | MEDIUM | [SKILL.md](../skills/boa/SKILL.md) Frontend Configuration |
 | **Storage** | | | |
 | 21 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | 22 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |

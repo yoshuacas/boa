@@ -47,8 +47,10 @@ export default async function teardown(_args) {
   }
 
   // 2. Read config values
-  const { stackName, region, bucketName, userPoolId, dsqlEndpoint } =
-    cfg;
+  const {
+    stackName, region, bucketName, userPoolId, dsqlEndpoint,
+    authProvider = userPoolId ? 'cognito' : 'better-auth',
+  } = cfg;
 
   // 3. Print destructive operation warning box
   console.log('');
@@ -68,7 +70,7 @@ export default async function teardown(_args) {
     '║    • All database tables and data (Aurora DSQL)             ║'
   );
   console.log(
-    '║    • All user accounts (Cognito)                            ║'
+    '║    • All user accounts                                     ║'
   );
   console.log(
     '║    • All uploaded files (S3)                                ║'
@@ -100,7 +102,7 @@ export default async function teardown(_args) {
   console.log(`  Stack:     ${stackName}`);
   console.log(`  Region:    ${region}`);
   console.log(`  Database:  ${dsqlEndpoint}`);
-  console.log(`  Users:     ${userPoolId}`);
+  console.log(`  Auth:      ${authProvider}`);
   console.log(`  Storage:   ${bucketName}`);
   console.log('');
 
@@ -134,16 +136,18 @@ export default async function teardown(_args) {
   }
   ok('DSQL deletion protection disabled');
 
-  // 8. Disable Cognito deletion protection
-  try {
-    aws.exec(
-      `aws cognito-idp update-user-pool --user-pool-id ${shellEscape(userPoolId)}` +
-        ` --deletion-protection INACTIVE --region ${shellEscape(region)}`
-    );
-  } catch {
-    // Ignore errors
+  // 8. Disable Cognito deletion protection for legacy backends
+  if (userPoolId) {
+    try {
+      aws.exec(
+        `aws cognito-idp update-user-pool --user-pool-id ${shellEscape(userPoolId)}` +
+          ` --deletion-protection INACTIVE --region ${shellEscape(region)}`
+      );
+    } catch {
+      // Ignore errors
+    }
+    ok('Cognito deletion protection disabled');
   }
-  ok('Cognito deletion protection disabled');
 
   // 9. Empty S3 bucket
   console.log('');
@@ -183,19 +187,21 @@ export default async function teardown(_args) {
     }
   }
 
-  try {
-    aws.exec(
-      `aws cognito-idp delete-user-pool`
-        + ` --user-pool-id ${shellEscape(userPoolId)}`
-        + ` --region ${shellEscape(region)}`
-    );
-    ok(`Cognito user pool '${userPoolId}' deleted`);
-  } catch (e) {
-    if (e.message?.includes('ResourceNotFoundException')) {
-      ok(`Cognito user pool '${userPoolId}' already gone`);
-    } else {
-      fail(`Cognito user pool '${userPoolId}' delete failed:`
-        + ` ${e.message}`);
+  if (userPoolId) {
+    try {
+      aws.exec(
+        `aws cognito-idp delete-user-pool`
+          + ` --user-pool-id ${shellEscape(userPoolId)}`
+          + ` --region ${shellEscape(region)}`
+      );
+      ok(`Cognito user pool '${userPoolId}' deleted`);
+    } catch (e) {
+      if (e.message?.includes('ResourceNotFoundException')) {
+        ok(`Cognito user pool '${userPoolId}' already gone`);
+      } else {
+        fail(`Cognito user pool '${userPoolId}' delete failed:`
+          + ` ${e.message}`);
+      }
     }
   }
 
@@ -281,21 +287,23 @@ export default async function teardown(_args) {
     ok('DSQL cluster: gone');
   }
 
-  try {
-    aws.exec(
-      `aws cognito-idp describe-user-pool`
-        + ` --user-pool-id ${shellEscape(userPoolId)}`
-        + ` --region ${shellEscape(region)}`
-    );
-    fail('Cognito user pool still exists');
-    allClean = false;
-    manualCommands.push(
-      `aws cognito-idp delete-user-pool`
-        + ` --user-pool-id ${userPoolId}`
-        + ` --region ${region}`
-    );
-  } catch {
-    ok('Cognito user pool: gone');
+  if (userPoolId) {
+    try {
+      aws.exec(
+        `aws cognito-idp describe-user-pool`
+          + ` --user-pool-id ${shellEscape(userPoolId)}`
+          + ` --region ${shellEscape(region)}`
+      );
+      fail('Cognito user pool still exists');
+      allClean = false;
+      manualCommands.push(
+        `aws cognito-idp delete-user-pool`
+          + ` --user-pool-id ${userPoolId}`
+          + ` --region ${region}`
+      );
+    } catch {
+      ok('Cognito user pool: gone');
+    }
   }
 
   try {

@@ -12,15 +12,15 @@ BOA is four things:
 | Layer | Service |
 |-------|---------|
 | Database | Aurora DSQL (serverless PostgreSQL) |
-| Auth | Amazon Cognito |
+| Auth | better-auth via pgrest-lambda |
 | Authorization | Access policies (deny by default) |
 | Compute | AWS Lambda (Node.js 20.x) |
-| API | Lambda Function URLs (free) |
+| API | ALB + WAF (default) |
 | Storage | Amazon S3 |
 | Hosting | AWS Amplify |
 | IaC | SAM / CloudFormation |
 
-API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
+API Gateway is available as an extension (`boa extend api-gateway`) for usage plans, API keys, or custom domains.
 
 ## The BOA CLI
 

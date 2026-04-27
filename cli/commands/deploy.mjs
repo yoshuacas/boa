@@ -6,7 +6,9 @@ import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 import { resolveTemplate } from '../lib/extensions.mjs';
 import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
+import { getPinnedPgrestLambdaVersion } from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
+import { bootstrapBetterAuthSchema } from '../lib/auth-schema.mjs';
 
 export function needsMigrationWarning(cfg) {
   const extensions = cfg.extensions || [];
@@ -88,28 +90,14 @@ export default async function deploy(_args) {
   const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
   const vpcId = getOutputValue(outputs, 'VpcId');
   let apiUrl = albUrl;
-  const userPoolId = getOutputValue(outputs, 'UserPoolId');
-  const userPoolClientId = getOutputValue(
-    outputs, 'UserPoolClientId'
-  );
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
-  // 8b. Force Cognito self-signup (corp accounts may override this)
-  try {
-    const preSignUpArn = aws.exec(
-      `aws lambda get-function --function-name ${stackName}-pre-signup`
-        + ` --region ${region}`
-        + ` --query 'Configuration.FunctionArn' --output text`
-    );
-    aws.run(
-      `aws cognito-idp update-user-pool`
-        + ` --user-pool-id ${userPoolId} --region ${region}`
-        + ` --admin-create-user-config AllowAdminCreateUserOnly=false`
-        + ` --lambda-config PreSignUp=${preSignUpArn}`
-        + ` --auto-verified-attributes email`
-    );
-  } catch { /* best-effort */ }
+  // 8b. Keep better-auth's private schema present after deploys.
+  if ((cfg.authProvider || 'better-auth') === 'better-auth') {
+    console.log('Creating auth tables...');
+    bootstrapBetterAuthSchema(dsqlEndpoint, region);
+  }
 
   // 9. Build config — preserve keys and accountId
   const extensions = cfg.extensions || [];
@@ -126,8 +114,8 @@ export default async function deploy(_args) {
     } : undefined,
     anonKey: cfg.anonKey,
     serviceRoleKey: cfg.serviceRoleKey,
-    userPoolId,
-    userPoolClientId,
+    authProvider: cfg.authProvider || 'better-auth',
+    pgrestLambdaVersion: getPinnedPgrestLambdaVersion(),
     bucketName,
     dsqlEndpoint,
     deployedAt: new Date().toISOString(),

@@ -10,7 +10,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 1 | Self-sign-up disabled by default (`AllowAdminCreateUserOnly: true`) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 2 | Users stuck in UNCONFIRMED (missing pre-signup trigger) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 3 | `update-user-pool` CLI wipes all Lambda triggers | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
-| 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #7 |
+| 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #7 |
 | 5 | Wrong API Gateway type — HTTP API instead of REST API (only when `api-gateway` extension is enabled) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 6 | Wrong authorizer context path (`claims.sub` vs `authorizer.userId`) | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | **Database** | | | |
@@ -22,7 +22,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 12 | Missing indexes on foreign key columns | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
 | **Deployment** | | | |
 | 13 | `AWS_REGION` as Lambda env var (reserved — use `REGION_NAME`) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
-| 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #4 |
+| 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
 | 25 | HTTP only by default (ALB needs ACM cert for HTTPS) | MEDIUM | See below |
@@ -30,9 +30,10 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | **Frontend** | | | |
-| 18 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../skills/boa/SKILL.md) Critical Rule #8 |
+| 18 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../SKILL.md) Critical Rule #8 |
 | 19 | CORS errors — Lambda missing headers or OPTIONS not configured | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 20 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
+| 26 | Async form submit handler reads `event.currentTarget` after `await` | MEDIUM | [SKILL.md](../SKILL.md) Frontend Configuration |
 | **Storage** | | | |
 | 21 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | 22 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |

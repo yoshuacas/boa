@@ -79,6 +79,17 @@ export function mergeTemplate(extensions) {
     );
     apiProps.delete('ReservedConcurrentExecutions');
 
+    const apiEnvVars = doc.getIn(
+      ['Resources', 'ApiFunction', 'Properties', 'Environment', 'Variables'],
+      true,
+    );
+    apiEnvVars.set('BETTER_AUTH_URL', doc.createNode({
+      'Fn::Sub': 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod',
+    }));
+    apiEnvVars.set('API_BASE_URL', doc.createNode({
+      'Fn::Sub': 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1',
+    }));
+
     // Remove ALB-related outputs
     const baseOutputs = doc.get('Outputs', true);
     for (const key of [

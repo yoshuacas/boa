@@ -1,204 +1,106 @@
 # Auth Patterns
 
-Amazon Cognito patterns for the BOA stack.
+BOA uses `pgrest-lambda` for GoTrue-compatible auth. New backends use
+`AUTH_PROVIDER=better-auth`, with users, sessions, accounts,
+verification records, and JWKS stored in the private `better_auth`
+schema in Aurora DSQL.
 
----
+The auth API is compatible with `@supabase/supabase-js`:
 
-## User Pool Configuration (required settings)
+```text
+POST /auth/v1/signup                         sign up
+POST /auth/v1/token?grant_type=password      sign in
+POST /auth/v1/token?grant_type=refresh_token refresh
+GET  /auth/v1/user                           current user
+POST /auth/v1/logout                         sign out
+```
+
+## Frontend
+
+Use the same API URL and anon key from `.boa/config.json`.
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(config.apiUrl, config.anonKey);
+
+await supabase.auth.signUp({ email, password });
+await supabase.auth.signInWithPassword({ email, password });
+
+const { data: { user } } = await supabase.auth.getUser();
+await supabase.auth.signOut();
+```
+
+## Backend Configuration
+
+The BOA SAM template sets:
 
 ```yaml
-# In SAM template
-CognitoUserPool:
-  Type: AWS::Cognito::UserPool
-  Properties:
-    UserPoolName: !Sub "${ProjectName}-users"
-    AdminCreateUserConfig:
-      AllowAdminCreateUserOnly: false     # CRITICAL: enable self-signup
-    AutoVerifiedAttributes:
-      - email
-    UsernameAttributes:
-      - email
-    Policies:
-      PasswordPolicy:
-        MinimumLength: 8
-        RequireLowercase: true
-        RequireUppercase: true
-        RequireNumbers: true
-        RequireSymbols: false
-    Schema:
-      - Name: email
-        Required: true
-        Mutable: true
+AUTH_PROVIDER: better-auth
+JWT_SECRET: '{{resolve:ssm:/<project>/jwt-secret}}'
+BETTER_AUTH_SECRET: '{{resolve:ssm:/<project>/better-auth-secret}}'
+BETTER_AUTH_URL: http://<api-host>
+DSQL_ENDPOINT: <cluster endpoint>
+REGION_NAME: <region>
 ```
 
-## Pre-Signup Auto-Confirm Trigger
+`boa init` creates the secrets in SSM Parameter Store and bootstraps the
+`better_auth` schema. Do not put auth secrets in code, `.env`, or
+frontend config.
 
-Without this, users must verify via email (requires SES). This trigger auto-confirms.
+## DSQL Schema
 
-```javascript
-export const handler = async (event) => {
-  event.response.autoConfirmUser = true;
-  if (event.request.userAttributes.email) {
-    event.response.autoVerifyEmail = true;
-  }
-  return event;
-};
+Aurora DSQL does not support PostgreSQL foreign keys. BOA therefore
+applies a DSQL-compatible better-auth schema without `REFERENCES`
+constraints. Do not edit the `better_auth` schema by hand. User-facing
+application tables belong in the public schema through normal BOA
+migrations.
+
+## Access Policies
+
+Access policies see authenticated users as
+`PgrestLambda::User::<user-id>`. Standard ownership policies use a
+`user_id` column on app tables:
+
+```cedar
+permit(
+    principal is PgrestLambda::User,
+    action in [PgrestLambda::Action::"select", PgrestLambda::Action::"update", PgrestLambda::Action::"delete"],
+    resource is PgrestLambda::Row
+) when { resource has user_id && resource.user_id == principal };
 ```
-
-## Sign-Up Flow (Frontend)
-
-```javascript
-import { CognitoUserPool, CognitoUserAttribute } from 'amazon-cognito-identity-js';
-
-const poolData = {
-  UserPoolId: config.auth.userPoolId,
-  ClientId: config.auth.userPoolWebClientId,
-};
-const userPool = new CognitoUserPool(poolData);
-
-function signUp(email, password) {
-  const attributes = [
-    new CognitoUserAttribute({ Name: 'email', Value: email }),
-  ];
-  return new Promise((resolve, reject) => {
-    userPool.signUp(email, password, attributes, null, (err, result) => {
-      if (err) reject(err);
-      else resolve(result.user);
-    });
-  });
-}
-```
-
-## Sign-In Flow (Frontend)
-
-```javascript
-import { CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
-
-function signIn(email, password) {
-  const user = new CognitoUser({ Username: email, Pool: userPool });
-  const authDetails = new AuthenticationDetails({ Username: email, Password: password });
-
-  return new Promise((resolve, reject) => {
-    user.authenticateUser(authDetails, {
-      onSuccess: (session) => resolve(session),
-      onFailure: (err) => reject(err),
-    });
-  });
-}
-```
-
-## Getting JWT Token for API Calls
-
-```javascript
-function getToken() {
-  const user = userPool.getCurrentUser();
-  return new Promise((resolve, reject) => {
-    if (!user) return reject(new Error('Not signed in'));
-    user.getSession((err, session) => {
-      if (err) return reject(err);
-      resolve(session.getIdToken().getJwtToken());
-    });
-  });
-}
-
-// Use in API calls
-const token = await getToken();
-const response = await fetch(`${config.apiUrl}/items`, {
-  headers: { Authorization: token },
-});
-```
-
-## Extracting User ID in Lambda
-
-API Gateway Cognito authorizer validates the JWT and passes claims in the event context:
-
-```javascript
-function getUserId(event) {
-  // REST API with Cognito authorizer
-  return event.requestContext.authorizer.claims.sub;
-}
-
-function getUserEmail(event) {
-  return event.requestContext.authorizer.claims.email;
-}
-```
-
-## Social Login (Google, Apple)
-
-Add identity providers to the user pool:
-
-```yaml
-CognitoUserPoolIdentityProviderGoogle:
-  Type: AWS::Cognito::UserPoolIdentityProvider
-  Properties:
-    UserPoolId: !Ref CognitoUserPool
-    ProviderName: Google
-    ProviderType: Google
-    ProviderDetails:
-      client_id: !Ref GoogleClientId
-      client_secret: !Ref GoogleClientSecret
-      authorize_scopes: "openid email profile"
-    AttributeMapping:
-      email: email
-      username: sub
-```
-
-Configure the Hosted UI domain for OAuth redirects:
-
-```yaml
-CognitoUserPoolDomain:
-  Type: AWS::Cognito::UserPoolDomain
-  Properties:
-    UserPoolId: !Ref CognitoUserPool
-    Domain: !Sub "${ProjectName}-auth"
-```
-
-## MFA Setup
-
-```yaml
-CognitoUserPool:
-  Properties:
-    MfaConfiguration: OPTIONAL       # or REQUIRED
-    EnabledMfas:
-      - SOFTWARE_TOKEN_MFA           # TOTP (Google Authenticator, Authy)
-```
-
-Frontend TOTP setup flow:
-1. Call `user.associateSoftwareToken(callbacks)` to get secret
-2. Show QR code with secret
-3. Call `user.verifySoftwareToken(code, friendlyName, callbacks)` to confirm
 
 ## Common Mistakes
 
-### Self-signup disabled by default
+### Adding Cognito to New Projects
 
-Cognito defaults `AllowAdminCreateUserOnly` to `true`. Users get "User is not authorized" when trying to sign up. Always set `AllowAdminCreateUserOnly: false` in the SAM template.
+Cognito is no longer the default BOA auth provider. Do not add Cognito
+resources, Cognito SDKs, pre-signup triggers, or Vite polyfills unless
+the developer explicitly asks for legacy Cognito integration.
 
-### Users stuck in UNCONFIRMED state
+### Editing better_auth Tables
 
-Without a pre-signup trigger, users must verify via email (requires SES). Deploy the pre-signup Lambda that auto-confirms: `event.response.autoConfirmUser = true`. The BOA template includes this automatically.
+Do not create app relationships to tables in the `better_auth` schema.
+Use the authenticated user's ID from the session and store it as
+`user_id` in public app tables.
 
-### `update-user-pool` wipes all Lambda triggers
+### Missing Auth Schema
 
-The Cognito `update-user-pool` API is a **replace** operation, not a merge. If you run `aws cognito-idp update-user-pool` without passing `--lambda-config`, it removes ALL triggers — including the pre-signup auto-confirm.
+If sign-up fails with a missing table error, run:
 
-Never modify the user pool directly with the CLI. Use SAM/CloudFormation to make changes, or pass every field:
 ```bash
-# WRONG — wipes triggers:
-aws cognito-idp update-user-pool --user-pool-id POOL_ID \
-  --admin-create-user-config AllowAdminCreateUserOnly=false
-
-# RIGHT — preserves triggers:
-aws cognito-idp update-user-pool --user-pool-id POOL_ID \
-  --admin-create-user-config AllowAdminCreateUserOnly=false \
-  --auto-verified-attributes email \
-  --lambda-config PreSignUp=arn:aws:lambda:REGION:ACCOUNT:function:NAME
+boa deploy
+boa verify
 ```
 
-### Wrong authorizer context path
+`boa deploy` re-applies the idempotent better-auth schema bootstrap.
 
-BOA uses a Lambda authorizer, not a Cognito authorizer. User info is at flat keys:
+### Wrong Authorizer Context Path
+
+BOA passes flat authorizer context keys:
+
 ```javascript
-event.requestContext.authorizer.userId   // correct (BOA)
-event.requestContext.authorizer.claims.sub  // wrong (Cognito authorizer format)
+event.requestContext.authorizer.userId   // correct
+event.requestContext.authorizer.email    // correct
+event.requestContext.authorizer.claims.sub  // wrong Cognito format
 ```

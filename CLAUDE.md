@@ -56,7 +56,7 @@ boa/
 | Layer | Service | Notes |
 |-------|---------|-------|
 | Database | Aurora DSQL | Serverless PostgreSQL, scales to zero, IAM auth |
-| Auth | Amazon Cognito | Pre-signup auto-confirm trigger required |
+| Auth | better-auth via pgrest-lambda | Database-backed GoTrue-compatible auth |
 | Authorization | Cedar | Policy-as-code, deny-by-default, ~5μs per eval |
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
@@ -69,15 +69,13 @@ ALB + WAF is the default traffic layer. API Gateway is available as an extension
 
 ## Critical Rules
 
-1. `AllowAdminCreateUserOnly: false` for Cognito self-signup
-2. Deploy pre-signup Lambda that auto-confirms users
-3. Node.js for Lambda, never Python
-4. `REGION_NAME` env var, never `AWS_REGION` (reserved)
-5. S3: never public, always presigned URLs
-6. Vite: `define: { global: 'globalThis' }` for Cognito SDK
-7. Amplify: no `/<*>` redirect, use regex excluding static assets
-8. DSQL: IAM auth tokens, never hardcoded credentials
-9. Extensions are optional. The default backend works without any extensions.
+1. New projects use `AUTH_PROVIDER=better-auth`; Cognito is legacy-only
+2. Node.js for Lambda, never Python
+3. `REGION_NAME` env var, never `AWS_REGION` (reserved)
+4. S3: never public, always presigned URLs
+5. Amplify: no `/<*>` redirect, use regex excluding static assets
+6. DSQL: IAM auth tokens, never hardcoded credentials
+7. Extensions are optional. The default backend works without any extensions.
 
 ## Plan Execution with rring
 

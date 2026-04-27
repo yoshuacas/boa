@@ -112,6 +112,36 @@ describe('SAM template — ALB default', () => {
     );
   });
 
+  it('uses better-auth as the default auth provider', () => {
+    assert.ok(
+      template.includes('AUTH_PROVIDER: better-auth'),
+      'template should set AUTH_PROVIDER to better-auth'
+    );
+    assert.ok(
+      template.includes('BETTER_AUTH_SECRET'),
+      'template should configure BETTER_AUTH_SECRET'
+    );
+    assert.ok(
+      template.includes('BETTER_AUTH_URL'),
+      'template should configure BETTER_AUTH_URL'
+    );
+  });
+
+  it('does NOT contain Cognito resources', () => {
+    assert.ok(
+      !template.includes('AWS::Cognito::UserPool'),
+      'template should not create a Cognito user pool'
+    );
+    assert.ok(
+      !template.includes('USER_POOL_ID'),
+      'template should not set USER_POOL_ID'
+    );
+    assert.ok(
+      !template.includes('cognito-idp:'),
+      'template should not grant Cognito IAM actions'
+    );
+  });
+
   it('there is NO Api resource (AWS::Serverless::Api)', () => {
     assert.ok(
       !template.includes('AWS::Serverless::Api'),

@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: BOA — Backend on AWS serverless stack (ALB, WAF, Aurora DSQL, Cognito, Lambda, S3)
+Description: BOA — Backend on AWS serverless stack (ALB, WAF, Aurora DSQL, Lambda, S3)
 
 Parameters:
   ProjectName:
@@ -31,71 +31,6 @@ Resources:
           Value: !Ref ProjectName
 
   # -------------------------------------------------------
-  # Auth — Amazon Cognito
-  # -------------------------------------------------------
-  UserPool:
-    Type: AWS::Cognito::UserPool
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      UserPoolName: !Sub '${ProjectName}-user-pool'
-      DeletionProtection: ACTIVE
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: false
-      AutoVerifiedAttributes:
-        - email
-      UsernameAttributes:
-        - email
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 8
-          RequireUppercase: true
-          RequireLowercase: true
-          RequireNumbers: true
-          RequireSymbols: false
-      Schema:
-        - Name: email
-          Required: true
-          Mutable: true
-      LambdaConfig:
-        PreSignUp: !GetAtt PreSignUpFunction.Arn
-
-  UserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
-    Properties:
-      ClientName: !Sub '${ProjectName}-client'
-      UserPoolId: !Ref UserPool
-      GenerateSecret: false
-      ExplicitAuthFlows:
-        - ALLOW_USER_SRP_AUTH
-        - ALLOW_REFRESH_TOKEN_AUTH
-        - ALLOW_USER_PASSWORD_AUTH
-      PreventUserExistenceErrors: ENABLED
-
-  # -------------------------------------------------------
-  # Pre-Signup Lambda trigger — auto-confirms users
-  # -------------------------------------------------------
-  PreSignUpFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${ProjectName}-pre-signup'
-      Handler: index.handler
-      InlineCode: |
-        exports.handler = async (event) => {
-          event.response.autoConfirmUser = true;
-          event.response.autoVerifyEmail = true;
-          return event;
-        };
-
-  PreSignUpPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt PreSignUpFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: cognito-idp.amazonaws.com
-      SourceArn: !GetAtt UserPool.Arn
-
-  # -------------------------------------------------------
   # Compute — Lambda API function
   # -------------------------------------------------------
   ApiFunction:
@@ -110,10 +45,10 @@ Resources:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
           REGION_NAME: !Ref 'AWS::Region'
           BUCKET_NAME: !Ref StorageBucket
-          USER_POOL_ID: !Ref UserPool
-          USER_POOL_CLIENT_ID: !Ref UserPoolClient
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
-          AUTH_PROVIDER: cognito
+          BETTER_AUTH_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/better-auth-secret}}'
+          BETTER_AUTH_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+          AUTH_PROVIDER: better-auth
           POLICIES_PATH: ./policies
           API_BASE_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}/rest/v1'
       Policies:
@@ -123,20 +58,6 @@ Resources:
                 - dsql:DbConnect
                 - dsql:DbConnectAdmin
               Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
-        - Statement:
-            - Effect: Allow
-              Action:
-                - cognito-idp:SignUp
-                - cognito-idp:InitiateAuth
-                - cognito-idp:RespondToAuthChallenge
-                - cognito-idp:GetUser
-                - cognito-idp:GlobalSignOut
-                - cognito-idp:RevokeToken
-                - cognito-idp:AdminGetUser
-                - cognito-idp:AdminInitiateAuth
-                - cognito-idp:AdminRespondToAuthChallenge
-                - cognito-idp:AdminConfirmSignUp
-              Resource: !GetAtt UserPool.Arn
         - S3CrudPolicy:
             BucketName: !Ref StorageBucket
 
@@ -353,14 +274,6 @@ Outputs:
   VpcId:
     Description: VPC ID for the ALB
     Value: !Ref AlbVpc
-
-  UserPoolId:
-    Description: Cognito User Pool ID
-    Value: !Ref UserPool
-
-  UserPoolClientId:
-    Description: Cognito User Pool Client ID
-    Value: !Ref UserPoolClient
 
   BucketName:
     Description: S3 storage bucket name
