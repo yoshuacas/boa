@@ -51,25 +51,76 @@ export default async function verify(_args) {
 
   const functionName = `${stackName}-api`;
 
-  // Check 2: ALB target group health
+  // Check: API Gateway stage + WAF
+  if (cfg.apiGateway) {
+    console.log('Checking API Gateway...');
+    let stageExists;
+    try {
+      aws.exec(
+        `aws apigateway get-stage`
+          + ` --rest-api-id ${aws.shellEscape(cfg.apiGateway.restApiId)}`
+          + ` --stage-name ${aws.shellEscape(cfg.apiGateway.stage)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --output text --query 'stageName'`
+      );
+      stageExists = true;
+    } catch {
+      stageExists = false;
+    }
+    check(
+      stageExists,
+      `API Gateway stage '${cfg.apiGateway.stage}' exists`
+    );
+
+    console.log('Checking WAF attachment...');
+    const stageArn =
+      `arn:aws:apigateway:${region}`
+        + `::/restapis/${cfg.apiGateway.restApiId}`
+        + `/stages/${cfg.apiGateway.stage}`;
+    let wafArn;
+    try {
+      wafArn = aws.exec(
+        `aws wafv2 get-web-acl-for-resource`
+          + ` --resource-arn ${aws.shellEscape(stageArn)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --query 'WebACL.ARN' --output text`
+      );
+    } catch {
+      wafArn = null;
+    }
+    if (wafArn && wafArn !== 'None') {
+      check(
+        true,
+        'WAF WebACL is attached to API Gateway stage'
+      );
+    } else {
+      check(
+        false,
+        `WAF WebACL is not attached to API Gateway`
+          + ` stage (${stageArn})`
+      );
+    }
+  }
+
+  // Check: ALB target group health
   if (cfg.alb) {
     console.log('Checking ALB target group...');
     let tgHealth;
     let tgReason;
     try {
       tgHealth = aws.exec(
-        `aws elbv2 describe-target-health` +
-          ` --target-group-arn ${cfg.alb.targetGroupArn}` +
-          ` --region ${region}` +
-          ` --query 'TargetHealthDescriptions[0].TargetHealth.State'` +
-          ` --output text`
+        `aws elbv2 describe-target-health`
+          + ` --target-group-arn ${aws.shellEscape(cfg.alb.targetGroupArn)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --query 'TargetHealthDescriptions[0].TargetHealth.State'`
+          + ` --output text`
       );
       tgReason = aws.exec(
-        `aws elbv2 describe-target-health` +
-          ` --target-group-arn ${cfg.alb.targetGroupArn}` +
-          ` --region ${region}` +
-          ` --query 'TargetHealthDescriptions[0].TargetHealth.Reason'` +
-          ` --output text`
+        `aws elbv2 describe-target-health`
+          + ` --target-group-arn ${aws.shellEscape(cfg.alb.targetGroupArn)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --query 'TargetHealthDescriptions[0].TargetHealth.Reason'`
+          + ` --output text`
       );
     } catch {
       tgHealth = null;
@@ -88,10 +139,10 @@ export default async function verify(_args) {
     let wafArn;
     try {
       wafArn = aws.exec(
-        `aws wafv2 get-web-acl-for-resource` +
-          ` --resource-arn ${cfg.alb.arn}` +
-          ` --region ${region}` +
-          ` --query 'WebACL.ARN' --output text`
+        `aws wafv2 get-web-acl-for-resource`
+          + ` --resource-arn ${aws.shellEscape(cfg.alb.arn)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --query 'WebACL.ARN' --output text`
       );
     } catch {
       wafArn = null;
@@ -107,8 +158,8 @@ export default async function verify(_args) {
   let httpCode;
   try {
     httpCode = aws.exec(
-      `curl -s -o /dev/null -w '%{http_code}'` +
-        ` ${apiUrl}/rest/v1/`
+      `curl -s -o /dev/null -w '%{http_code}'`
+        + ` ${aws.shellEscape(apiUrl + '/rest/v1/')}`
     );
   } catch {
     httpCode = '000';
@@ -117,7 +168,7 @@ export default async function verify(_args) {
   if (validCodes.includes(httpCode)) {
     check(
       true,
-      `API is responding through ALB (HTTP ${httpCode})`
+      `API is responding (HTTP ${httpCode})`
     );
   } else {
     check(
@@ -132,7 +183,7 @@ export default async function verify(_args) {
   let bucketExists;
   try {
     aws.exec(
-      `aws s3api head-bucket --bucket ${bucketName} --region ${region}`
+      `aws s3api head-bucket --bucket ${aws.shellEscape(bucketName)} --region ${aws.shellEscape(region)}`
     );
     bucketExists = true;
   } catch {
@@ -144,10 +195,10 @@ export default async function verify(_args) {
   let publicAccess;
   try {
     publicAccess = aws.exec(
-      `aws s3api get-public-access-block --bucket ${bucketName}` +
-        ` --region ${region}` +
-        ` --query 'PublicAccessBlockConfiguration.BlockPublicAcls'` +
-        ` --output text`
+      `aws s3api get-public-access-block --bucket ${aws.shellEscape(bucketName)}`
+        + ` --region ${aws.shellEscape(region)}`
+        + ` --query 'PublicAccessBlockConfiguration.BlockPublicAcls'`
+        + ` --output text`
     );
   } catch {
     publicAccess = 'ERROR';
@@ -161,25 +212,26 @@ export default async function verify(_args) {
     );
   }
 
-  // Check 7: Reserved concurrency
-  console.log('Checking Lambda concurrency...');
-  let concurrency;
-  try {
-    concurrency = aws.exec(
-      `aws lambda get-function` +
-        ` --function-name ${functionName}` +
-        ` --region ${region}` +
-        ` --query` +
-        ` 'Concurrency.ReservedConcurrentExecutions'` +
-        ` --output text`
+  // Check: Reserved concurrency (ALB only)
+  if (cfg.alb) {
+    console.log('Checking Lambda concurrency...');
+    let concurrency;
+    try {
+      concurrency = aws.exec(
+        `aws lambda get-function`
+          + ` --function-name ${aws.shellEscape(functionName)}`
+          + ` --region ${aws.shellEscape(region)}`
+          + ` --query 'Concurrency.ReservedConcurrentExecutions'`
+          + ` --output text`
+      );
+    } catch {
+      concurrency = null;
+    }
+    check(
+      concurrency && concurrency !== 'None',
+      `Reserved concurrency is set (${concurrency})`
     );
-  } catch {
-    concurrency = null;
   }
-  check(
-    concurrency && concurrency !== 'None',
-    `Reserved concurrency is set (${concurrency})`
-  );
 
   // Summary
   const total = passed + failed;

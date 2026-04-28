@@ -4,7 +4,7 @@ import {
 import { join } from 'node:path';
 import * as config from '../lib/config.mjs';
 import { mergeTemplate } from '../lib/extensions.mjs';
-import deploy from './deploy.mjs';
+import deploy, { buildDeployConfig } from './deploy.mjs';
 
 export default async function remove(args) {
   const name = args[0];
@@ -39,18 +39,12 @@ export default async function remove(args) {
   }
 
   // Deploy with updated template
-  await deploy([]);
-
-  // Update config
-  const updatedCfg = config.read();
-  updatedCfg.extensions = newExtensions;
-
-  // Revert apiUrl to Function URL
-  if (name === 'api-gateway' && updatedCfg.functionUrl) {
-    updatedCfg.apiUrl = updatedCfg.functionUrl;
-    delete updatedCfg.functionUrl;
-  }
-
+  const outputs = await deploy(
+    [], { skipConfigWrite: true }
+  );
+  const updatedCfg = buildDeployConfig(
+    cfg, outputs, newExtensions
+  );
   config.write(updatedCfg);
 
   console.log('');

@@ -1,32 +1,37 @@
 # API Patterns
 
-ALB + WAF is the default traffic layer for every
-BOA backend. It provides DDoS protection and rate limiting.
+API Gateway REST + WAF is the default traffic layer for
+every BOA backend. It provides HTTPS out of the box,
+WAF rate limiting, and request throttling.
 
-> **Note:** API Gateway REST is available as an extension
-> (`boa extend api-gateway`) for teams needing usage plans,
-> API keys, or custom domains. The patterns below cover
-> both the default ALB layer and the API Gateway extension.
+> **Note:** ALB is available as an extension
+> (`boa extend alb`) for long-running requests (>29s),
+> streaming, or high-throughput workloads. The patterns
+> below cover both the default API Gateway layer and the
+> ALB extension.
 
 ---
 
-## ALB Default Traffic Layer
+## API Gateway REST Default Traffic Layer
 
-Every `boa init` deployment places an Application Load
-Balancer in front of Lambda:
+Every `boa init` deployment places API Gateway REST in
+front of Lambda:
 
-- **DDoS absorption**: AWS Shield Standard (included free)
+- **HTTPS by default**: The `*.execute-api.<region>.amazonaws.com`
+  endpoint provides TLS with no ACM certificate or custom
+  domain required
 - **WAF rate limiting**: 1000 requests per 5 minutes per IP
   (configurable in the WAF rule)
-- **Lambda integration**: ALB invokes Lambda directly via
-  IAM. There is no public Lambda endpoint
-- **Regional**: WAF attaches in the same region as the ALB
-  (no us-east-1 restriction)
+- **Request throttling**: 10,000 requests per second default
+  (account-level, adjustable via service quotas)
+- **Lambda integration**: API Gateway invokes Lambda directly.
+  There is no public Lambda endpoint
 
 ### CORS
 
-ALB passes through all headers. pgrest-lambda handles CORS
-internally. No ALB-level CORS configuration is needed.
+API Gateway handles CORS via the `Cors` property on the
+`AWS::Serverless::Api` resource. pgrest-lambda also returns
+CORS headers on every response.
 
 ### Rate Limit Tuning
 
@@ -55,7 +60,7 @@ ApiGateway:
           UserPoolArn: !GetAtt CognitoUserPool.Arn
 ```
 
-When the `api-gateway` extension is enabled, always use REST API (not HTTP API) for Cognito authorizer support.
+Always use REST API (not HTTP API) for Cognito authorizer support.
 
 ## Lambda Handler Structure
 
@@ -181,7 +186,7 @@ async function listItems(userId, cursor, limit = 20) {
 
 ## Rate Limiting
 
-Requires the `api-gateway` extension (`boa extend api-gateway`). API Gateway REST API supports usage plans:
+API Gateway REST API supports usage plans:
 
 ```yaml
 UsagePlan:

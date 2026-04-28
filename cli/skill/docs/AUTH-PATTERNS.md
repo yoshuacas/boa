@@ -39,7 +39,7 @@ The BOA SAM template sets:
 AUTH_PROVIDER: better-auth
 JWT_SECRET: '{{resolve:ssm:/<project>/jwt-secret}}'
 BETTER_AUTH_SECRET: '{{resolve:ssm:/<project>/better-auth-secret}}'
-BETTER_AUTH_URL: http://<api-host>
+BETTER_AUTH_URL: https://<id>.execute-api.<region>.amazonaws.com/prod
 DSQL_ENDPOINT: <cluster endpoint>
 REGION_NAME: <region>
 ```

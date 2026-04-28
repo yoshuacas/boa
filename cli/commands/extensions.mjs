@@ -13,8 +13,9 @@ export default async function extensions(_args) {
     const status = enabled.includes(name)
       ? '  [enabled]'
       : '';
+    const marker = info.deprecated ? ' (deprecated)' : '';
     console.log(
-      `  ${name.padEnd(18)} ${info.description}${status}`
+      `  ${name.padEnd(18)} ${info.description}${marker}${status}`
     );
   }
 

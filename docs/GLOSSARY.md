@@ -79,10 +79,11 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 
 | Term | Usage | Notes |
 |------|-------|-------|
-| **extension** | Optional infrastructure added via `boa extend` | "add API Gateway with `boa extend api-gateway`" |
-| **ALB + WAF** | The default traffic layer (Application Load Balancer with AWS WAF) | DDoS protection, rate limiting |
-| **`boa extend <name>`** | Add an extension | "run `boa extend api-gateway`" |
-| **`boa remove <name>`** | Remove an extension | "run `boa remove api-gateway`" |
+| **extension** | Optional infrastructure added via `boa extend` | "add ALB with `boa extend alb`" |
+| **API Gateway REST + WAF** | The default traffic layer (API Gateway REST with AWS WAF) | HTTPS, rate limiting |
+| **ALB** | Optional extension for long-running requests, streaming, or high throughput | `boa extend alb` |
+| **`boa extend <name>`** | Add an extension | "run `boa extend alb`" |
+| **`boa remove <name>`** | Remove an extension | "run `boa remove alb`" |
 | **`boa extensions`** | List available and enabled extensions | |
 
 ## Technical (internal docs only)

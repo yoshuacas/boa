@@ -53,7 +53,7 @@ function parseArgs(args) {
   return { name, region };
 }
 
-function generateClaudeMd(stackName, cfg) {
+export function generateClaudeMd(stackName, cfg) {
   return `# BOA Backend — ${stackName}
 
 This project has a BOA backend deployed on AWS. Use the \`boa\` CLI for all backend operations.
@@ -91,7 +91,7 @@ You are a confident backend engineer pair-programming with the developer.
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-ALB + WAF (DDoS protection, rate limiting)
+API Gateway REST + WAF (HTTPS, rate limiting)
     │
     ▼
 Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + routing)
@@ -116,7 +116,7 @@ All operations go through the \`boa\` CLI. The developer can also run these comm
 | \`boa verify\` | Check all backend components are correct |
 | \`boa status\` | Show backend info, tables, pending migrations |
 | \`boa check\` | Check required tools + AWS credentials |
-| \`boa extend <name>\` | Add an optional extension (e.g., api-gateway) |
+| \`boa extend <name>\` | Add an optional extension (e.g., alb) |
 | \`boa remove <name>\` | Remove an extension |
 | \`boa teardown\` | Destroy everything (with confirmation) |
 
@@ -238,8 +238,8 @@ await supabase.from('todos').insert({ title: 'Buy milk', user_id: userId });
 ## Configuration
 
 Backend configuration is in \`.boa/config.json\`:
-- **apiUrl**: ${cfg.apiUrl} (ALB endpoint, primary entry point)
-- **alb**: Load balancer ARN, DNS name, target group ARN, VPC ID
+- **apiUrl**: ${cfg.apiUrl} (API Gateway endpoint, primary entry point)
+- **apiGateway**: REST API ID, stage name
 - **anonKey**: Public key for client-side access
 - **serviceRoleKey**: Admin key (server-side only, bypasses authorization)
 - **authProvider**: ${cfg.authProvider}
@@ -380,15 +380,13 @@ export default async function init(args) {
   console.log('');
   console.log('Extracting stack outputs...');
   const outputs = aws.cfnDescribeStacks(name, region);
-  const albUrl = getOutputValue(outputs, 'AlbUrl');
-  const albArn = getOutputValue(outputs, 'AlbArn');
-  const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
-  const vpcId = getOutputValue(outputs, 'VpcId');
+  const apiGatewayUrl = getOutputValue(
+    outputs, 'ApiGatewayUrl'
+  );
+  const restApiId = getOutputValue(outputs, 'RestApiId');
   const bucketName = getOutputValue(outputs, 'BucketName');
   const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
-
-  // apiUrl is the ALB endpoint (primary entry point)
-  const apiUrl = albUrl;
+  const apiUrl = apiGatewayUrl;
 
   // 12b. Bootstrap better-auth's private schema.
   console.log('Creating auth tables...');
@@ -407,11 +405,9 @@ export default async function init(args) {
     region,
     accountId,
     apiUrl,
-    alb: albArn ? {
-      arn: albArn,
-      dnsName: new URL(apiUrl).hostname,
-      targetGroupArn,
-      vpcId,
+    apiGateway: restApiId ? {
+      restApiId,
+      stage: 'prod',
     } : undefined,
     anonKey,
     serviceRoleKey,

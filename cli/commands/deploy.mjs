@@ -1,10 +1,15 @@
-import { existsSync, readdirSync, cpSync } from 'node:fs';
+import {
+  existsSync, readdirSync, cpSync,
+  mkdirSync, writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import * as aws from '../lib/aws.mjs';
 import * as sam from '../lib/sam.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
-import { resolveTemplate } from '../lib/extensions.mjs';
+import {
+  resolveTemplate, mergeTemplate,
+} from '../lib/extensions.mjs';
 import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
 import { getPinnedPgrestLambdaVersion } from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
@@ -12,27 +17,76 @@ import { bootstrapBetterAuthSchema } from '../lib/auth-schema.mjs';
 
 export function needsMigrationWarning(cfg) {
   const extensions = cfg.extensions || [];
-  // CloudFront -> ALB migration (old deploy used CloudFront)
-  if (cfg.cloudfront && !cfg.alb) {
-    return 'This version of BOA uses ALB + WAF by default instead of CloudFront.';
+  if (cfg.alb && !extensions.includes('alb')) {
+    return 'This project uses ALB as the traffic layer'
+      + ' (legacy default). Keeping ALB.';
   }
-  // Function URL -> ALB migration (old deploy with raw Function URL)
-  if (cfg.apiUrl &&
-    cfg.apiUrl.includes('lambda-url.') &&
-    !cfg.alb) {
-    return 'This version of BOA adds ALB + WAF protection.';
+  if (cfg.cloudfront && !cfg.apiGateway) {
+    return 'This version of BOA uses API Gateway REST'
+      + ' + WAF by default instead of CloudFront.';
   }
-  // API Gateway -> ALB migration
-  if (cfg.apiUrl &&
-    cfg.apiUrl.includes('execute-api.') &&
-    cfg.apiUrl.includes('.amazonaws.com') &&
-    !extensions.includes('api-gateway')) {
-    return 'This version of BOA uses ALB + WAF by default instead of API Gateway.';
+  if (cfg.apiUrl
+      && cfg.apiUrl.includes('lambda-url.')
+      && !cfg.apiGateway) {
+    return 'This version of BOA uses API Gateway REST'
+      + ' + WAF by default.';
   }
   return null;
 }
 
-export default async function deploy(_args) {
+export function buildDeployConfig(cfg, outputs, extensions) {
+  const apiGatewayUrl = getOutputValue(
+    outputs, 'ApiGatewayUrl'
+  );
+  const restApiId = getOutputValue(outputs, 'RestApiId');
+  const bucketName = getOutputValue(outputs, 'BucketName');
+  const dsqlEndpoint = getOutputValue(
+    outputs, 'DsqlEndpoint'
+  );
+
+  const filtered = extensions.filter(
+    e => e !== 'api-gateway'
+  );
+  const result = {
+    stackName: cfg.stackName,
+    region: cfg.region,
+    accountId: cfg.accountId,
+    apiUrl: apiGatewayUrl,
+    apiGateway: restApiId ? {
+      restApiId,
+      stage: 'prod',
+    } : undefined,
+    anonKey: cfg.anonKey,
+    serviceRoleKey: cfg.serviceRoleKey,
+    authProvider: cfg.authProvider || 'better-auth',
+    pgrestLambdaVersion: getPinnedPgrestLambdaVersion(),
+    bucketName,
+    dsqlEndpoint,
+    deployedAt: new Date().toISOString(),
+    extensions: filtered,
+  };
+
+  if (filtered.includes('alb')) {
+    const albUrl = getOutputValue(outputs, 'AlbUrl');
+    const albArn = getOutputValue(outputs, 'AlbArn');
+    const targetGroupArn = getOutputValue(
+      outputs, 'TargetGroupArn'
+    );
+    const vpcId = getOutputValue(outputs, 'VpcId');
+    if (albUrl) result.apiUrl = albUrl;
+    result.alb = (albArn && albUrl) ? {
+      arn: albArn,
+      dnsName: new URL(albUrl).hostname,
+      targetGroupArn,
+      vpcId,
+    } : undefined;
+    delete result.apiGateway;
+  }
+
+  return result;
+}
+
+export default async function deploy(_args, opts = {}) {
   // 1. Load config (exits if missing)
   const cfg = config.requireConfig();
 
@@ -55,10 +109,24 @@ export default async function deploy(_args) {
     console.log('');
   }
 
-  // 4. Ensure lambda dependencies match the pinned pgrest-lambda version
+  // 4. Legacy ALB detection — must happen BEFORE resolveTemplate()
+  const extensions = cfg.extensions || [];
+  if (cfg.alb && !extensions.includes('alb')) {
+    console.log(
+      '  Adding alb to extensions for explicit tracking.'
+    );
+    const merged = mergeTemplate(['alb']);
+    mkdirSync(join(process.cwd(), '.boa'), { recursive: true });
+    writeFileSync(
+      join(process.cwd(), '.boa', 'template.yaml'), merged
+    );
+    extensions.push('alb');
+  }
+
+  // 5. Ensure lambda dependencies match the pinned pgrest-lambda version
   ensureLambdaDepsInstalled();
 
-  // 5. SAM build
+  // 6. SAM build
   console.log('Building SAM application...');
   const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
   const templatePath = resolveTemplate(process.cwd());
@@ -85,55 +153,22 @@ export default async function deploy(_args) {
   console.log('');
   console.log('Updating configuration...');
   const outputs = aws.cfnDescribeStacks(stackName, region);
-  const albUrl = getOutputValue(outputs, 'AlbUrl');
-  const albArn = getOutputValue(outputs, 'AlbArn');
-  const targetGroupArn = getOutputValue(outputs, 'TargetGroupArn');
-  const vpcId = getOutputValue(outputs, 'VpcId');
-  let apiUrl = albUrl;
-  const bucketName = getOutputValue(outputs, 'BucketName');
-  const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
 
   // 8b. Keep better-auth's private schema present after deploys.
+  const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
   if ((cfg.authProvider || 'better-auth') === 'better-auth') {
     console.log('Creating auth tables...');
     bootstrapBetterAuthSchema(dsqlEndpoint, region);
   }
 
-  // 9. Build config — preserve keys and accountId
-  const extensions = cfg.extensions || [];
-  const updatedConfig = {
-    stackName,
-    region,
-    accountId: cfg.accountId,
-    apiUrl,
-    alb: albArn ? {
-      arn: albArn,
-      dnsName: new URL(apiUrl).hostname,
-      targetGroupArn,
-      vpcId,
-    } : undefined,
-    anonKey: cfg.anonKey,
-    serviceRoleKey: cfg.serviceRoleKey,
-    authProvider: cfg.authProvider || 'better-auth',
-    pgrestLambdaVersion: getPinnedPgrestLambdaVersion(),
-    bucketName,
-    dsqlEndpoint,
-    deployedAt: new Date().toISOString(),
-    extensions,
-  };
-
-  // When api-gateway extension is active, use Gateway URL
-  // and remove alb object
-  if (extensions.includes('api-gateway')) {
-    const gatewayUrl = getOutputValue(
-      outputs, 'ApiGatewayUrl'
-    );
-    if (gatewayUrl) {
-      updatedConfig.apiUrl = gatewayUrl;
-    }
-    delete updatedConfig.alb;
+  if (opts.skipConfigWrite) {
+    return outputs;
   }
 
+  // 9. Build config — preserve keys and accountId
+  const updatedConfig = buildDeployConfig(
+    cfg, outputs, extensions
+  );
   config.write(updatedConfig);
 
   // Refresh bundled skill from CLI
@@ -143,7 +178,7 @@ export default async function deploy(_args) {
   console.log(
     'Deploy complete. Configuration updated at .boa/config.json'
   );
-  console.log(`API URL: ${apiUrl}`);
+  console.log(`API URL: ${updatedConfig.apiUrl}`);
 
   // 10. Run migrations if any .sql files exist
   const migrationsDir = join(process.cwd(), 'migrations');

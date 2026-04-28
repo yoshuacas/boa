@@ -15,37 +15,41 @@ import {
 // -----------------------------------------------------------
 
 describe('extension registry', () => {
-  it('getRegistry returns an object with an api-gateway key', () => {
+  it('getRegistry returns an object with an alb key', () => {
     const registry = getRegistry();
     assert.ok(
-      'api-gateway' in registry,
-      'registry should have an "api-gateway" key'
+      'alb' in registry,
+      'registry should have an "alb" key'
     );
   });
 
-  it('api-gateway entry has a description string', () => {
-    const entry = getRegistry()['api-gateway'];
-    assert.ok(entry, 'api-gateway entry should exist');
+  it('alb entry has a fragmentPath and description', () => {
+    const entry = getRegistry()['alb'];
+    assert.ok(entry, 'alb entry should exist');
     assert.equal(
       typeof entry.description, 'string',
-      'api-gateway.description should be a string'
+      'alb.description should be a string'
     );
     assert.ok(
       entry.description.length > 0,
       'description should not be empty'
     );
+    assert.equal(
+      typeof entry.fragmentPath, 'string',
+      'alb.fragmentPath should be a string'
+    );
   });
 
-  it('api-gateway entry has a fragmentPath pointing to a file that exists', () => {
+  it('getRegistry returns api-gateway with deprecated: true and fragmentPath: null', () => {
     const entry = getRegistry()['api-gateway'];
     assert.ok(entry, 'api-gateway entry should exist');
     assert.equal(
-      typeof entry.fragmentPath, 'string',
-      'api-gateway.fragmentPath should be a string'
+      entry.deprecated, true,
+      'api-gateway should be deprecated'
     );
-    assert.ok(
-      existsSync(entry.fragmentPath),
-      `fragmentPath should point to an existing file: ${entry.fragmentPath}`
+    assert.equal(
+      entry.fragmentPath, null,
+      'api-gateway.fragmentPath should be null'
     );
   });
 });
@@ -63,124 +67,224 @@ describe('template merging — base (no extensions)', () => {
     );
   });
 
-  it('mergeTemplate([]) result contains ALB resources', () => {
+  it('mergeTemplate([]) result contains AWS::Serverless::Api', () => {
     const result = mergeTemplate([]);
     assert.ok(
-      result.includes('ApplicationLoadBalancer'),
-      'base template should contain ApplicationLoadBalancer'
+      result.includes('AWS::Serverless::Api'),
+      'base template should contain AWS::Serverless::Api'
     );
+  });
+
+  it('mergeTemplate([]) result contains ApiGatewayUrl output', () => {
+    const result = mergeTemplate([]);
+    assert.ok(
+      result.includes('ApiGatewayUrl'),
+      'base template should contain ApiGatewayUrl in Outputs'
+    );
+  });
+
+  it('mergeTemplate([]) result contains WafWebAcl', () => {
+    const result = mergeTemplate([]);
     assert.ok(
       result.includes('WafWebAcl'),
       'base template should contain WafWebAcl'
-    );
-    assert.ok(
-      result.includes('WafAlbAssociation'),
-      'base template should contain WafAlbAssociation'
-    );
-    assert.ok(
-      result.includes('AlbTargetGroup'),
-      'base template should contain AlbTargetGroup'
-    );
-  });
-
-  it('mergeTemplate([]) result does NOT contain Api resource', () => {
-    const result = mergeTemplate([]);
-    assert.ok(
-      result.length > 0,
-      'mergeTemplate([]) should return a non-empty template string'
-    );
-    const hasApiResource = /^\s{2}Api:\s*$/m.test(result);
-    assert.ok(
-      !hasApiResource,
-      'merged template should NOT contain a standalone Api resource'
-    );
-  });
-
-  it('mergeTemplate([]) result contains AlbUrl in Outputs', () => {
-    const result = mergeTemplate([]);
-    assert.ok(
-      result.includes('AlbUrl'),
-      'merged template should contain AlbUrl in Outputs'
     );
   });
 });
 
 // -----------------------------------------------------------
-// Template merging — api-gateway extension
+// Template merging — alb extension
 // -----------------------------------------------------------
 
-describe('template merging — api-gateway extension', () => {
-  it('result contains an Api resource (AWS::Serverless::Api)', () => {
-    const result = mergeTemplate(['api-gateway']);
+describe('template merging — alb extension', () => {
+  it('result contains ElasticLoadBalancingV2::LoadBalancer', () => {
+    const result = mergeTemplate(['alb']);
     assert.ok(
-      result.includes('AWS::Serverless::Api'),
-      'merged template should contain AWS::Serverless::Api'
+      result.includes('ElasticLoadBalancingV2::LoadBalancer'),
+      'merged template should contain ElasticLoadBalancingV2::LoadBalancer'
     );
   });
 
-  it('result contains Events on ApiFunction with ProxyRoot and ProxyPlus', () => {
-    const result = mergeTemplate(['api-gateway']);
+  it('result contains AWS::EC2::VPC (AlbVpc)', () => {
+    const result = mergeTemplate(['alb']);
     assert.ok(
-      result.includes('ProxyRoot'),
-      'merged template should contain ProxyRoot event'
+      result.includes('AlbVpc'),
+      'merged template should contain AlbVpc'
     );
     assert.ok(
-      result.includes('ProxyPlus'),
-      'merged template should contain ProxyPlus event'
-    );
-  });
-
-  it('result contains ApiGatewayUrl in Outputs', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      result.includes('ApiGatewayUrl'),
-      'merged template should contain ApiGatewayUrl in Outputs'
+      result.includes('AWS::EC2::VPC'),
+      'merged template should contain AWS::EC2::VPC'
     );
   });
 
-  it('result does NOT contain ApplicationLoadBalancer', () => {
-    const result = mergeTemplate(['api-gateway']);
+  it('result does NOT contain AWS::Serverless::Api', () => {
+    const result = mergeTemplate(['alb']);
     assert.ok(
-      !result.includes('ApplicationLoadBalancer'),
-      'merged template should NOT contain ApplicationLoadBalancer'
-        + ' when api-gateway extension is active'
+      !result.includes('AWS::Serverless::Api'),
+      'merged template should NOT contain AWS::Serverless::Api'
     );
   });
 
-  it('result does NOT contain ALB VPC resources', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      !result.includes('AlbVpc'),
-      'merged template should NOT contain AlbVpc'
+  it('ApiFunction does NOT have Events', () => {
+    const result = mergeTemplate(['alb']);
+    const start = result.indexOf('ApiFunction:');
+    assert.ok(start !== -1, 'should contain ApiFunction');
+    const section = result.slice(
+      start, start + 1500
     );
     assert.ok(
-      !result.includes('AlbSecurityGroup'),
-      'merged template should NOT contain AlbSecurityGroup'
-    );
-  });
-
-  it('result does NOT contain WafAlbAssociation', () => {
-    const result = mergeTemplate(['api-gateway']);
-    assert.ok(
-      !result.includes('WafAlbAssociation'),
-      'merged template should NOT contain WafAlbAssociation'
+      !section.includes('Events:'),
+      'ApiFunction should NOT have Events after alb merge'
     );
   });
 
-  it('result does NOT contain ReservedConcurrentExecutions', () => {
-    const result = mergeTemplate(['api-gateway']);
+  it('ApiFunction has ReservedConcurrentExecutions: 50', () => {
+    const result = mergeTemplate(['alb']);
     assert.ok(
-      !result.includes('ReservedConcurrentExecutions'),
-      'merged template should NOT contain'
-        + ' ReservedConcurrentExecutions when api-gateway is active'
+      result.includes('ReservedConcurrentExecutions'),
+      'merged template should contain ReservedConcurrentExecutions'
     );
   });
 
-  it('result does NOT contain AlbUrl output', () => {
-    const result = mergeTemplate(['api-gateway']);
+  it('BETTER_AUTH_URL uses ALB DNS (http:// and ApplicationLoadBalancer.DNSName)', () => {
+    const result = mergeTemplate(['alb']);
     assert.ok(
-      !result.includes('AlbUrl'),
-      'merged template should NOT contain AlbUrl output'
+      result.includes('http://'),
+      'BETTER_AUTH_URL should use http://'
+    );
+    assert.ok(
+      result.includes('ApplicationLoadBalancer.DNSName'),
+      'BETTER_AUTH_URL should reference ApplicationLoadBalancer.DNSName'
+    );
+  });
+
+  it('API_BASE_URL uses ALB DNS', () => {
+    const result = mergeTemplate(['alb']);
+    const match = result.match(
+      /API_BASE_URL:.*(?:\n.*)*?ApplicationLoadBalancer\.DNSName/
+    );
+    assert.ok(
+      match,
+      'API_BASE_URL should reference ApplicationLoadBalancer.DNSName'
+    );
+  });
+
+  it('Outputs contain AlbUrl, AlbArn, TargetGroupArn, VpcId', () => {
+    const result = mergeTemplate(['alb']);
+    assert.ok(
+      result.includes('AlbUrl'),
+      'merged template should contain AlbUrl'
+    );
+    assert.ok(
+      result.includes('AlbArn'),
+      'merged template should contain AlbArn'
+    );
+    assert.ok(
+      result.includes('TargetGroupArn'),
+      'merged template should contain TargetGroupArn'
+    );
+    assert.ok(
+      result.includes('VpcId'),
+      'merged template should contain VpcId'
+    );
+  });
+
+  it('Outputs do NOT contain ApiGatewayUrl or RestApiId', () => {
+    const result = mergeTemplate(['alb']);
+    assert.ok(
+      !result.includes('ApiGatewayUrl'),
+      'merged template should NOT contain ApiGatewayUrl'
+    );
+    assert.ok(
+      !result.includes('RestApiId'),
+      'merged template should NOT contain RestApiId'
+    );
+  });
+
+  it('contains WafAlbAssociation and does NOT contain WafApiGatewayAssociation', () => {
+    const result = mergeTemplate(['alb']);
+    assert.ok(
+      result.includes('WafAlbAssociation'),
+      'merged template should contain WafAlbAssociation'
+    );
+    assert.ok(
+      !result.includes('WafApiGatewayAssociation'),
+      'merged template should NOT contain WafApiGatewayAssociation'
+    );
+  });
+
+  it('WafWebAcl is still present (not removed by alb transform)', () => {
+    const result = mergeTemplate(['alb']);
+    assert.ok(
+      result.includes('WafWebAcl'),
+      'WafWebAcl should remain in merged template'
+    );
+  });
+});
+
+// -----------------------------------------------------------
+// Template merging — api-gateway deprecated (no-op)
+// -----------------------------------------------------------
+
+describe('template merging — api-gateway deprecated', () => {
+  it('mergeTemplate(["api-gateway"]) returns base template unchanged', () => {
+    const base = mergeTemplate([]);
+    const result = mergeTemplate(['api-gateway']);
+    assert.equal(
+      result, base,
+      'api-gateway extension should be a no-op (returns base template)'
+    );
+  });
+});
+
+// -----------------------------------------------------------
+// Template merging — alb + api-gateway combo
+// -----------------------------------------------------------
+
+describe('template merging — alb + api-gateway combo', () => {
+  it('test_merge_template_alb_and_deprecated_api_gateway: same as alb alone', () => {
+    const albOnly = mergeTemplate(['alb']);
+    const combo = mergeTemplate(['alb', 'api-gateway']);
+    assert.equal(
+      combo, albOnly,
+      'mergeTemplate(["alb", "api-gateway"]) should produce same result as mergeTemplate(["alb"])'
+    );
+  });
+
+  it('combo does NOT produce template with both traffic layers', () => {
+    const result = mergeTemplate(['alb', 'api-gateway']);
+    assert.ok(
+      result.includes('ElasticLoadBalancingV2::LoadBalancer'),
+      'should contain ALB'
+    );
+    assert.ok(
+      !result.includes('AWS::Serverless::Api'),
+      'should NOT contain API Gateway'
+    );
+  });
+});
+
+// -----------------------------------------------------------
+// Template merging — alb reserved concurrency value
+// -----------------------------------------------------------
+
+describe('template merging — alb reserved concurrency value', () => {
+  it('test_alb_reserved_concurrency_value_is_50: integer 50, not string', () => {
+    const result = mergeTemplate(['alb']);
+    const match = result.match(
+      /ReservedConcurrentExecutions:\s*(\S+)/
+    );
+    assert.ok(
+      match,
+      'should contain ReservedConcurrentExecutions'
+    );
+    assert.equal(
+      match[1], '50',
+      `ReservedConcurrentExecutions should be 50, got: ${match[1]}`
+    );
+    assert.ok(
+      !match[1].startsWith('"') && !match[1].startsWith("'"),
+      'value should not be a quoted string'
     );
   });
 });
@@ -204,7 +308,7 @@ describe('template merging — unknown extension', () => {
 
 describe('template merging — CloudFormation tag preservation', () => {
   it('output string contains !Sub tags', () => {
-    const result = mergeTemplate(['api-gateway']);
+    const result = mergeTemplate(['alb']);
     assert.ok(
       result.includes('!Sub'),
       'merged template should preserve !Sub CloudFormation tags'
@@ -212,7 +316,7 @@ describe('template merging — CloudFormation tag preservation', () => {
   });
 
   it('output string contains !Ref tags', () => {
-    const result = mergeTemplate(['api-gateway']);
+    const result = mergeTemplate(['alb']);
     assert.ok(
       result.includes('!Ref'),
       'merged template should preserve !Ref CloudFormation tags'
@@ -220,7 +324,7 @@ describe('template merging — CloudFormation tag preservation', () => {
   });
 
   it('output string contains !GetAtt tags', () => {
-    const result = mergeTemplate(['api-gateway']);
+    const result = mergeTemplate(['alb']);
     assert.ok(
       result.includes('!GetAtt'),
       'merged template should preserve !GetAtt CloudFormation tags'

@@ -18,7 +18,12 @@ export default async function status(_args) {
   console.log(`  Stack:       ${stackName}`);
   console.log(`  Region:      ${region}`);
   console.log(`  API URL:     ${apiUrl}`);
-  if (cfg.alb) {
+  if (cfg.apiGateway) {
+    console.log(
+      `  API Gateway: ${cfg.apiGateway.restApiId}`
+        + ` (stage: ${cfg.apiGateway.stage})`
+    );
+  } else if (cfg.alb) {
     console.log(`  ALB:         ${cfg.alb.dnsName}`);
   }
   console.log(`  Deployed at: ${deployedAt}`);

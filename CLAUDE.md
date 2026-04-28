@@ -60,12 +60,12 @@ boa/
 | Authorization | Cedar | Policy-as-code, deny-by-default, ~5μs per eval |
 | Engine | pgrest-lambda (npm) | PostgREST + GoTrue on Lambda, @supabase/supabase-js compatible |
 | Compute | Lambda (Node.js 20.x) | Never Python (binary dep failures) |
-| API | ALB + WAF (default) | DDoS protection, rate limiting |
+| API | API Gateway REST + WAF (default) | HTTPS, rate limiting |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
 | IaC | SAM / CloudFormation | One-command deploy |
 
-ALB + WAF is the default traffic layer. API Gateway is available as an extension (`boa extend api-gateway`).
+API Gateway REST + WAF is the default traffic layer. ALB is available as an extension (`boa extend alb`).
 
 ## Critical Rules
 
@@ -75,7 +75,8 @@ ALB + WAF is the default traffic layer. API Gateway is available as an extension
 4. S3: never public, always presigned URLs
 5. Amplify: no `/<*>` redirect, use regex excluding static assets
 6. DSQL: IAM auth tokens, never hardcoded credentials
-7. Extensions are optional. The default backend works without any extensions.
+7. API Gateway is the default. ALB is available as an extension.
+8. Extensions are optional. The default backend works without any extensions.
 
 ## Plan Execution with rring
 

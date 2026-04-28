@@ -46,13 +46,27 @@ describe('boa extensions', () => {
     );
   });
 
-  it('no config: stdout contains api-gateway with its description', async () => {
+  it('no config: stdout contains alb in available extensions', async () => {
+    const dir = makeTmpDir();
+    const { code, stdout } = await run(['extensions'], { cwd: dir });
+    assert.equal(code, 0, 'exit code should be 0');
+    assert.ok(
+      stdout.includes('alb'),
+      `stdout should contain "alb", got: ${stdout}`
+    );
+  });
+
+  it('no config: stdout contains api-gateway with deprecated marker', async () => {
     const dir = makeTmpDir();
     const { code, stdout } = await run(['extensions'], { cwd: dir });
     assert.equal(code, 0, 'exit code should be 0');
     assert.ok(
       stdout.includes('api-gateway'),
       `stdout should contain "api-gateway", got: ${stdout}`
+    );
+    assert.ok(
+      stdout.includes('deprecated'),
+      `stdout should contain "deprecated" marker for api-gateway, got: ${stdout}`
     );
   });
 
@@ -87,7 +101,7 @@ describe('boa extensions', () => {
     );
   });
 
-  it('api-gateway enabled: stdout contains [enabled] marker', async () => {
+  it('alb enabled: stdout contains [enabled] marker', async () => {
     const dir = makeTmpDir();
     const boaDir = join(dir, '.boa');
     mkdirSync(boaDir, { recursive: true });
@@ -96,7 +110,7 @@ describe('boa extensions', () => {
       JSON.stringify({
         stackName: 'test',
         region: 'us-east-1',
-        extensions: ['api-gateway'],
+        extensions: ['alb'],
       })
     );
 
@@ -108,7 +122,24 @@ describe('boa extensions', () => {
     );
   });
 
-  it('api-gateway enabled: stdout contains "Enabled: api-gateway"', async () => {
+  it('test_extensions_list_api_gateway_deprecated_same_line', async () => {
+    const dir = makeTmpDir();
+    const { stdout } = await run(['extensions'], { cwd: dir });
+    const lines = stdout.split('\n');
+    const apiGatewayLine = lines.find(
+      l => l.includes('api-gateway')
+    );
+    assert.ok(
+      apiGatewayLine,
+      `should have a line containing "api-gateway", got: ${stdout}`
+    );
+    assert.ok(
+      apiGatewayLine.includes('deprecated'),
+      `the api-gateway line should also contain "deprecated", got: ${apiGatewayLine}`
+    );
+  });
+
+  it('alb enabled: stdout contains "Enabled: alb"', async () => {
     const dir = makeTmpDir();
     const boaDir = join(dir, '.boa');
     mkdirSync(boaDir, { recursive: true });
@@ -117,15 +148,15 @@ describe('boa extensions', () => {
       JSON.stringify({
         stackName: 'test',
         region: 'us-east-1',
-        extensions: ['api-gateway'],
+        extensions: ['alb'],
       })
     );
 
     const { code, stdout } = await run(['extensions'], { cwd: dir });
     assert.equal(code, 0, 'exit code should be 0');
     assert.ok(
-      stdout.includes('Enabled: api-gateway'),
-      `stdout should contain "Enabled: api-gateway", got: ${stdout}`
+      stdout.includes('Enabled: alb'),
+      `stdout should contain "Enabled: alb", got: ${stdout}`
     );
   });
 });

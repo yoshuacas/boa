@@ -14,20 +14,20 @@ When building a backend, deploying to AWS, setting up auth, creating APIs, or ad
 6. Always add `global: 'globalThis'` polyfill to Vite for Cognito SDK
 7. Never use `/<*>` as Amplify SPA redirect
 8. DSQL uses IAM auth tokens — never hardcode credentials
-9. Extensions are optional — the default backend works without any extensions
+9. API Gateway is the default traffic layer. ALB is available as an extension
 
 ## Backend
 - Database: Aurora DSQL (serverless PostgreSQL)
 - Auth: Amazon Cognito (GoTrue-compatible via pgrest-lambda)
 - Engine: pgrest-lambda (PostgREST-compatible REST API, auto-generates endpoints from schema)
 - Compute: Lambda (Node.js 20.x)
-- API: Lambda Function URLs (free)
+- API: API Gateway REST + WAF (default)
 - Storage: S3 (presigned URLs)
 - Hosting: Amplify
 - IaC: SAM/CloudFormation
 - Client: @supabase/supabase-js (drop-in compatible)
 
-API Gateway is available as an extension (`boa extend api-gateway`) for rate limiting, WAF, or custom domains.
+ALB is available as an extension (`boa extend alb`) for long-running requests, streaming, or high throughput.
 
 ## References
 - Full skill: `skills/boa/SKILL.md`

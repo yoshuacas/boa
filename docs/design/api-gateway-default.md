@@ -385,6 +385,13 @@ if (name === 'alb' && cfg.alb
   console.log(
     'Adding alb to extensions for explicit tracking...'
   );
+  // Write the merged ALB template so subsequent deploys
+  // use it instead of the API Gateway default
+  const merged = mergeTemplate(['alb']);
+  mkdirSync('.boa', { recursive: true });
+  writeFileSync(
+    join('.boa', 'template.yaml'), merged
+  );
   // Add to extensions and rewrite config
   extensions.push('alb');
   cfg.extensions = extensions;
@@ -394,7 +401,11 @@ if (name === 'alb' && cfg.alb
 }
 ```
 
-This makes the implicit ALB explicit without redeploying.
+The template write is critical: without it, the next
+`boa deploy` sees `extensions: ['alb']` (so the legacy
+detection in `deploy.mjs` is false) but finds no
+`.boa/template.yaml`, falls back to the API Gateway
+base template, and silently destroys the ALB.
 
 **`boa remove alb` on a legacy ALB project:** A legacy
 project has `cfg.alb` but `extensions` does not include
@@ -851,17 +862,50 @@ export function needsMigrationWarning(cfg) {
 ```
 
 When `cfg.alb` exists and is not in the `extensions` array,
-the deploy command auto-applies the ALB extension to keep
-the project on ALB without a silent swap:
+the deploy command must detect this **before** template
+resolution. The legacy ALB detection and merged template
+write must happen before `resolveTemplate()` is called,
+because `resolveTemplate()` returns the base template
+(now API Gateway) when no `.boa/template.yaml` exists.
+If the detection happens after template resolution (as in
+the pre-fix code), the legacy project is deployed against
+the API Gateway template, silently destroying the ALB.
 
 ```javascript
-// In deploy(), after needsMigrationWarning():
+// In deploy(), BEFORE resolveTemplate():
+const extensions = cfg.extensions || [];
 if (cfg.alb && !extensions.includes('alb')) {
-  // Legacy ALB project: apply alb extension
-  // automatically to preserve the existing traffic layer
+  console.log(
+    '  ! This project uses ALB as the traffic layer'
+    + ' (legacy default). Keeping ALB.'
+  );
+  console.log(
+    '    Adding alb to extensions for explicit'
+    + ' tracking.'
+  );
+  const merged = mergeTemplate(['alb']);
+  mkdirSync(join('.boa'), { recursive: true });
+  writeFileSync(
+    join('.boa', 'template.yaml'), merged
+  );
   extensions.push('alb');
 }
+
+// resolveTemplate() now finds .boa/template.yaml
+const templatePath = resolveTemplate(process.cwd());
+sam.build(templatePath, buildDir, region);
 ```
+
+This ensures the deployed template contains
+`AWS::ElasticLoadBalancingV2::LoadBalancer` for legacy
+projects. The config file is rewritten with
+`extensions: ['alb']` so subsequent deploys no longer
+require the legacy-detection branch.
+
+The `needsMigrationWarning()` helper keeps its warning
+role but the deploy must not proceed against the wrong
+template. The merged template write is the enforcement
+mechanism.
 
 ### Init Changes (`cli/commands/init.mjs`)
 
@@ -923,70 +967,214 @@ API Gateway REST + WAF (HTTPS, rate limiting)
 `apiUrl: ... (ALB endpoint, primary entry point)` to
 `apiUrl: ... (API Gateway endpoint, primary entry point)`.
 
+**Line 119 (CLI table in `generateClaudeMd()`):** Change
+the `boa extend` example from `api-gateway` to `alb`:
+
+```
+| `boa extend <name>` | Add an optional extension (e.g., alb) |
+```
+
+This matches the already-updated `cli/skill/SKILL.md:69`
+and `plugin/AGENTS.md:9`.
+
 ### Deploy Changes (`cli/commands/deploy.mjs`)
 
-**Lines 88-95 (output extraction):** Extract API Gateway
-outputs instead of ALB:
+**Lines 88-95 (output extraction):** Replaced by
+`buildDeployConfig()` -- see below.
+
+**Lines 104-135 (config write and print):** Extract into a
+pure function `buildDeployConfig()` and use its return
+value for both the config write and the printed URL.
+
+`deploy()` accepts a second parameter `opts`:
 
 ```javascript
-const apiGatewayUrl = getOutputValue(
-  outputs, 'ApiGatewayUrl'
-);
-const restApiId = getOutputValue(outputs, 'RestApiId');
-let apiUrl = apiGatewayUrl;
-const bucketName = getOutputValue(outputs, 'BucketName');
-const dsqlEndpoint = getOutputValue(
-  outputs, 'DsqlEndpoint'
-);
+export default async function deploy(_args, opts = {}) {
 ```
 
-**Lines 104-135 (config write):** Replace `alb` block with
-`apiGateway` block in the default path. When `alb`
-extension is active, extract ALB outputs and set the `alb`
-block:
+When `opts.skipConfigWrite` is true, `deploy()` returns
+the raw CloudFormation outputs array without writing
+config or printing the URL. The caller (`extend.mjs`,
+`remove.mjs`) builds and writes config itself.
+
+When `opts.skipConfigWrite` is false (the default):
 
 ```javascript
-const updatedConfig = {
-  stackName,
-  region,
-  accountId: cfg.accountId,
-  apiUrl,
-  apiGateway: restApiId ? {
-    restApiId,
-    stage: 'prod',
-  } : undefined,
-  anonKey: cfg.anonKey,
-  serviceRoleKey: cfg.serviceRoleKey,
-  authProvider: cfg.authProvider || 'better-auth',
-  pgrestLambdaVersion: getPinnedPgrestLambdaVersion(),
-  bucketName,
-  dsqlEndpoint,
-  deployedAt: new Date().toISOString(),
-  extensions,
-};
+const updatedConfig = buildDeployConfig(
+  cfg, outputs, extensions
+);
+config.write(updatedConfig);
+console.log(`API URL: ${updatedConfig.apiUrl}`);
+```
 
-if (extensions.includes('alb')) {
-  const albUrl = getOutputValue(outputs, 'AlbUrl');
-  const albArn = getOutputValue(outputs, 'AlbArn');
-  const targetGroupArn = getOutputValue(
-    outputs, 'TargetGroupArn'
+The local `let apiUrl = apiGatewayUrl` variable is
+removed. The printed URL comes from the config object,
+which `buildDeployConfig()` already sets to the ALB URL
+when the ALB branch runs. This fixes the bug where
+`deploy.mjs:167` printed `API URL: undefined` for ALB
+projects because the local variable was never reassigned.
+
+**`buildDeployConfig()` extraction:** Extract into a pure
+function `buildDeployConfig(cfg, outputs, extensions)`
+that both `deploy()` and `extend.mjs` call:
+
+```javascript
+export function buildDeployConfig(
+  cfg, outputs, extensions
+) {
+  const apiGatewayUrl = getOutputValue(
+    outputs, 'ApiGatewayUrl'
   );
-  const vpcId = getOutputValue(outputs, 'VpcId');
-  updatedConfig.apiUrl = albUrl;
-  updatedConfig.alb = albArn ? {
-    arn: albArn,
-    dnsName: new URL(albUrl).hostname,
-    targetGroupArn,
-    vpcId,
-  } : undefined;
-  delete updatedConfig.apiGateway;
+  const restApiId = getOutputValue(
+    outputs, 'RestApiId'
+  );
+  const bucketName = getOutputValue(
+    outputs, 'BucketName'
+  );
+  const dsqlEndpoint = getOutputValue(
+    outputs, 'DsqlEndpoint'
+  );
+
+  const filtered = extensions.filter(
+    e => e !== 'api-gateway'
+  );
+  const result = {
+    stackName: cfg.stackName,
+    region: cfg.region,
+    accountId: cfg.accountId,
+    apiUrl: apiGatewayUrl,
+    apiGateway: restApiId ? {
+      restApiId,
+      stage: 'prod',
+    } : undefined,
+    anonKey: cfg.anonKey,
+    serviceRoleKey: cfg.serviceRoleKey,
+    authProvider: cfg.authProvider || 'better-auth',
+    pgrestLambdaVersion: getPinnedPgrestLambdaVersion(),
+    bucketName,
+    dsqlEndpoint,
+    deployedAt: new Date().toISOString(),
+    extensions: filtered,
+  };
+
+  if (filtered.includes('alb')) {
+    const albUrl = getOutputValue(outputs, 'AlbUrl');
+    const albArn = getOutputValue(outputs, 'AlbArn');
+    const targetGroupArn = getOutputValue(
+      outputs, 'TargetGroupArn'
+    );
+    const vpcId = getOutputValue(outputs, 'VpcId');
+    if (albUrl) result.apiUrl = albUrl;
+    result.alb = (albArn && albUrl) ? {
+      arn: albArn,
+      dnsName: new URL(albUrl).hostname,
+      targetGroupArn,
+      vpcId,
+    } : undefined;
+    delete result.apiGateway;
+  }
+
+  return result;
 }
 ```
+
+This function is pure (no side effects) and testable with
+synthetic CloudFormation output maps. The guard
+`(albArn && albUrl)` prevents `new URL(undefined)` from
+throwing `TypeError: Invalid URL` when `AlbUrl` is missing
+from CloudFormation outputs.
+
+### Extend Changes (`cli/commands/extend.mjs`)
+
+Eliminate the double config-write between `deploy()` and
+`extend.mjs`. Currently, `deploy()` writes config (line
+143), then `extend.mjs` re-reads config and writes it
+again (lines 81-107). This forces ALB-specific logic into
+two places that drift.
+
+Fix: `deploy()` accepts a `skipConfigWrite` option. When
+true, it builds and deploys via SAM, runs auth schema
+bootstrap, and copies the skill, but does not write
+`.boa/config.json` or print the API URL. It returns the
+CloudFormation outputs so the caller can build config
+itself.
+
+`extend.mjs` calls `deploy([], { skipConfigWrite: true })`
+then uses `buildDeployConfig()` for a single config write:
+
+```javascript
+const outputs = await deploy(
+  [], { skipConfigWrite: true }
+);
+const updatedCfg = buildDeployConfig(
+  cfg, outputs, newExtensions
+);
+config.write(updatedCfg);
+console.log(`API URL: ${updatedCfg.apiUrl}`);
+```
+
+The `deploy()` return value: when `skipConfigWrite` is
+true, `deploy()` returns the raw CloudFormation outputs
+array from `aws.cfnDescribeStacks()`. When false (the
+default, for direct `boa deploy`), it writes config and
+prints the URL itself, returning nothing.
+
+**Legacy shortcut (lines 46-58):** The legacy ALB
+detection (`cfg.alb && !extensions.includes('alb')`)
+must write `.boa/template.yaml` before exiting. See the
+Edge Cases section for the full code. Without this, the
+next `boa deploy` falls back to the API Gateway base
+template and silently destroys the ALB.
+
+End state:
+- One config write per CLI invocation.
+- ALB-specific config shape lives in `buildDeployConfig()`
+  only (not duplicated in `extend.mjs` lines 85-104).
+- `remove.mjs` never produces the transient
+  `extensions: ['alb']` with no template state.
+
+### Remove Changes (`cli/commands/remove.mjs`)
+
+Same pattern as `extend.mjs`. Currently, `remove.mjs:42`
+calls `deploy([])` (which writes config with
+`extensions: ['alb']`), then lines 44-52 re-read config,
+strip the `alb` extension and `alb` block, and write
+again. The intermediate config has `extensions: ['alb']`
+with no `.boa/template.yaml`, which is inconsistent.
+
+Fix: `remove.mjs` calls
+`deploy([], { skipConfigWrite: true })`, then builds
+config once:
+
+```javascript
+const outputs = await deploy(
+  [], { skipConfigWrite: true }
+);
+const updatedCfg = buildDeployConfig(
+  cfg, outputs, newExtensions
+);
+config.write(updatedCfg);
+console.log(`API URL: ${updatedCfg.apiUrl}`);
+```
+
+Since `newExtensions` does not include `'alb'`, the
+`buildDeployConfig()` ALB branch does not run. The result
+has `apiGateway` block, no `alb` block, and `apiUrl` is
+the API Gateway HTTPS URL. One config write, no transient
+inconsistency.
 
 ### Verify Changes (`cli/commands/verify.mjs`)
 
 Add `shellEscape` to the import from `../lib/aws.mjs`
-(matching the pattern in `teardown.mjs`).
+(matching the pattern in `teardown.mjs`). Use
+`shellEscape()` on all user-controllable values
+interpolated into shell commands throughout the file:
+`apiUrl` (line 155), `cfg.alb.targetGroupArn` (lines
+106/113), `cfg.alb.arn` (line 136), `region` in ALB
+checks (lines 107/114/136), `bucketName` (lines 179/191),
+and `functionName` (line 214). The new API Gateway checks
+(lines 60-66) already use `shellEscape()` correctly; the
+fix makes the rest of the file consistent.
 
 **Lines 55-103 (ALB checks):** Move ALB checks behind
 `cfg.alb` (already done). Add API Gateway checks when
@@ -1036,6 +1224,37 @@ if (cfg.apiGateway) {
     'WAF WebACL is attached to API Gateway stage'
   );
 }
+```
+
+**Line 155 (curl command):** Shell-escape `apiUrl`:
+
+```javascript
+httpCode = aws.exec(
+  `curl -s -o /dev/null -w '%{http_code}'`
+    + ` ${shellEscape(apiUrl + '/rest/v1/')}`
+);
+```
+
+**Lines 106-136 (ALB checks):** Shell-escape
+`cfg.alb.targetGroupArn`, `cfg.alb.arn`, and `region`:
+
+```javascript
+aws.exec(
+  `aws elbv2 describe-target-health`
+    + ` --target-group-arn ${shellEscape(cfg.alb.targetGroupArn)}`
+    + ` --region ${shellEscape(region)}`
+    + ` --query 'TargetHealthDescriptions[0].TargetHealth.State'`
+    + ` --output text`
+);
+```
+
+```javascript
+aws.exec(
+  `aws wafv2 get-web-acl-for-resource`
+    + ` --resource-arn ${shellEscape(cfg.alb.arn)}`
+    + ` --region ${shellEscape(region)}`
+    + ` --query 'WebACL.ARN' --output text`
+);
 ```
 
 **Line 118 (API responding message):** Change from
@@ -1134,9 +1353,11 @@ confirming the handler works with API Gateway events.
 |------|--------|
 | `cli/templates/backend.yaml` | Replace ALB + VPC (15 resources) with API Gateway REST. Add `Api`, events, WAF stage association. Flip env vars to HTTPS. Remove `ReservedConcurrentExecutions`. Update outputs and description. |
 | `cli/lib/extensions.mjs` | Register `alb` extension. Replace `api-gateway` transform with `alb` transform (symmetric inverse). Mark `api-gateway` as deprecated no-op. |
-| `cli/commands/init.mjs` | Extract `ApiGatewayUrl` and `RestApiId` instead of ALB outputs. Write `apiGateway` block instead of `alb` block. Update `generateClaudeMd()` architecture diagram. |
-| `cli/commands/deploy.mjs` | Update `needsMigrationWarning()` for legacy ALB detection. Extract API Gateway outputs by default. Auto-apply `alb` extension for legacy projects. Write `apiGateway` block. |
-| `cli/commands/verify.mjs` | Add API Gateway stage + WAF checks when `cfg.apiGateway` present. Skip ALB + concurrency checks when `cfg.alb` absent. Update success message text. |
+| `cli/commands/init.mjs` | Extract `ApiGatewayUrl` and `RestApiId` instead of ALB outputs. Write `apiGateway` block instead of `alb` block. Update `generateClaudeMd()` architecture diagram. Fix `boa extend` example: `api-gateway` to `alb`. |
+| `cli/commands/deploy.mjs` | Update `needsMigrationWarning()` for legacy ALB detection. Legacy ALB detection BEFORE `resolveTemplate()` -- write merged ALB template to `.boa/template.yaml` before build. Extract `buildDeployConfig()` pure function (exported). Add `skipConfigWrite` option: when true, return CF outputs without writing config or printing URL. Print `updatedConfig.apiUrl` (not a stale local variable). Guard `new URL(albUrl)` against undefined. |
+| `cli/commands/extend.mjs` | Use `buildDeployConfig()` from deploy.mjs. Pass `skipConfigWrite: true` to `deploy()`. Single config write after deploy completes. Legacy ALB shortcut writes `.boa/template.yaml` before exiting. |
+| `cli/commands/remove.mjs` | Use `buildDeployConfig()` from deploy.mjs. Pass `skipConfigWrite: true` to `deploy()`. Single config write after deploy completes. |
+| `cli/commands/verify.mjs` | Add API Gateway stage + WAF checks when `cfg.apiGateway` present. Skip ALB + concurrency checks when `cfg.alb` absent. Shell-escape `apiUrl`, `cfg.alb.targetGroupArn`, `cfg.alb.arn`, `region`, `bucketName`, `functionName` in all `aws.exec()` calls. Update success message text. |
 | `cli/commands/status.mjs` | Print `API Gateway:` line when `cfg.apiGateway` present. Keep `ALB:` line for legacy. |
 | `cli/__tests__/template-structure.test.mjs` | Assert base template has `AWS::Serverless::Api`, not `ElasticLoadBalancingV2::LoadBalancer`. |
 | `cli/__tests__/extensions.test.mjs` | Replace `api-gateway` extension tests with `alb` extension tests. Base template now has `Api`. |
@@ -1165,6 +1386,9 @@ confirming the handler works with API Gateway events.
 |------|---------|
 | `cli/extensions/alb/fragment.yaml` | ALB + VPC SAM fragment (15 resources + WAF association + 4 outputs) |
 | `cli/extensions/alb/README.md` | Extension documentation |
+| `cli/__tests__/verify-command.test.mjs` | Shell-escape tests for verify command |
+| `cli/__tests__/deploy-legacy-alb.test.mjs` | Legacy ALB project deploy uses correct template |
+| `cli/__tests__/init-claudemd.test.mjs` | Generated CLAUDE.md content assertions |
 
 ### Unchanged Files
 
@@ -1173,7 +1397,7 @@ confirming the handler works with API Gateway events.
 | `cli/templates/lambda/index.mjs` | pgrest-lambda already handles API Gateway events |
 | `cli/templates/lambda/presigned-upload.mjs` | Receives events via index.mjs routing |
 | `cli/commands/teardown.mjs` | `sam.remove()` handles all resources; no VPC cleanup needed in default path |
-| `cli/lib/aws.mjs` | No new AWS wrappers needed |
+| `cli/lib/aws.mjs` | `shellEscape()` already exists; no new wrappers needed |
 | `cli/lib/sam.mjs` | Build/deploy unchanged |
 | `cli/lib/config.mjs` | Reads/writes JSON, schema-agnostic |
 
@@ -1267,6 +1491,150 @@ Update `needsMigrationWarning()` tests:
 - Config with `cloudfront` block triggers warning
 - Config with `lambda-url` apiUrl triggers warning
 - Config with no apiUrl does NOT trigger warning
+- Config with `alb` block AND `extensions: ['api-gateway']`
+  triggers legacy ALB warning (the `api-gateway` extension
+  does not suppress the ALB detection because
+  `extensions.includes('alb')` is still false)
+- `test_deploy_alb_missing_url_no_throw`: Call
+  `buildDeployConfig(cfg, outputs, ['alb'])` with
+  synthetic outputs containing `AlbArn` but no `AlbUrl`.
+  Verify it returns `alb: undefined` without throwing
+  `TypeError: Invalid URL`. Import the real function
+  from `deploy.mjs`, not a local replica of the guard
+  pattern.
+- `test_build_deploy_config_alb_outputs`: Call
+  `buildDeployConfig(cfg, outputs, ['alb'])` with
+  synthetic outputs containing `AlbUrl`, `AlbArn`,
+  `TargetGroupArn`, `VpcId`. Verify the result has an
+  `alb` block with correct values, no `apiGateway` block,
+  and `apiUrl` set to the ALB URL. This tests the
+  extracted function directly rather than replicating its
+  logic inline.
+
+**`cli/__tests__/deploy-legacy-alb.test.mjs` (new file):**
+
+Test that legacy ALB projects deploy against the correct
+template. Uses `buildDeployConfig()` and verifies the
+template merge happens before `resolveTemplate()`:
+
+- `test_deploy_legacy_alb_uses_alb_template`: Given a
+  legacy config (`alb` block, `extensions: []`), verify
+  that the deploy path writes a merged ALB template to
+  `.boa/template.yaml` containing
+  `AWS::ElasticLoadBalancingV2::LoadBalancer` before
+  calling `sam.build()`. Test the
+  `buildDeployConfig()` function with synthetic outputs
+  that include `AlbUrl`, `AlbArn`, `TargetGroupArn`,
+  `VpcId` and verify the resulting config has an `alb`
+  block and no `apiGateway` block.
+
+**`cli/__tests__/verify-command.test.mjs` (new file):**
+
+Shell-escape and output format tests for verify:
+
+- `test_verify_apiUrl_shell_escape`: Given a config
+  with `apiUrl` containing shell metacharacters (e.g.,
+  `https://example.com/;echo injected`), verify the
+  constructed `aws.exec()` command uses
+  `shellEscape(apiUrl + '/rest/v1/')` -- the
+  metacharacter is wrapped in single quotes and not
+  executed. Test by asserting the `shellEscape` function
+  correctly wraps the value, since verify calls
+  `aws.exec()` with the escaped string.
+- `test_verify_alb_arn_shell_escape`: Same pattern for
+  `cfg.alb.targetGroupArn` and `cfg.alb.arn` -- verify
+  these values are passed through `shellEscape()` in the
+  constructed commands.
+
+  Note: these tests verify the escaping contract via
+  `shellEscape()` unit tests and code audit, not by
+  running the full verify command (which requires live
+  AWS). The `shellEscape` function is the single point
+  of trust.
+
+**`cli/__tests__/init-claudemd.test.mjs` (new file):**
+
+- `test_generated_claudemd_extend_example_uses_alb`:
+  Call `generateClaudeMd('test', {...})` and assert the
+  result contains `(e.g., alb)` and does NOT contain
+  `(e.g., api-gateway)`.
+
+**`cli/__tests__/extend-command.test.mjs` (additions):**
+
+- `test_extend_alb_writes_merged_template`: Given a
+  fresh project with `apiGateway` config and
+  `extensions: []`, when `boa extend alb` runs past the
+  template merge step (before deploy), verify
+  `.boa/template.yaml` contains
+  `ElasticLoadBalancingV2::LoadBalancer` and does NOT
+  contain `AWS::Serverless::Api`.
+- `test_extend_alb_legacy_writes_template_yaml`: Given
+  a legacy ALB project (config has `alb` block,
+  `extensions: []`), when `boa extend alb` runs (legacy
+  shortcut path), verify `.boa/template.yaml` exists in
+  the project directory AND contains
+  `ElasticLoadBalancingV2::LoadBalancer`. This tests the
+  fix for the critical bug where the legacy shortcut
+  exited without writing the template, causing the next
+  deploy to silently destroy the ALB.
+- `test_extend_alb_config_consistency`: Call
+  `buildDeployConfig(cfg, outputs, ['alb'])` with
+  synthetic CloudFormation outputs containing `AlbUrl`,
+  `AlbArn`, `TargetGroupArn`, `VpcId`. Verify the
+  returned config has `alb.arn`, `alb.dnsName`,
+  `alb.targetGroupArn`, and `alb.vpcId` matching the
+  output values. No `apiGateway` block. `apiUrl` equals
+  the `AlbUrl` value.
+- `test_extend_deploy_config_writes_consistent`:
+  `buildDeployConfig()` with the same inputs produces
+  deterministic output. Call it twice with identical
+  `cfg`, `outputs`, and `extensions`; assert the two
+  results are deeply equal (except `deployedAt`).
+
+**`cli/__tests__/deploy-legacy-alb.test.mjs`
+(additions):**
+
+- `test_deploy_legacy_alb_prints_correct_api_url`:
+  Call `buildDeployConfig(cfg, outputs, ['alb'])` with
+  synthetic outputs that include
+  `AlbUrl: 'http://my-alb.example.com'` and no
+  `ApiGatewayUrl`. Verify `result.apiUrl` equals the
+  ALB URL (not `undefined`). This tests the fix for the
+  bug where `deploy.mjs:167` printed `API URL: undefined`
+  because it used a stale local variable instead of the
+  config object.
+
+**`cli/__tests__/remove-command.test.mjs` (additions):**
+
+- `test_remove_alb_cleans_config_block`: Given a config
+  with `extensions: ['alb']` and an `alb` block, after
+  the remove command's post-deploy config cleanup runs,
+  `updatedCfg.alb` is `undefined` and
+  `updatedCfg.extensions` is `[]`.
+- `test_remove_alb_final_config_consistent`: Call
+  `buildDeployConfig(cfg, outputs, [])` with synthetic
+  API Gateway outputs (no ALB keys). Verify the result
+  has `extensions: []`, no `alb` block, `apiUrl` is an
+  HTTPS API Gateway URL, and `apiGateway` block is
+  present.
+
+**`cli/__tests__/extensions.test.mjs` (additions):**
+
+- `test_merge_template_alb_and_deprecated_api_gateway`:
+  `mergeTemplate(['alb', 'api-gateway'])` produces the
+  same result as `mergeTemplate(['alb'])`. The deprecated
+  `api-gateway` is filtered out.
+- `test_alb_reserved_concurrency_value_is_50`: Parse
+  `mergeTemplate(['alb'])` output and verify
+  `ReservedConcurrentExecutions` has integer value `50`,
+  not string `"50"`.
+
+**`cli/__tests__/extensions-list-command.test.mjs`
+(additions):**
+
+- `test_extensions_list_api_gateway_deprecated_same_line`:
+  The line in stdout containing `api-gateway` also
+  contains `(deprecated)` on the same line.
 
 ### Integration Tests (Manual)
 
@@ -1305,16 +1673,35 @@ Update `needsMigrationWarning()` tests:
 18. Verify warning message about legacy ALB
 19. Verify ALB is preserved (no silent swap)
 
-**Phase E: WAF Validation**
+**Phase E: ALB Round-Trip**
 
-20. After fresh deploy, verify WAF stage-ARN association:
+20. `boa extend alb` on a fresh API Gateway project
+21. Verify final config has `alb` block, `apiUrl` is ALB
+    DNS, `extensions` includes `'alb'`
+22. `boa remove alb`
+23. Verify `alb` block is removed from config, `apiUrl`
+    reverts to API Gateway HTTPS
+
+**Phase F: WAF Validation**
+
+24. After fresh deploy, verify WAF stage-ARN association:
     ```bash
     aws wafv2 get-web-acl-for-resource \
       --resource-arn \
         "arn:aws:apigateway:us-east-1::/restapis/<id>/stages/prod" \
       --region us-east-1
     ```
-21. Confirm the response includes the WebACL ARN
+25. Confirm the response includes the WebACL ARN
+
+**Phase G: Mutual Exclusion**
+
+26. `mergeTemplate(['alb', 'api-gateway'])` does not
+    produce a template with both traffic layers.
+    `api-gateway` is filtered as deprecated; only ALB
+    resources appear.
+27. Verify a config with both `alb` block AND
+    `extensions: ['api-gateway']` triggers the legacy ALB
+    migration warning on `boa deploy`.
 
 ### Test Specificity Notes
 
@@ -1325,7 +1712,8 @@ Update `needsMigrationWarning()` tests:
   after YAML round-trip. CloudFormation tag preservation
   is already covered by existing tests.
 - Deploy migration tests call `needsMigrationWarning()`
-  with synthetic config objects. No AWS calls needed.
+  and `buildDeployConfig()` with synthetic config objects
+  and output maps. No AWS calls needed.
 - The WAF stage-ARN association format
   (`arn:aws:apigateway:${Region}::/restapis/${Api}/stages/prod`)
   must be validated against a live deploy. The double
@@ -1344,6 +1732,39 @@ Update `needsMigrationWarning()` tests:
   misleading message. The test should verify that `verify`
   reports the constructed ARN in the failure message so
   the user can diagnose the mismatch.
+- Shell-escape tests verify the contract via
+  `shellEscape()` unit tests and code audit rather than
+  running the full verify/deploy commands (which require
+  live AWS). The `shellEscape` function is the single
+  point of trust for command-injection prevention.
+- The `buildDeployConfig()` extraction enables testing
+  the deploy config-build logic with synthetic
+  CloudFormation output maps, without needing AWS mocks
+  or live stacks. This is the test harness enabler for
+  `test_deploy_alb_missing_url_no_throw`,
+  `test_build_deploy_config_alb_outputs`,
+  `test_deploy_legacy_alb_prints_correct_api_url`,
+  `test_extend_alb_config_consistency`,
+  `test_extend_deploy_config_writes_consistent`, and
+  `test_remove_alb_final_config_consistent`. All of
+  these import the real `buildDeployConfig()` from
+  `deploy.mjs` rather than replicating its logic inline.
+- The legacy ALB deploy test
+  (`test_deploy_legacy_alb_uses_alb_template`) verifies
+  the critical ordering: legacy detection must happen
+  BEFORE `resolveTemplate()`. The test creates a temp
+  directory with a legacy config, calls the detection
+  logic, and asserts `.boa/template.yaml` is written
+  with ALB resources before any SAM build call.
+  Without this ordering, the deploy silently swaps the
+  traffic layer and `new URL(undefined)` throws.
+- `test_extend_alb_legacy_writes_template_yaml` is an
+  end-to-end CLI test (subprocess): it creates a temp
+  directory with legacy ALB config, runs `boa extend alb`,
+  and verifies `.boa/template.yaml` exists and contains
+  `ElasticLoadBalancingV2::LoadBalancer`. This catches the
+  critical bug where the legacy shortcut exited without
+  writing the template.
 
 ## Implementation Order
 
@@ -1363,44 +1784,71 @@ Update `needsMigrationWarning()` tests:
 
 5. Update `cli/commands/init.mjs`: extract API Gateway
    outputs, write `apiGateway` block, update
-   `generateClaudeMd()`.
-6. Update `cli/commands/deploy.mjs`: update
-   `needsMigrationWarning()`, extract API Gateway outputs,
-   auto-apply ALB for legacy projects.
-7. Update `cli/commands/verify.mjs`: add API Gateway
+   `generateClaudeMd()`, fix `boa extend` example
+   (`api-gateway` to `alb`).
+6. Update `cli/commands/deploy.mjs`: move legacy ALB
+   detection BEFORE `resolveTemplate()` (writes merged
+   template to `.boa/template.yaml`). Extract
+   `buildDeployConfig()` pure function (exported). Guard
+   `new URL(albUrl)` against undefined. Accept
+   `skipConfigWrite` option; return CF outputs when true.
+   Print `updatedConfig.apiUrl` instead of stale local.
+7. Update `cli/commands/extend.mjs`: use
+   `buildDeployConfig()`. Pass `skipConfigWrite: true` to
+   `deploy()`. Single config write. Legacy ALB shortcut
+   writes `.boa/template.yaml` before exiting.
+8. Update `cli/commands/remove.mjs`: use
+   `buildDeployConfig()`. Pass `skipConfigWrite: true` to
+   `deploy()`. Single config write.
+9. Update `cli/commands/verify.mjs`: add API Gateway
    checks, conditional ALB/concurrency checks.
-8. Update `cli/commands/status.mjs`: conditional
-   `API Gateway:` / `ALB:` line.
+   Shell-escape `apiUrl`, `cfg.alb.targetGroupArn`,
+   `cfg.alb.arn`, `region`, `bucketName`, `functionName`
+   in all `aws.exec()` calls.
+10. Update `cli/commands/status.mjs`: conditional
+    `API Gateway:` / `ALB:` line.
 
 ### Phase 3: Tests
 
-9. Update `cli/__tests__/template-structure.test.mjs`.
-10. Update `cli/__tests__/extensions.test.mjs`.
-11. Update `cli/__tests__/extend-command.test.mjs`.
-12. Update `cli/__tests__/remove-command.test.mjs`.
-13. Update `cli/__tests__/extensions-list-command.test.mjs`.
-14. Update `cli/__tests__/deploy-migration.test.mjs`.
+11. Update `cli/__tests__/template-structure.test.mjs`.
+12. Update `cli/__tests__/extensions.test.mjs` (add
+    `alb + api-gateway` combo test, reserved concurrency
+    value test).
+13. Update `cli/__tests__/extend-command.test.mjs` (add
+    merged template test, legacy template-write test,
+    config consistency test).
+14. Update `cli/__tests__/remove-command.test.mjs` (add
+    config cleanup test, final config consistency test).
+15. Update `cli/__tests__/extensions-list-command.test.mjs`
+    (add deprecated-same-line test).
+16. Update `cli/__tests__/deploy-migration.test.mjs` (add
+    `alb + api-gateway` extensions test, undefined AlbUrl
+    test, `buildDeployConfig` ALB outputs test).
+17. Update `cli/__tests__/deploy-legacy-alb.test.mjs`
+    (add ALB URL print test).
+18. Create `cli/__tests__/verify-command.test.mjs`.
+19. Create `cli/__tests__/init-claudemd.test.mjs`.
 
 ### Phase 4: Docs + Skill
 
-15. Update `plugin/CLAUDE.md`, `plugin/AGENTS.md`,
+20. Update `plugin/CLAUDE.md`, `plugin/AGENTS.md`,
     `plugin/skills/boa/SKILL.md`,
     `plugin/skills/boa-manage/SKILL.md`.
-16. Update `plugin/docs/PITFALLS.md`,
+21. Update `plugin/docs/PITFALLS.md`,
     `plugin/docs/API-PATTERNS.md`,
     `plugin/docs/AUTH-PATTERNS.md`,
     `plugin/docs/STORAGE-PATTERNS.md`,
     `plugin/docs/REST-API.md`.
-17. Update `CLAUDE.md`, `docs/ARCHITECTURE.md`,
+22. Update `CLAUDE.md`, `docs/ARCHITECTURE.md`,
     `docs/PRODUCT.md`, `docs/GLOSSARY.md`.
-18. Update `website/scripts/generate-pricing.mjs`.
+23. Update `website/scripts/generate-pricing.mjs`.
 
 ### Phase 5: Validation
 
-19. Deploy a fresh stack and verify WAF stage-ARN
+24. Deploy a fresh stack and verify WAF stage-ARN
     association resolves.
-20. Run the manual integration test plan (Phases A-E).
-21. Verify all unit tests pass.
+25. Run the manual integration test plan (Phases A-G).
+26. Verify all unit tests pass.
 
 ## Open Questions
 

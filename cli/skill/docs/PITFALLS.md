@@ -11,7 +11,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 2 | Users stuck in UNCONFIRMED (missing pre-signup trigger) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 3 | `update-user-pool` CLI wipes all Lambda triggers | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #7 |
-| 5 | Wrong API Gateway type — HTTP API instead of REST API (only when `api-gateway` extension is enabled) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
+| 5 | Wrong API Gateway type — HTTP API instead of REST API | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 6 | Wrong authorizer context path (`claims.sub` vs `authorizer.userId`) | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | **Database** | | | |
 | 7 | Hardcoded database credentials instead of IAM auth | CRITICAL | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
@@ -25,7 +25,7 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #4 |
 | 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
-| 25 | HTTP only by default (ALB needs ACM cert for HTTPS) | MEDIUM | See below |
+| 25 | Failed to fetch / silent network errors on HTTP APIs | MEDIUM | See below |
 | **Functions** | | | |
 | 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
@@ -86,14 +86,25 @@ aws lambda add-permission \
   --invoked-via-function-url
 ```
 
-## HTTP Only by Default — ALB Needs ACM Certificate
+## Failed to Fetch / Silent Network Errors on HTTP APIs
 
-ALB uses HTTP (port 80) by default. For HTTPS, you need
-to add an ACM certificate and an HTTPS listener (port 443).
+Chrome's HTTPS-First mode (default since Chrome 117)
+silently rewrites `http://` subresource requests to
+`https://`. If the API endpoint does not support HTTPS,
+the request fails with `TypeError: Failed to fetch` and
+no CORS error in the console.
 
-**Symptoms:** Browser shows "Not Secure" warning. Mixed
-content errors when calling the API from an HTTPS frontend.
+**Root cause:** The API endpoint uses HTTP instead of
+HTTPS. Any frontend served over HTTPS also blocks HTTP
+API calls as mixed content.
 
-**Fix:** Request an ACM certificate for your domain, add
-an HTTPS listener to the ALB, and redirect HTTP to HTTPS.
-Update `.boa/config.json` `apiUrl` to use the HTTPS URL.
+**Resolution:** API Gateway REST is now the default traffic
+layer and provides HTTPS out of the box via the
+`*.execute-api.<region>.amazonaws.com` endpoint. This
+issue only affects the ALB extension when used without an
+ACM certificate.
+
+**If using ALB extension:** Request an ACM certificate for
+your domain, add an HTTPS listener to the ALB, and
+redirect HTTP to HTTPS. Update `.boa/config.json` `apiUrl`
+to use the HTTPS URL.

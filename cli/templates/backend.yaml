@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: BOA — Backend on AWS serverless stack (ALB, WAF, Aurora DSQL, Lambda, S3)
+Description: BOA - Backend on AWS serverless stack (API Gateway, WAF, Aurora DSQL, Lambda, S3)
 
 Parameters:
   ProjectName:
@@ -39,7 +39,6 @@ Resources:
       FunctionName: !Sub '${ProjectName}-api'
       Handler: index.handler
       CodeUri: ./lambda/
-      ReservedConcurrentExecutions: 50
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -47,10 +46,23 @@ Resources:
           BUCKET_NAME: !Ref StorageBucket
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
           BETTER_AUTH_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/better-auth-secret}}'
-          BETTER_AUTH_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+          BETTER_AUTH_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
           AUTH_PROVIDER: better-auth
           POLICIES_PATH: ./policies
-          API_BASE_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}/rest/v1'
+          API_BASE_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1'
+      Events:
+        ProxyRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /
+            Method: ANY
+        ProxyPlus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /{proxy+}
+            Method: ANY
       Policies:
         - Statement:
             - Effect: Allow
@@ -62,132 +74,29 @@ Resources:
             BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
-  # VPC — Minimal networking for ALB (Lambda stays outside)
+  # Traffic layer — API Gateway REST + WAF
   # -------------------------------------------------------
-  AlbVpc:
-    Type: AWS::EC2::VPC
+  Api:
+    Type: AWS::Serverless::Api
     Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-alb-vpc'
-
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-igw'
-
-  GatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref AlbVpc
-      InternetGatewayId: !Ref InternetGateway
-
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref AlbVpc
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-public-1'
-
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref AlbVpc
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-public-2'
-
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref AlbVpc
-
-  PublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: GatewayAttachment
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  Subnet1RouteTableAssoc:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
-
-  Subnet2RouteTableAssoc:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
-
-  AlbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Sub '${ProjectName} ALB - allow HTTP'
-      VpcId: !Ref AlbVpc
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-
-  # -------------------------------------------------------
-  # Traffic layer — ALB + WAF (DDoS + rate limiting)
-  # -------------------------------------------------------
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: !Sub '${ProjectName}-alb'
-      Scheme: internet-facing
-      Type: application
-      Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
-      SecurityGroups:
-        - !Ref AlbSecurityGroup
-      Tags:
-        - Key: Project
-          Value: !Ref ProjectName
-
-  AlbLambdaPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt ApiFunction.Arn
-      Action: lambda:InvokeFunction
-      Principal: elasticloadbalancing.amazonaws.com
-
-  AlbTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    DependsOn: AlbLambdaPermission
-    Properties:
-      Name: !Sub '${ProjectName}-tg'
-      TargetType: lambda
-      Targets:
-        - Id: !GetAtt ApiFunction.Arn
-
-  AlbHttpListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref AlbTargetGroup
+      Name: !Sub '${ProjectName}-api'
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
 
   WafWebAcl:
     Type: AWS::WAFv2::WebACL
@@ -226,10 +135,10 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesAmazonIpReputationList
 
-  WafAlbAssociation:
+  WafApiGatewayAssociation:
     Type: AWS::WAFv2::WebACLAssociation
     Properties:
-      ResourceArn: !Ref ApplicationLoadBalancer
+      ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${Api}/stages/prod'
       WebACLArn: !GetAtt WafWebAcl.Arn
 
   # -------------------------------------------------------
@@ -259,21 +168,13 @@ Resources:
             MaxAge: 3600
 
 Outputs:
-  AlbUrl:
-    Description: ALB endpoint URL (primary API endpoint)
-    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
 
-  AlbArn:
-    Description: Application Load Balancer ARN
-    Value: !Ref ApplicationLoadBalancer
-
-  TargetGroupArn:
-    Description: ALB Target Group ARN
-    Value: !Ref AlbTargetGroup
-
-  VpcId:
-    Description: VPC ID for the ALB
-    Value: !Ref AlbVpc
+  RestApiId:
+    Description: API Gateway REST API ID
+    Value: !Ref Api
 
   BucketName:
     Description: S3 storage bucket name

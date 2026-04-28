@@ -1,10 +1,8 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
-import { getOutputValue } from '../lib/constants.mjs';
 import { getRegistry, mergeTemplate } from '../lib/extensions.mjs';
-import deploy from './deploy.mjs';
+import deploy, { buildDeployConfig } from './deploy.mjs';
 
 export default async function extend(args) {
   const name = args[0];
@@ -18,6 +16,19 @@ export default async function extend(args) {
   }
 
   const cfg = config.requireConfig();
+
+  if (name === 'api-gateway') {
+    console.log(
+      'api-gateway is now the default traffic layer.'
+        + ' No action needed.'
+    );
+    console.log(
+      'Run `boa remove alb` if you\'re switching away'
+        + ' from ALB.'
+    );
+    process.exit(0);
+  }
+
   const registry = getRegistry();
 
   if (!registry[name]) {
@@ -29,6 +40,27 @@ export default async function extend(args) {
   }
 
   const extensions = cfg.extensions || [];
+
+  if (name === 'alb' && cfg.alb
+      && !extensions.includes('alb')) {
+    console.log(
+      'This project already uses ALB (legacy default).'
+    );
+    console.log(
+      'Adding alb to extensions for explicit tracking...'
+    );
+    const merged = mergeTemplate(['alb']);
+    mkdirSync('.boa', { recursive: true });
+    writeFileSync(
+      join('.boa', 'template.yaml'), merged
+    );
+    extensions.push('alb');
+    cfg.extensions = extensions;
+    config.write(cfg);
+    console.log("Extension 'alb' enabled.");
+    process.exit(0);
+  }
+
   if (extensions.includes(name)) {
     console.error(
       `Error: Extension '${name}' is already enabled.`
@@ -46,25 +78,12 @@ export default async function extend(args) {
   writeFileSync(join('.boa', 'template.yaml'), merged);
 
   // Deploy (uses .boa/template.yaml via resolveTemplate)
-  await deploy([]);
-
-  // Update config with extension-specific outputs
-  const updatedCfg = config.read();
-  updatedCfg.extensions = newExtensions;
-
-  // Extension-specific config updates
-  if (name === 'api-gateway') {
-    const outputs = aws.cfnDescribeStacks(
-      updatedCfg.stackName, updatedCfg.region
-    );
-    const gatewayUrl = getOutputValue(
-      outputs, 'ApiGatewayUrl'
-    );
-    if (gatewayUrl) {
-      updatedCfg.apiUrl = gatewayUrl;
-    }
-  }
-
+  const outputs = await deploy(
+    [], { skipConfigWrite: true }
+  );
+  const updatedCfg = buildDeployConfig(
+    cfg, outputs, newExtensions
+  );
   config.write(updatedCfg);
 
   console.log('');

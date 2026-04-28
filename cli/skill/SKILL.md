@@ -1,6 +1,6 @@
 ---
 name: boa
-description: Build serverless backends on AWS with Aurora DSQL, better-auth, Lambda (ALB + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
+description: Build serverless backends on AWS with Aurora DSQL, better-auth, Lambda (API Gateway REST + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
 compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
@@ -34,7 +34,7 @@ These rules shape every interaction:
 Client App (React/Next.js/Vue)  ──  @supabase/supabase-js (drop-in client)
     │
     ▼
-ALB + WAF ─── DDoS protection, rate limiting
+API Gateway REST + WAF ─── HTTPS, rate limiting
     │
     ▼
 Lambda (direct invoke) ─── pgrest-lambda engine (handles JWT + CORS + routing)
@@ -48,12 +48,13 @@ Everything is serverless. No servers to manage. Scales to zero. Scales to millio
 
 The REST API and auth engine are provided by [`pgrest-lambda`](https://github.com/yoshuacas/pgrest-lambda) — an npm library that introspects your database schema at runtime and auto-generates a full PostgREST-compatible REST API with GoTrue-compatible auth. `@supabase/supabase-js` works as a drop-in client.
 
-ALB is the default traffic layer. All client requests go
-through the Application Load Balancer, which provides DDoS
-absorption (AWS Shield Standard) and WAF rate limiting
-(1000 req/5min per IP). ALB invokes Lambda directly via
-IAM -- there is no public Lambda endpoint. WAF attaches
-in the same region as the ALB (no us-east-1 restriction).
+API Gateway REST is the default traffic layer. All client
+requests go through API Gateway, which provides HTTPS out
+of the box, WAF rate limiting (1000 req/5min per IP), and
+request throttling (10,000 req/s default). API Gateway
+invokes Lambda directly. ALB is available as an extension
+(`boa extend alb`) for long-running requests (>29s),
+streaming, or high-throughput workloads.
 
 ## BOA CLI
 
@@ -68,7 +69,7 @@ All operations go through the `boa` CLI. The developer can also run these comman
 | `boa teardown` | Destroy everything (with confirmation) |
 | `boa status` | Show backend info, tables, pending migrations |
 | `boa check` | Check required tools + AWS credentials |
-| `boa extend <name>` | Add an optional extension (e.g., api-gateway) |
+| `boa extend <name>` | Add an optional extension (e.g., alb) |
 | `boa remove <name>` | Remove an extension |
 | `boa extensions` | List available and enabled extensions |
 | `boa feedback` | Submit feedback to improve BOA |
@@ -111,7 +112,7 @@ These come from hundreds of real AI-built backends. Every rule prevents a real f
 7. **Access policies required with tables**: When creating tables, always write access policies too — tables without policies return 403 on all requests
 8. **Never tear down to fix a problem**: Diagnose and fix the specific issue. Running `boa teardown` destroys the database, user accounts, and uploaded files — all irreplaceable. Teardown is only for intentional decommissioning, never for troubleshooting.
 9. **Deletion protection on stateful resources**: The DSQL cluster and S3 bucket have `DeletionPolicy: Retain` and service-level deletion protection. Never disable these protections. If CloudFormation refuses to delete a resource, that's by design.
-10. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend api-gateway` for rate limiting, WAF, or custom domains).
+10. **Extensions are optional**: The default backend works without any extensions. Add them only when the developer needs specific capabilities (e.g., `boa extend alb` for long-running requests, streaming, or high throughput).
 11. **WAF rate limiting**: Default is 1000 requests per
     5 minutes per IP. Increase in the WAF rule if a
     legitimate app needs higher throughput.

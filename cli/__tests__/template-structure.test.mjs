@@ -11,43 +11,107 @@ const TEMPLATE_PATH = join(
 const template = readFileSync(TEMPLATE_PATH, 'utf8');
 
 // -----------------------------------------------------------
-// ALB traffic layer (default)
+// API Gateway traffic layer (default)
 // -----------------------------------------------------------
 
-describe('SAM template — ALB default', () => {
-  it('contains ApplicationLoadBalancer resource', () => {
+describe('SAM template — API Gateway default', () => {
+  it('contains AWS::Serverless::Api resource', () => {
     assert.ok(
-      template.includes('ApplicationLoadBalancer'),
-      'template should contain ApplicationLoadBalancer'
+      template.includes('AWS::Serverless::Api'),
+      'template should contain AWS::Serverless::Api'
     );
   });
 
-  it('contains AlbTargetGroup with target-type lambda', () => {
+  it('does NOT contain ElasticLoadBalancingV2::LoadBalancer', () => {
     assert.ok(
-      template.includes('AlbTargetGroup'),
-      'template should contain AlbTargetGroup'
-    );
-    assert.ok(
-      template.includes('TargetType: lambda'),
-      'target group should have TargetType: lambda'
+      !template.includes('ElasticLoadBalancingV2::LoadBalancer'),
+      'template should NOT contain ElasticLoadBalancingV2::LoadBalancer'
     );
   });
 
-  it('contains AlbHttpListener on port 80', () => {
+  it('does NOT contain AWS::EC2::VPC', () => {
     assert.ok(
-      template.includes('AlbHttpListener'),
-      'template should contain AlbHttpListener'
+      !template.includes('AWS::EC2::VPC'),
+      'template should NOT contain AWS::EC2::VPC'
     );
   });
 
-  it('contains AlbLambdaPermission for ELB principal', () => {
+  it('contains WafApiGatewayAssociation (not WafAlbAssociation)', () => {
     assert.ok(
-      template.includes('AlbLambdaPermission'),
-      'template should contain AlbLambdaPermission'
+      template.includes('WafApiGatewayAssociation'),
+      'template should contain WafApiGatewayAssociation'
     );
     assert.ok(
-      template.includes('elasticloadbalancing.amazonaws.com'),
-      'permission should use ELB principal'
+      !template.includes('WafAlbAssociation'),
+      'template should NOT contain WafAlbAssociation'
+    );
+  });
+
+  it('Outputs contain ApiGatewayUrl and RestApiId', () => {
+    assert.ok(
+      template.includes('ApiGatewayUrl'),
+      'Outputs should contain ApiGatewayUrl'
+    );
+    assert.ok(
+      template.includes('RestApiId'),
+      'Outputs should contain RestApiId'
+    );
+  });
+
+  it('Outputs do NOT contain AlbUrl, AlbArn, TargetGroupArn, or VpcId', () => {
+    assert.ok(
+      !template.includes('AlbUrl'),
+      'Outputs should NOT contain AlbUrl'
+    );
+    assert.ok(
+      !template.includes('AlbArn'),
+      'Outputs should NOT contain AlbArn'
+    );
+    assert.ok(
+      !template.includes('TargetGroupArn'),
+      'Outputs should NOT contain TargetGroupArn'
+    );
+    assert.ok(
+      !template.includes('VpcId'),
+      'Outputs should NOT contain VpcId'
+    );
+  });
+
+  it('ApiFunction does NOT have ReservedConcurrentExecutions', () => {
+    assert.ok(
+      !template.includes('ReservedConcurrentExecutions'),
+      'ApiFunction should NOT have ReservedConcurrentExecutions'
+    );
+  });
+
+  it('ApiFunction has Events with ProxyRoot and ProxyPlus', () => {
+    assert.ok(
+      template.includes('ProxyRoot'),
+      'ApiFunction should have ProxyRoot event'
+    );
+    assert.ok(
+      template.includes('ProxyPlus'),
+      'ApiFunction should have ProxyPlus event'
+    );
+  });
+
+  it('BETTER_AUTH_URL env var contains execute-api', () => {
+    const match = template.match(
+      /BETTER_AUTH_URL:.*(?:\n.*)*?execute-api/
+    );
+    assert.ok(
+      match,
+      'BETTER_AUTH_URL should reference execute-api (API Gateway URL)'
+    );
+  });
+
+  it('API_BASE_URL env var contains execute-api', () => {
+    const match = template.match(
+      /API_BASE_URL:.*(?:\n.*)*?execute-api/
+    );
+    assert.ok(
+      match,
+      'API_BASE_URL should reference execute-api (API Gateway URL)'
     );
   });
 
@@ -59,28 +123,6 @@ describe('SAM template — ALB default', () => {
     assert.ok(
       template.includes('Scope: REGIONAL'),
       'WAF should have Scope: REGIONAL'
-    );
-  });
-
-  it('contains WafAlbAssociation', () => {
-    assert.ok(
-      template.includes('WafAlbAssociation'),
-      'template should contain WafAlbAssociation'
-    );
-  });
-
-  it('contains VPC resources for ALB', () => {
-    assert.ok(template.includes('AlbVpc'), 'should have AlbVpc');
-    assert.ok(template.includes('InternetGateway'), 'should have InternetGateway');
-    assert.ok(template.includes('PublicSubnet1'), 'should have PublicSubnet1');
-    assert.ok(template.includes('PublicSubnet2'), 'should have PublicSubnet2');
-    assert.ok(template.includes('AlbSecurityGroup'), 'should have AlbSecurityGroup');
-  });
-
-  it('Outputs contain AlbUrl', () => {
-    assert.ok(
-      template.includes('AlbUrl'),
-      'Outputs should contain AlbUrl'
     );
   });
 
@@ -139,25 +181,6 @@ describe('SAM template — ALB default', () => {
     assert.ok(
       !template.includes('cognito-idp:'),
       'template should not grant Cognito IAM actions'
-    );
-  });
-
-  it('there is NO Api resource (AWS::Serverless::Api)', () => {
-    assert.ok(
-      !template.includes('AWS::Serverless::Api'),
-      'template should NOT contain AWS::Serverless::Api resource'
-    );
-  });
-
-  it('ApiFunction does NOT have an Events property', () => {
-    const start = template.indexOf('ApiFunction:');
-    const end = template.indexOf('AlbVpc:');
-    assert.ok(start !== -1, 'template should contain ApiFunction');
-    assert.ok(end !== -1, 'template should contain AlbVpc');
-    const apiFunctionSection = template.slice(start, end);
-    assert.ok(
-      !apiFunctionSection.includes('Events:'),
-      'ApiFunction should NOT have an Events property in base template'
     );
   });
 });

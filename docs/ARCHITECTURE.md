@@ -15,9 +15,8 @@ Client Application
 │
 ▼
 ┌─────────────────────────────────────┐
-│  ALB (Application Load Balancer)    │
-│  + WAF (rate limiting, IP rep)      │
-│  + AWS Shield Standard (DDoS)       │
+│  API Gateway REST + WAF             │
+│  (HTTPS, rate limiting, IP rep)     │
 └──────────────┬──────────────────────┘
                │
                ▼
@@ -148,7 +147,7 @@ Each skill has access to 11 deep reference documents that it loads on demand:
 | ARCHITECTURE.md | Schema patterns for 5 app types (productivity, social, real-time, e-commerce, multi-tenant SaaS) |
 | DSQL-PATTERNS.md | DSQL constraints, schema patterns, query patterns |
 | AUTH-PATTERNS.md | Cognito flows, social sign-in, MFA, token handling |
-| API-PATTERNS.md | ALB + WAF configuration, API Gateway extension patterns |
+| API-PATTERNS.md | API Gateway REST + WAF configuration, ALB extension patterns |
 | STORAGE-PATTERNS.md | S3 presigned URLs, file management |
 | FUNCTIONS.md | Custom Lambda functions: API endpoints, webhooks, scheduled jobs, common mistakes |
 | MIGRATIONS.md | Migration file format, runner behavior, common patterns |
@@ -311,11 +310,11 @@ boa extensions        List available and enabled extensions
 
 BOA relies on SAM and AWS CLI to deploy cloudformation templates that create, update and destroy infrastructure for the backend.
 
-**One command to deploy.** `boa init` does everything: generates JWT secrets, stores them in SSM Parameter Store, generates anon and service role API keys, copies the SAM template, runs `sam build` and `sam deploy`, extracts CloudFormation outputs (ALB URL, Cognito IDs, DSQL endpoint, bucket name), writes `.boa/config.json`, and copies the bundled skill. The developer goes from nothing to a working backend in under a minute.
+**One command to deploy.** `boa init` does everything: generates JWT secrets, stores them in SSM Parameter Store, generates anon and service role API keys, copies the SAM template, runs `sam build` and `sam deploy`, extracts CloudFormation outputs (API Gateway URL, Cognito IDs, DSQL endpoint, bucket name), writes `.boa/config.json`, and copies the bundled skill. The developer goes from nothing to a working backend in under a minute.
 
 **Deploy includes migrations.** `boa deploy` automatically runs pending migrations after the CloudFormation update completes. This prevents the common mistake of deploying code that references tables that do not exist yet.
 
-**Verification is built in.** `boa verify` runs 7 checks: Cognito self-signup enabled, ALB target group healthy, WAF attached, API responding, S3 bucket exists, Block Public Access enabled, Lambda reserved concurrency set. This catches configuration drift from corporate security policies and manual console changes.
+**Verification is built in.** `boa verify` runs checks: Cognito self-signup enabled, API Gateway stage exists, WAF attached, API responding, S3 bucket exists, Block Public Access enabled. When the ALB extension is active, it also checks ALB target group health and Lambda reserved concurrency. This catches configuration drift from corporate security policies and manual console changes.
 
 **Config lives in `.boa/config.json`.** A single JSON file with the API URL, anon key, service role key, region, stack name, and enabled extensions. Frontend apps read from this file. The CLI reads and updates it on every deploy.
 
@@ -423,10 +422,10 @@ USER_POOL_CLIENT_ID: !Ref UserPoolClient
 JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
 AUTH_PROVIDER: cognito
 POLICIES_PATH: ./policies
-API_BASE_URL: !Sub 'http://${ApplicationLoadBalancer.DNSName}/rest/v1'
+API_BASE_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1'
 ```
 
-The JWT secret is resolved from SSM Parameter Store at deploy time, not stored in the template. `API_BASE_URL` is set so that the auto-generated OpenAPI spec and Scalar docs use the correct ALB URL.
+The JWT secret is resolved from SSM Parameter Store at deploy time, not stored in the template. `API_BASE_URL` is set so that the auto-generated OpenAPI spec and Scalar docs use the correct API Gateway URL.
 
 ### IAM permissions
 
@@ -488,53 +487,46 @@ This is a deliberate strategy. Supabase has the best developer experience for Po
 
 ---
 
-## The ALB (Application Load Balancer)
+## The Traffic Layer: API Gateway REST
 
-The ALB is the single entry point for all API traffic. It replaces the earlier architecture that used raw Lambda Function URLs behind CloudFront.
+API Gateway REST is the default entry point for all API
+traffic. It provides HTTPS out of the box via the
+`*.execute-api.<region>.amazonaws.com` endpoint, requiring
+no ACM certificate or custom domain.
 
 ### Configuration
 
 ```yaml
-ApplicationLoadBalancer:
-  Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+Api:
+  Type: AWS::Serverless::Api
   Properties:
-    Type: application
-    Scheme: internet-facing
-    Subnets: [PublicSubnet1, PublicSubnet2]
-
-AlbTargetGroup:
-  Type: AWS::ElasticLoadBalancingV2::TargetGroup
-  Properties:
-    TargetType: lambda
-    Targets: [!GetAtt ApiFunction.Arn]
-
-AlbHttpListener:
-  Type: AWS::ElasticLoadBalancingV2::Listener
-  Properties:
-    Port: 80
-    Protocol: HTTP
-    DefaultActions: [Forward to target group]
+    StageName: prod
+    Cors:
+      AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,apikey,...'"
+      AllowOrigin: "'*'"
 ```
 
 ### Design decisions
 
-**ALB over API Gateway.** API Gateway adds per-request costs and requires deploying to us-east-1 for WAF. ALB is regional, supports WAF in any region, includes AWS Shield Standard for free, and has simpler pricing for high-throughput workloads. API Gateway is available as an extension (`boa extend api-gateway`) for teams that need usage plans, API keys, or custom domains.
+**API Gateway over ALB.** ALB ships with no HTTPS listener
+(requires ACM cert + custom domain). Chrome's HTTPS-First
+mode silently upgrades `http://` requests to `https://`,
+causing `TypeError: Failed to fetch` with no useful error.
+API Gateway provides HTTPS on the default endpoint with no
+setup. ALB is available as an extension (`boa extend alb`)
+for long-running requests (>29s), streaming, or high
+throughput.
 
-**Lambda target, not proxy integration.** The ALB invokes Lambda directly via IAM. There is no public Lambda endpoint. The Lambda function is not accessible outside the ALB.
+**No VPC required.** API Gateway does not need a VPC,
+eliminating VPC, subnets, internet gateway, route tables,
+and security groups from the default template. This reduces
+deploy time and simplifies teardown.
 
-**HTTP only (port 80).** TLS termination is not included in the default template because it requires a custom domain and ACM certificate. Adding HTTPS is a documentation-guided extension, not a default.
-
-**Minimal VPC.** The ALB requires a VPC, so the template creates the smallest possible one:
-
-```
-VPC: 10.0.0.0/16
-├── Public Subnet 1: 10.0.1.0/24 (AZ-a)
-├── Public Subnet 2: 10.0.2.0/24 (AZ-b)
-├── Internet Gateway
-└── Route Table (0.0.0.0/0 → IGW)
-```
-
-Lambda runs outside this VPC. It does not need an ENI or a NAT Gateway. The VPC exists solely for the ALB.
+**WAF on API Gateway stage.** WAF associates with the API
+Gateway stage ARN
+(`arn:aws:apigateway:<region>::/restapis/<id>/stages/prod`).
+Same WAF rules as before (rate limiting + IP reputation).
 
 ---
 
@@ -569,11 +561,9 @@ WafWebAcl:
 
 **IP reputation list.** AWS maintains a list of known malicious IP addresses (botnets, scanners, abuse sources). Requests from these IPs are blocked automatically.
 
-**AWS Shield Standard.** Included at no cost with the ALB. Provides automatic DDoS mitigation for volumetric attacks.
-
 ### Why WAF is in the default template
 
-Most serverless tutorials skip DDoS protection entirely. A Lambda Function URL with no rate limiting can be hit with millions of requests, generating a large AWS bill. WAF prevents this by default.
+Most serverless tutorials skip DDoS protection entirely. A Lambda endpoint with no rate limiting can be hit with millions of requests, generating a large AWS bill. WAF prevents this by default.
 
 ## Storage: S3
 
@@ -631,24 +621,16 @@ The entire backend is defined in a single SAM template (`backend.yaml`, 372 line
 | Pre-Signup Lambda | `AWS::Serverless::Function` | - |
 | API Lambda | `AWS::Serverless::Function` | - |
 | S3 Storage Bucket | `AWS::S3::Bucket` | Retain |
-| ALB | `AWS::ElasticLoadBalancingV2::LoadBalancer` | - |
-| ALB Target Group | `AWS::ElasticLoadBalancingV2::TargetGroup` | - |
-| ALB Listener | `AWS::ElasticLoadBalancingV2::Listener` | - |
+| API Gateway REST | `AWS::Serverless::Api` | - |
 | WAF WebACL | `AWS::WAFv2::WebACL` | - |
 | WAF Association | `AWS::WAFv2::WebACLAssociation` | - |
-| VPC | `AWS::EC2::VPC` | - |
-| 2 Public Subnets | `AWS::EC2::Subnet` | - |
-| Internet Gateway | `AWS::EC2::InternetGateway` | - |
-| Route Table | `AWS::EC2::RouteTable` | - |
-| Security Group | `AWS::EC2::SecurityGroup` | - |
-| Lambda Permission (ALB) | `AWS::Lambda::Permission` | - |
 | Lambda Permission (Cognito) | `AWS::Lambda::Permission` | - |
 
 ### Extension system
 
 Extensions are YAML fragments that merge into the base template. Currently available:
 
-- **`api-gateway`**: Replaces ALB + WAF + VPC with API Gateway REST. Removes 8 resources, adds API Gateway with CORS, Lambda authorizer, and usage plans.
+- **`alb`**: Adds ALB + VPC + HTTP listener for long-running requests, streaming, or high throughput. Removes API Gateway resources, adds VPC, subnets, ALB, and WAF-to-ALB association.
 
 Extensions are managed via `boa extend <name>` and `boa remove <name>`. The enabled extensions list is stored in `.boa/config.json`.
 
@@ -725,7 +707,7 @@ The SAM template will add an AppSync Events API resource and a Cognito identity 
 
 | Layer | Protection |
 |-------|-----------|
-| Network | ALB + WAF rate limiting (1000 req/5min/IP), AWS Shield Standard (DDoS), IP reputation blocking |
+| Network | API Gateway REST + WAF rate limiting (1000 req/5min/IP), IP reputation blocking |
 | Transport | SSL/TLS for all connections (DSQL, Cognito, S3) |
 | Authentication | Cognito user pools, JWT tokens, API key validation |
 | Authorization | Cedar policies, deny-by-default, SQL WHERE clause injection |
@@ -787,11 +769,15 @@ When no one is using the backend:
 | Lambda | $0 (no invocations) |
 | Cognito | $0 (no active users) |
 | S3 | $0.023/GB stored |
-| ALB | ~$16/month (fixed hourly charge) |
+| API Gateway | $0 (pay per request) |
 | WAF | ~$6/month (WebACL + rules) |
-| **Total** | **~$22/month** (ALB + WAF dominate) |
+| **Total** | **~$6/month** (WAF dominates) |
 
-The ALB is the only component that does not scale to zero. For projects that need true zero-cost idle, the `api-gateway` extension replaces ALB + WAF with API Gateway, which has no fixed cost (pay per request only). The tradeoff is losing AWS Shield Standard and the simpler WAF attachment.
+API Gateway has no fixed hourly charge (pay per request
+only). WAF is the only always-on cost. For high-throughput
+workloads, the ALB extension (`boa extend alb`) may be
+more cost-effective due to ALB's LCU-based pricing model
+vs API Gateway's per-request pricing.
 
 ---
 

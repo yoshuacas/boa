@@ -10,12 +10,12 @@ The BOA skill teaches your agent to build serverless backends on AWS.
 | Authorization | Access policies (Cedar) |
 | Engine     | pgrest-lambda (npm)      |
 | Compute    | Lambda (Node.js 20)      |
-| API        | ALB + WAF (default)      |
+| API        | API Gateway REST + WAF (default) |
 | Storage    | Amazon S3                |
 | Hosting    | AWS Amplify              |
 | IaC        | SAM / CloudFormation     |
 
-ALB + WAF is the default traffic layer. API Gateway is available as an extension (`boa extend api-gateway`) for usage plans, API keys, or custom domains.
+API Gateway REST + WAF is the default traffic layer. ALB is available as an extension (`boa extend alb`) for long-running requests, streaming, or high-throughput workloads.
 
 **pgrest-lambda** provides a PostgREST-compatible REST API and GoTrue-compatible auth backed by better-auth. `@supabase/supabase-js` works as a drop-in client. The Lambda handlers are thin wrappers (~20 lines total).
 
@@ -29,7 +29,7 @@ ALB + WAF is the default traffic layer. API Gateway is available as an extension
 7. Extensions are optional. The default backend works without any extensions.
 
 ## Authorizer Contract
-pgrest-lambda handles JWT validation internally. When the API Gateway extension is enabled, the BOA custom Lambda authorizer (JWT dual-layer validation) passes flat keys:
+pgrest-lambda handles JWT validation internally. The BOA custom Lambda authorizer (JWT dual-layer validation) passes flat keys:
 ```javascript
 event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
 event.requestContext.authorizer.userId   // user UUID or '' for anon

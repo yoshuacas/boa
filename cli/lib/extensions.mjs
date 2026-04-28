@@ -10,8 +10,13 @@ const BASE_TEMPLATE = join(__dirname, '..', 'templates', 'backend.yaml');
 export function getRegistry() {
   return {
     'api-gateway': {
-      description: 'API Gateway REST with rate limiting, WAF, usage plans',
-      fragmentPath: join(EXTENSIONS_DIR, 'api-gateway', 'fragment.yaml'),
+      description: 'API Gateway REST (now the default)',
+      deprecated: true,
+      fragmentPath: null,
+    },
+    'alb': {
+      description: 'ALB + VPC + HTTP listener for long requests or streaming',
+      fragmentPath: join(EXTENSIONS_DIR, 'alb', 'fragment.yaml'),
     },
   };
 }
@@ -28,13 +33,22 @@ export function mergeTemplate(extensions) {
     return baseText;
   }
   const registry = getRegistry();
+
+  // Filter out deprecated no-op extensions
+  const active = extensions.filter(e => {
+    const entry = registry[e];
+    if (!entry) throw new Error(`Unknown extension: ${e}`);
+    return !entry.deprecated;
+  });
+
+  if (active.length === 0) return baseText;
+
   const doc = parseDocument(baseText);
-  for (const ext of extensions) {
-    if (!(ext in registry)) {
-      throw new Error(`Unknown extension: ${ext}`);
-    }
+
+  for (const ext of active) {
+    const entry = registry[ext];
     const fragment = parseDocument(
-      readFileSync(registry[ext].fragmentPath, 'utf8'),
+      readFileSync(entry.fragmentPath, 'utf8'),
     );
     const fragResources = fragment.get('Resources', true);
     if (fragResources) {
@@ -52,72 +66,36 @@ export function mergeTemplate(extensions) {
     }
   }
 
-  // Extension-specific transforms:
-  // SAM requires Events on the function resource itself —
-  // a separate fragment cannot inject events into an existing function.
-  if (extensions.includes('api-gateway')) {
-    // Remove ALB and VPC resources (API Gateway replaces ALB)
-    const albResources = [
-      'ApplicationLoadBalancer', 'AlbTargetGroup',
-      'AlbHttpListener', 'AlbLambdaPermission',
-      'AlbSecurityGroup',
-      'AlbVpc', 'InternetGateway', 'GatewayAttachment',
-      'PublicSubnet1', 'PublicSubnet2',
-      'PublicRouteTable', 'PublicRoute',
-      'Subnet1RouteTableAssoc', 'Subnet2RouteTableAssoc',
-      'WafWebAcl', 'WafAlbAssociation',
-    ];
+  if (active.includes('alb')) {
     const baseResources = doc.get('Resources', true);
-    for (const name of albResources) {
-      baseResources.delete(name);
-    }
+    baseResources.delete('Api');
+    baseResources.delete('WafApiGatewayAssociation');
 
-    // Remove reserved concurrency (API Gateway has its
-    // own throttling)
     const apiProps = doc.getIn(
       ['Resources', 'ApiFunction', 'Properties'], true,
     );
-    apiProps.delete('ReservedConcurrentExecutions');
+    apiProps.delete('Events');
+
+    apiProps.set(
+      'ReservedConcurrentExecutions', doc.createNode(50),
+    );
 
     const apiEnvVars = doc.getIn(
-      ['Resources', 'ApiFunction', 'Properties', 'Environment', 'Variables'],
-      true,
+      ['Resources', 'ApiFunction', 'Properties',
+       'Environment', 'Variables'], true,
     );
     apiEnvVars.set('BETTER_AUTH_URL', doc.createNode({
-      'Fn::Sub': 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod',
+      'Fn::Sub':
+        'http://${ApplicationLoadBalancer.DNSName}',
     }));
     apiEnvVars.set('API_BASE_URL', doc.createNode({
-      'Fn::Sub': 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1',
+      'Fn::Sub':
+        'http://${ApplicationLoadBalancer.DNSName}/rest/v1',
     }));
 
-    // Remove ALB-related outputs
     const baseOutputs = doc.get('Outputs', true);
-    for (const key of [
-      'AlbUrl', 'AlbArn', 'TargetGroupArn', 'VpcId',
-    ]) {
-      baseOutputs.delete(key);
-    }
-
-    // Add Events for API Gateway
-    const events = doc.createNode({
-      ProxyRoot: {
-        Type: 'Api',
-        Properties: {
-          RestApiId: { Ref: 'Api' },
-          Path: '/',
-          Method: 'ANY',
-        },
-      },
-      ProxyPlus: {
-        Type: 'Api',
-        Properties: {
-          RestApiId: { Ref: 'Api' },
-          Path: '/{proxy+}',
-          Method: 'ANY',
-        },
-      },
-    });
-    apiProps.set('Events', events);
+    baseOutputs.delete('ApiGatewayUrl');
+    baseOutputs.delete('RestApiId');
   }
 
   return doc.toString();
