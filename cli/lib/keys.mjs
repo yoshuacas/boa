@@ -17,16 +17,20 @@ function sign(payload, secret, iat) {
   return [...segments, sig].join('.');
 }
 
-const TEN_YEARS = 10 * 365 * 24 * 3600;
+// 90-day default. Reduced from 10 years (security review H-5): a
+// leaked service_role key bypasses Cedar, and the prior 10-year
+// lifetime made the impact window unbounded. Rotate with
+// `boa rotate-keys`.
+export const DEFAULT_KEY_EXPIRY_SECONDS = 90 * 24 * 3600;
 
-export function generateKeys(secret) {
+export function generateKeys(secret, { expirySeconds = DEFAULT_KEY_EXPIRY_SECONDS } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const anonKey = sign(
-    { role: 'anon', iss: 'pgrest-lambda', exp: now + TEN_YEARS },
+    { role: 'anon', iss: 'pgrest-lambda', exp: now + expirySeconds },
     secret, now
   );
   const serviceRoleKey = sign(
-    { role: 'service_role', iss: 'pgrest-lambda', exp: now + TEN_YEARS },
+    { role: 'service_role', iss: 'pgrest-lambda', exp: now + expirySeconds },
     secret, now
   );
   return { anonKey, serviceRoleKey };

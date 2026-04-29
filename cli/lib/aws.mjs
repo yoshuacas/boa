@@ -45,6 +45,13 @@ export function ssmPutParameter(name, value, region) {
   );
 }
 
+export function ssmGetParameter(name, region) {
+  const out = exec(
+    `aws ssm get-parameter --name ${shellEscape(name)} --region ${shellEscape(region)} --with-decryption --query 'Parameter.Value' --output text`
+  );
+  return out;
+}
+
 export function dsqlGenerateAuthToken(endpoint, region) {
   return exec(
     `aws dsql generate-db-connect-admin-auth-token --hostname ${shellEscape(endpoint)} --region ${shellEscape(region)}`

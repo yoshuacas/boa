@@ -491,4 +491,8 @@ export default async function init(args) {
   console.log(
     '  run `boa deploy` to see your endpoints in the docs.'
   );
+  console.log('');
+  console.log(
+    '  Keys expire in 90 days. Run `boa rotate-keys` before then.'
+  );
 }

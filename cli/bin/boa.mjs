@@ -26,6 +26,7 @@ Commands:
   extend <name>     Add an infrastructure extension
   remove <name>     Remove an infrastructure extension
   extensions        List available extensions
+  rotate-keys       Rotate anon and service role keys (90-day lifetime)
   feedback          Submit feedback to improve BOA
 
 Options:
@@ -41,7 +42,7 @@ if (command === '--help' || command === '-h' || !command) {
 const COMMANDS = [
   'init', 'deploy', 'migrate', 'verify',
   'teardown', 'status', 'check', 'feedback',
-  'extend', 'remove', 'extensions',
+  'extend', 'remove', 'extensions', 'rotate-keys',
 ];
 
 if (!COMMANDS.includes(command)) {
