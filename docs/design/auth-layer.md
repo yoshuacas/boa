@@ -1,5 +1,9 @@
 # Supabase-Compatible Authentication
 
+> **Legacy design.** This document describes the original Cognito-backed auth layer. The production default switched to better-auth in commit `ce94ded`. New projects ship with `AUTH_PROVIDER=better-auth`. This file is preserved for migration context and for the Cognito code path in `pgrest-lambda/src/auth/providers/cognito.mjs`, which remains supported for existing deployments.
+>
+> See the "Cognito (legacy)" section in `docs/ARCHITECTURE.md` for operational guidance on the Cognito path, including the `ALLOW_USER_PASSWORD_AUTH` caveat tracked in security review L-22.
+
 ## Overview
 
 Add GoTrue-compatible auth endpoints to the BOA backend so
