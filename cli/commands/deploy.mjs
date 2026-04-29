@@ -152,6 +152,9 @@ export default async function deploy(_args, opts = {}) {
     // CloudFormation CommaDelimitedList wants a single string here
     extraParams.AllowedOrigins = cfg.allowedOrigins.join(',');
   }
+  if (cfg.certificateArn) {
+    extraParams.CertificateArn = cfg.certificateArn;
+  }
   sam.deploy(builtTemplate, stackName, region, extraParams);
 
   // 8. Extract fresh CloudFormation outputs
