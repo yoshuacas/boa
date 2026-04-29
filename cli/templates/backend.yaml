@@ -9,6 +9,15 @@ Parameters:
     Default: boa-app
     AllowedPattern: '[a-z0-9\-]+'
     ConstraintDescription: Lowercase alphanumeric characters and hyphens only
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: >
+      Comma-separated list of origins allowed for S3 CORS and API Gateway CORS.
+      Leave empty to omit CORS rules entirely (same-origin only).
+    Default: ''
+
+Conditions:
+  HasAllowedOrigins: !Not [!Equals [!Join ['', !Ref AllowedOrigins], '']]
 
 Globals:
   Function:
@@ -155,17 +164,18 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      CorsConfiguration:
-        CorsRules:
-          - AllowedHeaders:
-              - '*'
-            AllowedMethods:
-              - GET
-              - PUT
-              - POST
-            AllowedOrigins:
-              - '*'
-            MaxAge: 3600
+      CorsConfiguration: !If
+        - HasAllowedOrigins
+        - CorsRules:
+            - AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+              AllowedOrigins: !Ref AllowedOrigins
+              MaxAge: 3600
+        - !Ref AWS::NoValue
 
 Outputs:
   ApiGatewayUrl:

@@ -147,7 +147,12 @@ export default async function deploy(_args, opts = {}) {
   // 7. SAM deploy
   console.log('Deploying...');
   const builtTemplate = join(buildDir, 'template.yaml');
-  sam.deploy(builtTemplate, stackName, region);
+  const extraParams = {};
+  if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
+    // CloudFormation CommaDelimitedList wants a single string here
+    extraParams.AllowedOrigins = cfg.allowedOrigins.join(',');
+  }
+  sam.deploy(builtTemplate, stackName, region, extraParams);
 
   // 8. Extract fresh CloudFormation outputs
   console.log('');
