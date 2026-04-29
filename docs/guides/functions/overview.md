@@ -43,16 +43,28 @@ export async function handler(event) {
 
   const result = await processOrder(body, userId);
 
+  // Echo the request Origin only if it's in the allowlist, not '*'.
+  // The BOA Lambda passes allowed origins through the ALLOWED_ORIGINS
+  // env var (from the AllowedOrigins CloudFormation parameter).
+  const origin = event.headers?.origin || event.headers?.Origin || '';
+  const allowed = (process.env.ALLOWED_ORIGINS || '')
+    .split(',').map(o => o.trim()).filter(Boolean);
+  const corsHeaders = allowed.includes(origin)
+    ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' }
+    : {};
+
   return {
     statusCode: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
+      ...corsHeaders,
     },
     body: JSON.stringify(result),
   };
 }
 ```
+
+**Never set `Access-Control-Allow-Origin: '*'`** on a function that reads auth context from the event. A malicious site could make cross-origin calls using the user's cookies or stored tokens. Echo the Origin only if it matches your allowlist.
 
 ## Registering a function in template.yaml
 

@@ -212,7 +212,7 @@ PATCH  /rest/v1/<table>?id=eq.<value>  Update rows
 DELETE /rest/v1/<table>?id=eq.<value>  Delete rows
 GET    /rest/v1/                       OpenAPI 3.0 spec (JSON)
 GET    /rest/v1/_docs                  Interactive Scalar API docs
-POST   /rest/v1/_refresh               Refresh schema cache
+POST   /rest/v1/_refresh               Refresh schema cache (service_role only)
 ```
 
 It supports the full PostgREST query syntax: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `in`, `is`, `not.*` operators, `order`, `limit`, `offset` for pagination, `Prefer: count=exact` for total counts, `Prefer: return=representation` for returning inserted/updated rows, and `on_conflict` for upserts.
@@ -253,7 +253,7 @@ permit(
 
 Becomes `WHERE user_id = $1` in the SQL query. Authorization happens in the database, not in application code. Policy evaluation takes approximately 5 microseconds per request.
 
-**Schema caching.** Introspects the database schema on first request and caches it with a 30-second TTL. The cache is refreshed automatically or on demand via `POST /rest/v1/_refresh`. The migration runner calls refresh after applying migrations.
+**Schema caching.** Introspects the database schema on first request and caches it with a 30-second TTL. The cache is refreshed automatically or on demand via `POST /rest/v1/_refresh`, which requires the service role key — unauthenticated and user-role requests get 401 PGRST301. The migration runner calls refresh after applying migrations.
 
 ### Why pgrest-lambda exists
 
@@ -580,13 +580,17 @@ StorageBucket:
       BlockPublicPolicy: true
       IgnorePublicAcls: true
       RestrictPublicBuckets: true
-    CorsConfiguration:
-      CorsRules:
-        - AllowedMethods: [GET, PUT, POST]
-          AllowedHeaders: ['*']
-          AllowedOrigins: ['*']
-          MaxAge: 3600
+    CorsConfiguration: !If
+      - HasAllowedOrigins
+      - CorsRules:
+          - AllowedMethods: [GET, PUT, POST]
+            AllowedHeaders: ['*']
+            AllowedOrigins: !Ref AllowedOrigins
+            MaxAge: 3600
+      - !Ref AWS::NoValue
 ```
+
+The `AllowedOrigins` CloudFormation parameter (comma-delimited) gates cross-origin uploads; an empty list omits the CORS block entirely so same-origin still works. Set it via `allowedOrigins: ["https://app.example.com"]` in `.boa/config.json` and redeploy.
 
 The bucket has `DeletionPolicy: Retain`, matching the same philosophy as DSQL and Cognito: data survives accidental destruction.
 
@@ -732,7 +736,9 @@ BOA enforces 13 critical rules that prevent the most common failures:
 | Lambda cold start | 1-3 seconds | Node.js 20.x, 256MB |
 | Lambda warm invocation | 50-100ms | Includes DSQL query |
 | Cedar policy evaluation | ~5 microseconds | Per request |
-| Schema cache TTL | 30 seconds | Refreshable via `POST /rest/v1/_refresh` |
+| Schema cache TTL | 30 seconds | Refreshable via `POST /rest/v1/_refresh` (service_role only) |
+| API key lifetime | 90 days | Rotate with `boa rotate-keys` |
+| Request body size limit | 1 MB | 413 PGRST006 when exceeded |
 | DSQL auth token TTL | 15 minutes | Refreshed every 10 minutes |
 | Database connection pool | 5 connections max | 60-second idle timeout |
 | Presigned URL expiration | 1 hour | Upload and download |

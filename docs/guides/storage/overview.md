@@ -183,15 +183,27 @@ StorageBucket:
       BlockPublicPolicy: true
       IgnorePublicAcls: true
       RestrictPublicBuckets: true
-    CorsConfiguration:
-      CorsRules:
-        - AllowedHeaders: ['*']
-          AllowedMethods: [GET, PUT]
-          AllowedOrigins: ['*']
-          MaxAge: 3600
+    CorsConfiguration: !If
+      - HasAllowedOrigins
+      - CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT]
+            AllowedOrigins: !Ref AllowedOrigins
+            MaxAge: 3600
+      - !Ref AWS::NoValue
 ```
 
-**Never remove `PublicAccessBlockConfiguration`.** If the bucket becomes public, any file is accessible to anyone with the URL. Presigned URLs are the only safe access pattern.
+CORS is opt-in via the `AllowedOrigins` CloudFormation parameter. Default (empty list) omits the rules entirely, so same-origin works and every cross-origin PUT/GET is blocked at the browser. To allow uploads from your web app, add the origin to `.boa/config.json` under `allowedOrigins` and redeploy:
+
+```json
+{
+  "allowedOrigins": ["https://app.example.com", "https://staging.example.com"]
+}
+```
+
+**Never set `AllowedOrigins` to `'*'`.** And never remove `PublicAccessBlockConfiguration`. If the bucket becomes public, any file is accessible to anyone with the URL. Presigned URLs are the only safe access pattern.
+
+**Filenames are sanitized.** The presigned upload handler strips path components (`basename`), replaces anything outside `[a-zA-Z0-9._-]` with underscore, caps length at 200 chars, and rejects empty results with 400. The resulting S3 key is always `uploads/<userId>/<uuid>-<safeFilename>`, which keeps the `key.startsWith("uploads/<userId>/")` download guard sound.
 
 ## Limits
 

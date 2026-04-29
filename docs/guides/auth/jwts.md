@@ -133,7 +133,7 @@ Anonymous requests still need the `apikey` header. Requests with no headers at a
 
 ## Service role
 
-The service role key bypasses all access policies. Use it only in server-side code — Lambda functions, backend jobs, admin scripts. Never expose it to the frontend.
+The service role key bypasses all access policies. Use it only in server-side code — Lambda functions, backend jobs, admin scripts. Never expose it to the frontend, never commit it, never paste it into a mobile app.
 
 ```javascript
 import { createClient } from '@supabase/supabase-js'
@@ -142,7 +142,23 @@ import { createClient } from '@supabase/supabase-js'
 const supabase = createClient(API_URL, SERVICE_ROLE_KEY)
 ```
 
-If the service role key is compromised, rotate it immediately by updating the API key in API Gateway and redeploying.
+## Key lifetime and rotation
+
+Both the anon key and the service role key expire 90 days after `boa init` (or after the last rotation). Rotate in place — no redeploy needed — with:
+
+```bash
+boa rotate-keys
+```
+
+This re-signs both keys with the existing JWT secret and rewrites `.boa/config.json` atomically. Existing user sessions keep working.
+
+If the service role key is suspected leaked, use `--rotate-secret` to mint a new JWT secret at the same time:
+
+```bash
+boa rotate-keys --rotate-secret
+```
+
+This invalidates every outstanding user session (users must sign in again), but it also makes every previously issued key unusable.
 
 ## Next step
 

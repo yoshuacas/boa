@@ -27,9 +27,10 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 
 | Term | Usage | Notes |
 |------|-------|-------|
-| **anon key** | The public-facing key for frontends | Config field: `anonKey` |
-| **service role key** | The backend-only key that bypasses authorization | Config field: `serviceRoleKey` |
+| **anon key** | The public-facing key for frontends | Config field: `anonKey`. 90-day lifetime. |
+| **service role key** | The backend-only key that bypasses authorization | Config field: `serviceRoleKey`. 90-day lifetime. Never embed in browsers. |
 | **access token** | What sign-in returns | "the user's access token" |
+| **`boa rotate-keys`** | Rotate anon and service role keys in place | Runs without redeploy. `--rotate-secret` also invalidates every user session. |
 
 ## Authorization
 
@@ -81,8 +82,8 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 |------|-------|-------|
 | **extension** | Optional infrastructure added via `boa extend` | "add ALB with `boa extend alb`" |
 | **API Gateway REST + WAF** | The default traffic layer (API Gateway REST with AWS WAF) | HTTPS, rate limiting |
-| **ALB** | Optional extension for long-running requests, streaming, or high throughput | `boa extend alb` |
-| **`boa extend <name>`** | Add an extension | "run `boa extend alb`" |
+| **ALB** | Optional extension for long-running requests, streaming, or high throughput | `boa extend alb --certificate-arn <acm-arn>` (HTTPS required) |
+| **`boa extend <name>`** | Add an extension | "run `boa extend alb --certificate-arn ...`" |
 | **`boa remove <name>`** | Remove an extension | "run `boa remove alb`" |
 | **`boa extensions`** | List available and enabled extensions | |
 
