@@ -492,7 +492,17 @@ export default async function init(args) {
     '  run `boa deploy` to see your endpoints in the docs.'
   );
   console.log('');
+  console.log('  IMPORTANT — service role key');
   console.log(
-    '  Keys expire in 90 days. Run `boa rotate-keys` before then.'
+    '  The service role key in .boa/config.json bypasses Cedar'
+  );
+  console.log(
+    '  authorization. Never embed it in browsers or mobile apps.'
+  );
+  console.log(
+    '  Store it in SSM or a secrets manager for production.'
+  );
+  console.log(
+    '  Keys expire in 90 days — run `boa rotate-keys` before then.'
   );
 }
