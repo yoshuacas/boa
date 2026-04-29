@@ -108,7 +108,7 @@ async function getPool() {
       user: 'admin',
       password: token,
       database: 'postgres',
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
       max: 1,
     });
   }
