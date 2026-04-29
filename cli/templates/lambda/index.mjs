@@ -78,8 +78,18 @@ function getStorageOpenApiPaths(baseUrl) {
   };
 }
 
+// CORS allowlist from the deployment parameter (see backend.yaml
+// AllowedOrigins). Empty -> pgrest-lambda emits no CORS headers.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 const pgrest = createPgrest({
   contributions: [getStorageOpenApiPaths],
+  cors: ALLOWED_ORIGINS.length > 0
+    ? { allowedOrigins: ALLOWED_ORIGINS }
+    : { allowedOrigins: [] },
 });
 
 // ALB requires statusDescription in responses (e.g. "200 OK").

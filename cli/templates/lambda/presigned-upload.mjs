@@ -21,23 +21,48 @@ const ALLOWED_CONTENT_TYPES = [
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const URL_EXPIRATION_SECONDS = 3600; // 1 hour
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+// Allowlist comes from the deployment-time CloudFormation parameter.
+// Empty list -> no CORS headers (same-origin still works; browsers
+// block cross-origin by default).
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map(o => o.trim())
+    .filter(Boolean),
+);
+
+const STATIC_CORS = {
   "Access-Control-Allow-Headers": "Content-Type,Authorization",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Vary": "Origin",
 };
 
-function respond(statusCode, body) {
+function corsHeadersFor(origin) {
+  if (ALLOWED_ORIGINS.size === 0) return {};
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
+  return {
+    ...STATIC_CORS,
+    "Access-Control-Allow-Origin": origin,
+  };
+}
+
+function respond(statusCode, body, origin) {
   return {
     statusCode,
-    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+    headers: {
+      ...corsHeadersFor(origin),
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(body),
   };
 }
 
 export async function handler(event) {
+  const origin =
+    event.headers?.origin || event.headers?.Origin || "";
+
   if (event.httpMethod === "OPTIONS") {
-    return respond(200, { message: "OK" });
+    return respond(200, { message: "OK" }, origin);
   }
 
   const method = event.httpMethod;
@@ -54,13 +79,13 @@ export async function handler(event) {
       if (!filename || !contentType) {
         return respond(400, {
           error: "Missing required fields: filename, contentType",
-        });
+        }, origin);
       }
 
       if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
         return respond(400, {
           error: `Content type not allowed. Supported: ${ALLOWED_CONTENT_TYPES.join(", ")}`,
-        });
+        }, origin);
       }
 
       const key = `uploads/${userId}/${randomUUID()}-${filename}`;
@@ -81,7 +106,7 @@ export async function handler(event) {
         expiresIn: URL_EXPIRATION_SECONDS,
         maxSizeBytes: MAX_SIZE_BYTES,
         message: `Upload your file via PUT to the uploadUrl. Max size: ${MAX_SIZE_BYTES / (1024 * 1024)}MB.`,
-      });
+      }, origin);
     }
 
     // GET /download?key=... — generate a presigned download URL
@@ -89,12 +114,12 @@ export async function handler(event) {
       const key = event.queryStringParameters?.key;
 
       if (!key) {
-        return respond(400, { error: "Missing required query parameter: key" });
+        return respond(400, { error: "Missing required query parameter: key" }, origin);
       }
 
       // Ensure users can only download their own files
       if (!key.startsWith(`uploads/${userId}/`)) {
-        return respond(403, { error: "Access denied" });
+        return respond(403, { error: "Access denied" }, origin);
       }
 
       const command = new GetObjectCommand({
@@ -109,12 +134,12 @@ export async function handler(event) {
       return respond(200, {
         downloadUrl,
         expiresIn: URL_EXPIRATION_SECONDS,
-      });
+      }, origin);
     }
 
-    return respond(404, { error: "Route not found" });
+    return respond(404, { error: "Route not found" }, origin);
   } catch (err) {
     console.error("Presigned URL error:", err);
-    return respond(500, { error: "Internal server error" });
+    return respond(500, { error: "Internal server error" }, origin);
   }
 }
