@@ -59,6 +59,7 @@ Resources:
           AUTH_PROVIDER: better-auth
           POLICIES_PATH: ./policies
           API_BASE_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1'
+          ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
       Events:
         ProxyRoot:
           Type: Api
@@ -90,22 +91,11 @@ Resources:
     Properties:
       Name: !Sub '${ProjectName}-api'
       StageName: prod
-      Cors:
-        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-        AllowOrigin: "'*'"
-        MaxAge: "'600'"
-      GatewayResponses:
-        DEFAULT_4XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
-        DEFAULT_5XX:
-          ResponseParameters:
-            Headers:
-              Access-Control-Allow-Origin: "'*'"
-              Access-Control-Allow-Headers: "'Content-Type,Authorization,apikey,Prefer,Accept,x-client-info,X-Client-Info,X-Supabase-Api-Version,content-profile,accept-profile'"
+      # CORS is handled inside the Lambda (origin-echo against the
+      # ALLOWED_ORIGINS env var) rather than at the API Gateway level.
+      # This lets us validate the request Origin against an allowlist
+      # and avoid returning `Access-Control-Allow-Origin: *`. Empty
+      # allowlist → no CORS headers (same-origin still works).
 
   WafWebAcl:
     Type: AWS::WAFv2::WebACL
