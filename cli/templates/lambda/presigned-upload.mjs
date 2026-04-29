@@ -1,6 +1,20 @@
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
+import { basename } from "node:path";
+
+// Strip any directory component, replace anything not safe for S3
+// keys with '_', and cap length. The download check uses
+// key.startsWith(`uploads/${userId}/`), which only holds if the
+// filename is a flat basename — so rejecting path traversal here
+// is load-bearing, not cosmetic.
+function sanitizeFilename(raw) {
+  if (typeof raw !== "string") return "";
+  const flat = basename(raw);
+  const cleaned = flat.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
+  // Strip leading dots so the key never starts with '.' or '..'.
+  return cleaned.replace(/^\.+/, "");
+}
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
 const REGION_NAME = process.env.REGION_NAME;
@@ -63,7 +77,14 @@ export async function handler(event) {
         });
       }
 
-      const key = `uploads/${userId}/${randomUUID()}-${filename}`;
+      const safeFilename = sanitizeFilename(filename);
+      if (!safeFilename) {
+        return respond(400, {
+          error: "Invalid filename",
+        });
+      }
+
+      const key = `uploads/${userId}/${randomUUID()}-${safeFilename}`;
 
       const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
