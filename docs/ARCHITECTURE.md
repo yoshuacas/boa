@@ -377,6 +377,20 @@ Keys are Generated during `boa init` and stored in the file `.boa/config.json`:
 
 Both are JWTs signed with the JWT secret stored in AWS Secrete manager Parameter Store. The `role` claim determines authorization behavior.
 
+### Service role key handling
+
+The service role key bypasses Cedar. Any code that presents it reads and writes every table and row unconditionally. That is useful for CI, admin scripts, SSR renderers, and backend-to-backend traffic. It is catastrophic if it reaches a browser.
+
+Rules of thumb:
+
+- **Never** embed `serviceRoleKey` in frontend bundles, mobile apps, desktop apps, or anything distributed to users.
+- **Never** commit `.boa/config.json`. The default `.gitignore` excludes `.boa/` — keep it that way.
+- For production, fetch the key at runtime from AWS Systems Manager Parameter Store or AWS Secrets Manager instead of checking it into your deployment artifact.
+- Rotate keys on a schedule with `boa rotate-keys`. The default lifetime is 90 days (see `boa/cli/lib/keys.mjs`).
+- If a leak is suspected, rotate immediately with `boa rotate-keys --rotate-secret`. That also mints a new JWT secret, invalidating every outstanding user session.
+
+If a code path wants service-role privileges from the browser, it's wrong. Write a narrower Cedar rule and use the anon or authenticated key instead.
+
 ---
 
 ## Authorization: Cedar Policies
