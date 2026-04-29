@@ -491,4 +491,18 @@ export default async function init(args) {
   console.log(
     '  run `boa deploy` to see your endpoints in the docs.'
   );
+  console.log('');
+  console.log('  IMPORTANT — service role key');
+  console.log(
+    '  The service role key in .boa/config.json bypasses Cedar'
+  );
+  console.log(
+    '  authorization. Never embed it in browsers or mobile apps.'
+  );
+  console.log(
+    '  Store it in SSM or a secrets manager for production, and'
+  );
+  console.log(
+    '  rotate regularly (see `boa rotate-keys` when it lands).'
+  );
 }
