@@ -334,7 +334,11 @@ The CLI tracks applied migrations in a `_boa_migrations` table in the DSQL datba
 
 ---
 
-## Authentication: Cognito
+## Authentication: Cognito (legacy)
+
+> **Legacy path.** New BOA projects default to `AUTH_PROVIDER=better-auth`. This section describes the Cognito path kept for migration compatibility. Do not provision a new Cognito user pool unless you are specifically migrating from an older BOA deployment, and only after reviewing the security review notes below.
+>
+> Cognito caveats (security review L-22): `ALLOW_USER_PASSWORD_AUTH` sends passwords directly on the wire instead of using SRP. If Cognito must be used, require an explicit `--legacy-user-password-auth` flag on whatever CLI command provisions it, and ensure the traffic layer terminates TLS before the authentication call (API Gateway REST always does).
 
 Cognito us used to authenticate end/users. The APIs exposed to the client library are not Cognito, but the GoTrue compatible (Supabase comaptible endpoints)
 
