@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { generateKeys } from '../lib/keys.mjs';
+import { generateKeys, DEFAULT_KEY_EXPIRY_SECONDS } from '../lib/keys.mjs';
 
 function decodeJwtPayload(token) {
   const parts = token.split('.');
@@ -38,16 +38,30 @@ describe('generateKeys', () => {
     assert.equal(payload.iss, 'pgrest-lambda');
   });
 
-  it('anonKey has exp approximately 10 years from now', () => {
+  it('anonKey has exp approximately 90 days from now (default)', () => {
     const { anonKey } = generateKeys(secret);
     const payload = decodeJwtPayload(anonKey);
-    const tenYears = 10 * 365 * 24 * 3600;
     const now = Math.floor(Date.now() / 1000);
-    const expected = now + tenYears;
+    const expected = now + DEFAULT_KEY_EXPIRY_SECONDS;
     assert.ok(
       Math.abs(payload.exp - expected) < 60,
       `exp ${payload.exp} should be within 60s of ${expected}`
     );
+  });
+
+  it('accepts a custom expirySeconds option', () => {
+    const oneHour = 3600;
+    const { anonKey } = generateKeys(secret, { expirySeconds: oneHour });
+    const payload = decodeJwtPayload(anonKey);
+    const now = Math.floor(Date.now() / 1000);
+    assert.ok(
+      Math.abs(payload.exp - (now + oneHour)) < 60,
+      `custom expiry should be honoured`
+    );
+  });
+
+  it('DEFAULT_KEY_EXPIRY_SECONDS equals 90 days (sec H-5)', () => {
+    assert.equal(DEFAULT_KEY_EXPIRY_SECONDS, 90 * 24 * 3600);
   });
 
   it('anonKey payload contains an iat field', () => {
@@ -68,12 +82,11 @@ describe('generateKeys', () => {
     assert.equal(payload.iss, 'pgrest-lambda');
   });
 
-  it('serviceRoleKey has exp approximately 10 years from now', () => {
+  it('serviceRoleKey has exp approximately 90 days from now (default)', () => {
     const { serviceRoleKey } = generateKeys(secret);
     const payload = decodeJwtPayload(serviceRoleKey);
-    const tenYears = 10 * 365 * 24 * 3600;
     const now = Math.floor(Date.now() / 1000);
-    const expected = now + tenYears;
+    const expected = now + DEFAULT_KEY_EXPIRY_SECONDS;
     assert.ok(
       Math.abs(payload.exp - expected) < 60,
       `exp ${payload.exp} should be within 60s of ${expected}`
