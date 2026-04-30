@@ -80,18 +80,11 @@ export function mergeTemplate(extensions) {
       'ReservedConcurrentExecutions', doc.createNode(50),
     );
 
-    const apiEnvVars = doc.getIn(
-      ['Resources', 'ApiFunction', 'Properties',
-       'Environment', 'Variables'], true,
-    );
-    apiEnvVars.set('BETTER_AUTH_URL', doc.createNode({
-      'Fn::Sub':
-        'http://${ApplicationLoadBalancer.DNSName}',
-    }));
-    apiEnvVars.set('API_BASE_URL', doc.createNode({
-      'Fn::Sub':
-        'http://${ApplicationLoadBalancer.DNSName}/rest/v1',
-    }));
+    // BETTER_AUTH_URL and API_BASE_URL are derived at request time
+    // in lambda/index.mjs (from the Host / X-Forwarded-Proto headers)
+    // so the template does not need to inject them here. Keeps the
+    // stack free of circular dependencies between the function, the
+    // ALB listener, and the WAF association.
 
     const baseOutputs = doc.get('Outputs', true);
     baseOutputs.delete('ApiGatewayUrl');

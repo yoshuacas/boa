@@ -95,23 +95,21 @@ describe('SAM template — API Gateway default', () => {
     );
   });
 
-  it('BETTER_AUTH_URL env var contains execute-api', () => {
-    const match = template.match(
-      /BETTER_AUTH_URL:.*(?:\n.*)*?execute-api/
-    );
+  // BETTER_AUTH_URL and API_BASE_URL are derived at request time
+  // from the incoming event (not set as env vars in the template).
+  // This avoids a CloudFormation circular dependency between the
+  // function, the API Gateway stage, and the WAF association.
+  it('does NOT set BETTER_AUTH_URL as a template env var', () => {
     assert.ok(
-      match,
-      'BETTER_AUTH_URL should reference execute-api (API Gateway URL)'
+      !template.includes('BETTER_AUTH_URL:'),
+      'BETTER_AUTH_URL must be derived at runtime, not set via env'
     );
   });
 
-  it('API_BASE_URL env var contains execute-api', () => {
-    const match = template.match(
-      /API_BASE_URL:.*(?:\n.*)*?execute-api/
-    );
+  it('does NOT set API_BASE_URL as a template env var', () => {
     assert.ok(
-      match,
-      'API_BASE_URL should reference execute-api (API Gateway URL)'
+      !template.includes('API_BASE_URL:'),
+      'API_BASE_URL must be derived at runtime, not set via env'
     );
   });
 
@@ -162,10 +160,6 @@ describe('SAM template — API Gateway default', () => {
     assert.ok(
       template.includes('BETTER_AUTH_SECRET'),
       'template should configure BETTER_AUTH_SECRET'
-    );
-    assert.ok(
-      template.includes('BETTER_AUTH_URL'),
-      'template should configure BETTER_AUTH_URL'
     );
   });
 

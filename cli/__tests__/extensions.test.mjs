@@ -146,26 +146,22 @@ describe('template merging — alb extension', () => {
     );
   });
 
-  it('BETTER_AUTH_URL uses ALB DNS (http:// and ApplicationLoadBalancer.DNSName)', () => {
+  // BETTER_AUTH_URL and API_BASE_URL are derived at request time in
+  // lambda/index.mjs (from Host / X-Forwarded-Proto). The ALB extension
+  // must not inject them, otherwise the stack hits a circular dependency.
+  it('does NOT inject BETTER_AUTH_URL env var', () => {
     const result = mergeTemplate(['alb']);
     assert.ok(
-      result.includes('http://'),
-      'BETTER_AUTH_URL should use http://'
-    );
-    assert.ok(
-      result.includes('ApplicationLoadBalancer.DNSName'),
-      'BETTER_AUTH_URL should reference ApplicationLoadBalancer.DNSName'
+      !result.includes('BETTER_AUTH_URL:'),
+      'BETTER_AUTH_URL must be derived at runtime, not injected by ALB ext'
     );
   });
 
-  it('API_BASE_URL uses ALB DNS', () => {
+  it('does NOT inject API_BASE_URL env var', () => {
     const result = mergeTemplate(['alb']);
-    const match = result.match(
-      /API_BASE_URL:.*(?:\n.*)*?ApplicationLoadBalancer\.DNSName/
-    );
     assert.ok(
-      match,
-      'API_BASE_URL should reference ApplicationLoadBalancer.DNSName'
+      !result.includes('API_BASE_URL:'),
+      'API_BASE_URL must be derived at runtime, not injected by ALB ext'
     );
   });
 

@@ -55,10 +55,8 @@ Resources:
           BUCKET_NAME: !Ref StorageBucket
           JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
           BETTER_AUTH_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/better-auth-secret}}'
-          BETTER_AUTH_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
           AUTH_PROVIDER: better-auth
           POLICIES_PATH: ./policies
-          API_BASE_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod/rest/v1'
           ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
       Events:
         ProxyRoot:
@@ -136,6 +134,10 @@ Resources:
 
   WafApiGatewayAssociation:
     Type: AWS::WAFv2::WebACLAssociation
+    # The stage resource is created by SAM from the function's Api
+    # events, under the logical name ApiprodStage. The association
+    # must wait for the stage to exist before WAF can attach to it.
+    DependsOn: ApiprodStage
     Properties:
       ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${Api}/stages/prod'
       WebACLArn: !GetAtt WafWebAcl.Arn

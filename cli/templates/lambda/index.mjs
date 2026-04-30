@@ -93,6 +93,8 @@ const pgrest = createPgrest({
 });
 
 // ALB requires statusDescription in responses (e.g. "200 OK").
+// API Gateway returns 502 if the response contains unknown fields,
+// so only add statusDescription when invoked from ALB.
 const STATUS_DESCRIPTIONS = {
   200: '200 OK', 201: '201 Created', 204: '204 No Content',
   301: '301 Moved Permanently', 302: '302 Found', 304: '304 Not Modified',
@@ -102,7 +104,8 @@ const STATUS_DESCRIPTIONS = {
   500: '500 Internal Server Error', 502: '502 Bad Gateway', 503: '503 Service Unavailable',
 };
 
-function addStatusDescription(response) {
+function addStatusDescription(response, isAlb) {
+  if (!isAlb) return response;
   if (!response.statusDescription) {
     response.statusDescription = STATUS_DESCRIPTIONS[response.statusCode]
       || `${response.statusCode} Unknown`;
@@ -169,15 +172,35 @@ function normalizeEvent(raw) {
   };
 }
 
+// better-auth reads BETTER_AUTH_URL at provider-init time (first
+// auth request). Derive it from the incoming request so the Lambda
+// does not need to know its own URL at deploy time — avoids a
+// CloudFormation circular dependency between the function, the API
+// Gateway stage, and the WAF association.
+function setBetterAuthUrlFromEvent(event) {
+  if (process.env.BETTER_AUTH_URL) return;
+  const headers = event.headers || {};
+  const host = headers.host || headers.Host;
+  if (!host) return;
+  const proto = headers['x-forwarded-proto']
+    || headers['X-Forwarded-Proto']
+    || 'https';
+  const stage = event.requestContext?.stage;
+  const stagePath = stage && stage !== '$default' ? `/${stage}` : '';
+  process.env.BETTER_AUTH_URL = `${proto}://${host}${stagePath}`;
+}
+
 export async function handler(rawEvent) {
+  const isAlb = !!rawEvent.requestContext?.elb;
   const event = normalizeEvent(rawEvent);
+  setBetterAuthUrlFromEvent(event);
   const path = event.path || '';
 
   // Presigned upload/download routes
   if (path === '/upload' || path === '/download') {
-    return addStatusDescription(await uploadHandler(event));
+    return addStatusDescription(await uploadHandler(event), isAlb);
   }
 
   // Auth + REST engine (PostgREST-compatible API, GoTrue-compatible auth)
-  return addStatusDescription(await pgrest.handler(event));
+  return addStatusDescription(await pgrest.handler(event), isAlb);
 }
