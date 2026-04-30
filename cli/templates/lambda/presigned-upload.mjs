@@ -35,15 +35,11 @@ const ALLOWED_CONTENT_TYPES = [
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const URL_EXPIRATION_SECONDS = 3600; // 1 hour
 
-// Allowlist comes from the deployment-time CloudFormation parameter.
-// Empty list -> no CORS headers (same-origin still works; browsers
-// block cross-origin by default).
-const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || "")
-    .split(",")
-    .map(o => o.trim())
-    .filter(Boolean),
-);
+// See cors-origin.mjs for rationale and the localhost auto-allow
+// rule. Production deploys should set AllowedOrigins explicitly.
+import { parseAllowedOrigins, isAllowedOrigin } from "./cors-origin.mjs";
+
+const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
 
 const STATIC_CORS = {
   "Access-Control-Allow-Headers": "Content-Type,Authorization",
@@ -52,8 +48,7 @@ const STATIC_CORS = {
 };
 
 function corsHeadersFor(origin) {
-  if (ALLOWED_ORIGINS.size === 0) return {};
-  if (!origin || !ALLOWED_ORIGINS.has(origin)) return {};
+  if (!isAllowedOrigin(origin, ALLOWED_ORIGINS)) return {};
   return {
     ...STATIC_CORS,
     "Access-Control-Allow-Origin": origin,
