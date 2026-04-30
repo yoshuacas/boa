@@ -2,7 +2,7 @@
 
 Deploy a backend to your AWS account in one command. At the end of this guide, you'll have a live database, authentication, REST API, and file storage — all callable from your frontend with `@supabase/supabase-js`.
 
-**Time:** ~5 minutes with tools installed, ~10 minutes from scratch.
+**Time:** ~3 minutes with tools installed, ~8 minutes from scratch.
 
 ## What you'll build
 
@@ -13,14 +13,13 @@ Your frontend (React, Next.js, Vue, etc.)
 @supabase/supabase-js  ──  same client you'd use with Supabase
     │
     ▼
-API Gateway  ──  BOA Authorizer (validates tokens)
+API Gateway REST + WAF  ──  HTTPS, rate limiting
     │
     ▼
-Lambda  ──  pgrest-lambda (auto-generates REST API from your tables)
+Lambda  ──  pgrest-lambda (auto-generates REST API + auth from your tables)
     │
-    ├──▶ PostgreSQL  ──  your database
-    ├──▶ S3  ──  private file storage
-    └──▶ Cognito  ──  sign up and sign in
+    ├──▶ Aurora DSQL  ──  your database (and the better_auth schema for sign-in)
+    └──▶ Amazon S3    ──  private file storage (presigned URLs)
 ```
 
 It costs nothing when idle and handles traffic increases automatically. You own every resource in your AWS account.
@@ -46,8 +45,10 @@ cd ~/boa/cli && npm link && cd ~
 **macOS (one command):**
 
 ```bash
-brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
+brew install awscli node jq libpq && brew link --force libpq
 ```
+
+`zip` ships with macOS.
 
 **Linux (Ubuntu/Debian):**
 
@@ -56,10 +57,9 @@ brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
   && unzip -qo /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install
 
-# SAM CLI, Node.js, psql, jq
-pip3 install aws-sam-cli
+# Node.js, psql, jq, zip
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs postgresql-client jq
+sudo apt-get install -y nodejs postgresql-client jq zip
 ```
 
 </details>
@@ -90,9 +90,9 @@ mkdir my-app && cd my-app
 boa init my-app --region us-east-1
 ```
 
-This takes 3–5 minutes. BOA creates your database, authentication, the REST API, file storage, and a SAM template to manage it all.
+This takes about 90 seconds on the first run. BOA creates your database, authentication, the REST API, file storage, and the CloudFormation stack that manages them.
 
-**If this fails:** The most common causes are an expired AWS session (`aws sso login` to fix), SAM CLI not installed, or using a region that doesn't support DSQL (stick to `us-east-1` or `us-east-2`).
+**If this fails:** The most common causes are an expired AWS session (`aws sso login` to fix) or using a region that doesn't support DSQL (stick to `us-east-1` or `us-east-2`).
 
 ## What just happened
 
@@ -115,7 +115,7 @@ BOA created a `.boa/config.json` file in your project with everything you need t
 | Functions | pgrest-lambda — turns your tables into REST endpoints |
 | API endpoint | Public HTTPS endpoint with authorization |
 | File storage | Private storage with presigned URL access |
-| SAM template | `template.yaml` — your entire backend as code |
+| CloudFormation template | `cli/templates/backend.yaml` — your entire backend as code |
 
 ## Verify it works
 

@@ -18,7 +18,7 @@ BOA is four things:
 | API | ALB + WAF (default) |
 | Storage | Amazon S3 |
 | Hosting | AWS Amplify |
-| IaC | SAM / CloudFormation |
+| IaC | CloudFormation |
 
 API Gateway REST + WAF is the default traffic layer. ALB is available as an extension (`boa extend alb --certificate-arn <acm-arn>`) for long-running requests, streaming, or high-throughput workloads.
 
@@ -119,7 +119,7 @@ boa/
 ├── plugin/              # The BOA skill (agent intelligence layer)
 │   ├── skills/boa/      # SKILL.md — main skill instructions
 │   ├── docs/            # Guardrails, architecture, patterns
-│   └── templates/       # SAM/CloudFormation templates
+│   └── templates/       # CloudFormation templates
 ├── website/             # Public website
 ├── dashboard/           # Local management dashboard
 └── evals/               # Skill evaluation and testing

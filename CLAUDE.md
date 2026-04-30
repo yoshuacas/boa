@@ -63,13 +63,13 @@ boa/
 | API | API Gateway REST + WAF (default) | HTTPS, rate limiting |
 | Storage | Amazon S3 | Presigned URLs only, never public |
 | Hosting | AWS Amplify | Frontend CI/CD from Git |
-| IaC | SAM / CloudFormation | One-command deploy |
+| IaC | CloudFormation | One-command deploy |
 
 API Gateway REST + WAF is the default traffic layer. ALB is available as an extension (`boa extend alb`).
 
 ## Critical Rules
 
-1. New projects use `AUTH_PROVIDER=better-auth`; Cognito is legacy-only
+1. New projects use `AUTH_PROVIDER=better-auth`
 2. Node.js for Lambda, never Python
 3. `REGION_NAME` env var, never `AWS_REGION` (reserved)
 4. S3: never public, always presigned URLs

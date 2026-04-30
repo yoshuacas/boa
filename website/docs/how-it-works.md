@@ -7,13 +7,13 @@ BOA deploys one opinionated backend to your AWS account: a database, authenticat
 | Layer | Service | Why |
 |-------|---------|-----|
 | Database | Aurora DSQL | Serverless PostgreSQL. SQL you know. Scales to zero, pay per operation. |
-| Auth | Amazon Cognito | Sign up and sign in. 10,000 MAU free tier. |
+| Auth | better-auth on Aurora DSQL | Sign up and sign in, backed by your database. No per-MAU fee. |
 | Engine | pgrest-lambda (npm) | Auto-generates REST + auth endpoints on Lambda. Supabase-compatible. |
 | Compute | AWS Lambda (Node.js 20.x) | No servers. Sub-second cold starts. 1M free requests/month. |
-| API | API Gateway (REST) | Routes requests, validates tokens via Lambda authorizer. |
+| API | API Gateway REST + WAF | HTTPS, rate limiting, IP reputation rules. |
 | Storage | Amazon S3 | Private buckets, presigned URLs for all access. Never public. |
 | Hosting | AWS Amplify | Frontend CI/CD from your Git repo. |
-| IaC | SAM / CloudFormation | One-command deploys. Repeatable, version-controlled. |
+| IaC | CloudFormation | One-command deploys. Repeatable, version-controlled. |
 
 ## The Supabase-Compatible API
 
@@ -71,8 +71,14 @@ curl -X POST "$BOA_API_URL/rest/v1/todos" \
 ```
 Frontend (@supabase/supabase-js)
   │
-  │  HTTPS (Lambda Function URL)
+  │  HTTPS
   ▼
+┌──────────────────────────────────────┐
+│  API Gateway REST + WAF              │
+│  HTTPS, rate limit, IP reputation    │
+└──────────────┬───────────────────────┘
+               │
+               ▼
 ┌──────────────────────────────────────┐
 │  Lambda — pgrest-lambda engine       │
 │                                      │
@@ -84,21 +90,23 @@ Frontend (@supabase/supabase-js)
 │  └──────────────┘ └───────────────┘  │
 │                                      │
 │  One function handles everything     │
-└───────┬──────────┬──────────┬────────┘
-        │          │          │
-        ▼          ▼          ▼
-  Aurora DSQL   Cognito    Amazon S3
-  (PostgreSQL)  (Users)    (Files)
+└───────┬──────────────────┬───────────┘
+        │                  │
+        ▼                  ▼
+  Aurora DSQL         Amazon S3
+  (PostgreSQL +       (Files, via
+   better_auth         presigned URLs)
+   schema)
 ```
 
 1. Your frontend calls `supabase.from('todos').select('*')`.
-2. The request goes directly to a Lambda Function URL — no API Gateway, no separate authorizer.
+2. API Gateway REST receives the request. WAF enforces the rate limit. API Gateway forwards the request to the Lambda.
 3. pgrest-lambda handles everything inside that single Lambda: validates the JWT, evaluates access policies, translates the PostgREST query into SQL, and executes against DSQL.
 4. The response flows back as JSON.
 
-Auth requests (`/auth/v1/*`) hit the GoTrue-compatible handler in the same Lambda, which manages Cognito user pools behind the scenes. Storage requests generate presigned URLs for direct S3 access.
+Auth requests (`/auth/v1/*`) hit the GoTrue-compatible handler in the same Lambda, which reads and writes the `better_auth` schema on your DSQL cluster. Storage requests generate presigned URLs for direct S3 access.
 
-There is no API Gateway. There is no separate authorizer Lambda. One function does it all.
+One function handles JWT validation, access policy evaluation, the REST API, auth, and presigned URLs.
 
 ## The CLI
 
@@ -106,9 +114,9 @@ Every BOA operation runs through the CLI. Humans and agents use the same command
 
 | Command | What it does |
 |---------|-------------|
-| `boa check` | Verify prerequisites (AWS CLI, SAM CLI, Node.js, credentials) |
+| `boa check` | Verify prerequisites (AWS CLI, Node.js, psql, jq, zip, AWS credentials) |
 | `boa init <name>` | Create project, deploy the full backend, write `.boa/config.json` |
-| `boa deploy` | Rebuild and redeploy (SAM build/deploy, bundle policies) |
+| `boa deploy` | Rebuild and redeploy (package Lambda, update CloudFormation stack, bundle policies) |
 | `boa migrate` | Apply pending SQL migrations to DSQL |
 | `boa verify` | Confirm all backend components are running correctly |
 | `boa status` | Show backend info, tables, pending migrations |
@@ -144,7 +152,7 @@ BOA prevents the mistakes that kill projects:
 
 - **Data is protected by default.** S3 buckets are private. All file access uses presigned URLs. There is no "make public" option.
 - **Schema changes are tracked.** Every migration is a numbered SQL file, checksummed and recorded. You always know what changed and when.
-- **Infrastructure is code.** SAM templates are version-controlled. No manual console changes that drift from your codebase.
+- **Infrastructure is code.** The CloudFormation template is version-controlled. No manual console changes that drift from your codebase.
 - **Known failures are pre-solved.** 17+ documented pitfalls from real agent builds, each with a fix built into the templates.
 - **Teardown requires intent.** `boa teardown` demands confirmation. It exists for decommissioning, not troubleshooting.
 

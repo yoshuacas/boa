@@ -60,7 +60,7 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | API | API Gateway REST + WAF (default) | "your API" |
 | Storage | Amazon S3 | "file storage" |
 | Hosting | AWS Amplify | "frontend hosting" |
-| IaC | SAM / CloudFormation | "deploy" / "your backend" |
+| IaC | CloudFormation | "deploy" / "your backend" |
 
 ## Target Audience
 

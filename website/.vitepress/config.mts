@@ -133,7 +133,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/yoshuacas/boa/edit/main/docs/guides/:path',
+      pattern: 'https://github.com/yoshuacas/boa/edit/main/website/docs/:path',
       text: 'Edit this page on GitHub'
     },
   },

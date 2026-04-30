@@ -11,7 +11,7 @@ You pay only for the AWS services your backend uses, and each one has a generous
 | Service | Free tier |
 |---------|-----------|
 | Database (Aurora DSQL) | 100K DPUs/month |
-| Authentication (Cognito) | 10,000 MAU |
+| Authentication (better-auth on DSQL) | No per-MAU fee. Auth data is stored in your DSQL cluster. |
 | Functions (Lambda) | 1M requests/month |
 | API endpoint (API Gateway) | 1M requests/month |
 | File storage (S3) | 5 GB storage |
@@ -77,13 +77,13 @@ Yes. It is your AWS account. Add anything you want.
 
 BOA deploys a specific set of services because they cover the most common backend needs. But there is nothing stopping you from adding SQS queues, Step Functions, EventBridge rules, DynamoDB tables for specific use cases, or any other AWS service alongside your BOA backend.
 
-The SAM template is standard CloudFormation. You can extend it directly, or manage additional resources in a separate template.
+The CloudFormation template at `cli/templates/backend.yaml` is standard CloudFormation. You can extend it directly, or manage additional resources in a separate template.
 
 ## What happens if I outgrow BOA?
 
 You stop using the CLI. That is it.
 
-BOA deploys standard AWS services using standard SAM/CloudFormation templates. There is no proprietary runtime, no custom abstraction layer, no vendor lock-in. Your database is PostgreSQL. Your auth is Cognito. Your compute is Lambda. Your API is API Gateway.
+BOA deploys standard AWS services using a standard CloudFormation template. There is no proprietary runtime, no custom abstraction layer, no vendor lock-in. Your database is PostgreSQL (Aurora DSQL). Your auth data is PostgreSQL rows in a `better_auth` schema. Your compute is Lambda. Your API is API Gateway REST.
 
 If you reach a point where you need a different architecture -- containers, custom VPCs, a dedicated database instance -- you can evolve the CloudFormation stack directly, migrate specific services, or continue using parts of BOA while replacing others. Nothing is locked in.
 
@@ -91,4 +91,4 @@ If you reach a point where you need a different architecture -- containers, cust
 
 No. BOA is an open-source project built by AWS developers. It is not an AWS service, does not have an SLA, and is not covered by AWS Support.
 
-It uses AWS services (DSQL, Cognito, Lambda, API Gateway, S3, Amplify) and encodes best practices for combining them into a backend. But BOA itself is a community project under the Apache 2.0 license.
+It uses AWS services (DSQL, Lambda, API Gateway, WAF, S3, Amplify) plus open-source components (better-auth, Cedar, pgrest-lambda) and encodes best practices for combining them into a backend. But BOA itself is a community project under the Apache 2.0 license.
