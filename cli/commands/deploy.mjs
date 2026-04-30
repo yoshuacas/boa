@@ -143,9 +143,9 @@ export default async function deploy(_args, opts = {}) {
       run: () => { ensureLambdaDepsInstalled(); },
     },
     {
-      title: 'Package Lambda and upload artifacts',
+      title: 'Preparing REST API, authentication, and authorization runtime',
       run: async (_ctx, t) => {
-        t.update('packaging and uploading to S3…');
+        t.update('bundling the serverless runtime and uploading it to S3…');
         const { lambdaKey, accountId } = deployLib.packageArtifacts({
           projectDir: process.cwd(),
           templatePath,
