@@ -2,7 +2,7 @@
 name: boa-doctor
 description: Diagnose and fix BOA backend issues — deploy failures, 403 errors, CORS problems, auth not working, database connection timeouts, migration failures. Use this skill whenever a developer reports an error, sees unexpected behavior, or something broke after a deploy. Triggers on error messages, HTTP status codes, stack traces, and phrases like "not working", "broken", "failing", "can't sign in", "getting 403".
 license: Apache-2.0
-allowed-tools: "Bash(aws *) Bash(sam *) Bash(psql *) Bash(curl *) Bash(jq *) Bash(cat *) Bash(grep *) Read Grep Glob"
+allowed-tools: "Bash(aws *) Bash(psql *) Bash(curl *) Bash(jq *) Bash(cat *) Bash(grep *) Read Grep Glob"
 ---
 
 # BOA Doctor — Diagnose & Fix
@@ -57,8 +57,8 @@ curl -s "$API_URL/auth/v1/token?grant_type=password" \
 
 Compare this user ID with the `user_id` column values in the table.
 
-**5. Authorizer returning wrong context.**
-BOA uses a Lambda authorizer, not Cognito authorizer. User ID is at `event.requestContext.authorizer.userId`, NOT `event.requestContext.authorizer.claims.sub`. If custom Lambda code reads from the wrong path, it gets `undefined`.
+**5. Authorizer context keys.**
+pgrest-lambda attaches flat keys to every event. Custom code should read `event.requestContext.authorizer.role`, `event.requestContext.authorizer.userId`, and `event.requestContext.authorizer.email`. Reading anything else returns `undefined`.
 
 ## Flow 2: API Returns 500
 
@@ -86,11 +86,11 @@ aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION \
   --query 'Stacks[0].Outputs' --output table
 ```
 
-**4. Package not installed.** Look for "Cannot find module" errors. The Lambda function directory needs a `package.json` with all dependencies, and `sam build` must run before deploy.
+**4. Package not installed.** Look for "Cannot find module" errors. The Lambda function directory needs a `package.json` with all dependencies installed. `boa deploy` runs this install automatically; if you edited files under `cli/templates/lambda/` manually, run `npm ci` there before redeploying.
 
 ## Flow 3: Deploy Failed
 
-**Symptom:** "sam deploy failed" or "stack is in ROLLBACK"
+**Symptom:** `boa deploy` exits with a CloudFormation error, or the stack is in `ROLLBACK_COMPLETE`.
 
 **1. Check the stack status and events.**
 
@@ -105,7 +105,7 @@ aws cloudformation describe-stack-events --stack-name $STACK_NAME --region $REGI
 **2. Common deploy failures:**
 - "Resource already exists" → a previous stack with the same name wasn't fully cleaned up. Run teardown first, then redeploy.
 - "Role already exists" → IAM role naming collision. Change the stack name.
-- "Template format error" → malformed YAML in the SAM template. Validate with `sam validate`.
+- "Template format error" → malformed YAML in the CloudFormation template. Validate with `aws cloudformation validate-template --template-body file://cli/templates/backend.yaml`.
 - Lambda package too large (>50MB zipped) → check for accidental `node_modules` bloat.
 
 **3. Stack stuck in ROLLBACK_COMPLETE.** You must delete it before redeploying:
@@ -119,24 +119,19 @@ aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME --region 
 
 **Symptom:** "Users can't sign up" or "sign in fails" or "token is invalid"
 
-**1. Self-signup disabled.**
+**1. `better_auth` schema missing.** Sign-up returns HTTP 500 with "relation \"user\" does not exist" in the Lambda logs. Run `boa deploy` to re-apply the idempotent schema bootstrap.
+
+**2. Wrong grant type.** Sign-in must use `grant_type=password`. Refresh must use `grant_type=refresh_token`.
+
+**3. Token expired.** Access tokens expire after 1 hour. The client must use the refresh token to get new access tokens. Check that `@supabase/supabase-js` auto-refresh is working.
+
+**4. Client calling the wrong URL.** `.boa/config.json.apiUrl` is the correct base URL. Common mistake: omitting the `/prod` stage segment or a trailing-slash mismatch.
+
+**5. BETTER_AUTH_SECRET not resolvable.** If the Lambda logs show SSM resolution errors, verify the parameter exists:
+
 ```bash
-USER_POOL_ID=$(jq -r '.userPoolId' .boa/config.json)
-aws cognito-idp describe-user-pool --user-pool-id $USER_POOL_ID --region $REGION \
-  --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'
+aws ssm get-parameter --name /${STACK_NAME}/better-auth-secret --region $REGION
 ```
-If this returns `true`, self-signup is blocked. The SAM template must set `AllowAdminCreateUserOnly: false`.
-
-**2. User stuck in UNCONFIRMED.**
-```bash
-aws cognito-idp admin-get-user --user-pool-id $USER_POOL_ID --username <email> --region $REGION \
-  --query 'UserStatus'
-```
-If `UNCONFIRMED`, the pre-signup Lambda trigger isn't attached or isn't auto-confirming. Check that the trigger exists and returns `event.response.autoConfirmUser = true`.
-
-**3. Wrong grant type.** Sign-in must use `grant_type=password`, not `authorization_code`. Refresh must use `grant_type=refresh_token`.
-
-**4. Token expired.** Access tokens expire after 1 hour. The client must use the refresh token to get new access tokens. Check if `@supabase/supabase-js` auto-refresh is working.
 
 ## Flow 5: CORS Errors
 
@@ -149,7 +144,7 @@ Access-Control-Allow-Headers: apikey, authorization, content-type
 Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 ```
 
-**2. OPTIONS preflight not configured.** API Gateway must have CORS enabled. Check the SAM template for `Cors` configuration on the API resource.
+**2. OPTIONS preflight not configured.** pgrest-lambda emits CORS headers based on the `ALLOWED_ORIGINS` env var. Check the `ALLOWED_ORIGINS` value on the Lambda (`aws lambda get-function-configuration`) and make sure the caller's Origin header is in the list.
 
 **3. Mismatch between API URL and frontend origin.** If you're using a custom domain, make sure the `Access-Control-Allow-Origin` header matches the frontend's domain exactly, or use `*` during development.
 
@@ -171,20 +166,13 @@ For complete DSQL constraints, see [DSQL-PATTERNS.md](../../docs/DSQL-PATTERNS.m
 
 ## Flow 7: Frontend Issues
 
-**Symptom:** "Blank page" or "global is not defined" or "assets not loading"
+**Symptom:** "Blank page" or "assets not loading" or "fetch fails silently"
 
-**1. Vite missing globalThis polyfill.**
-```
-ReferenceError: global is not defined
-```
-Add to `vite.config.js`:
-```javascript
-define: { global: 'globalThis' }
-```
+**1. Amplify SPA redirect catching static assets.** If CSS/JS/images return HTML, the redirect rule `/<*>` is too broad. Replace with a regex that excludes static assets (see [PITFALLS.md](../../docs/PITFALLS.md)).
 
-**2. Amplify SPA redirect catching static assets.** If CSS/JS/images return HTML, the redirect rule `/<*>` is too broad. Replace with the regex that excludes static assets — see [PITFALLS.md](../../docs/PITFALLS.md) item 4.1.
+**2. Wrong API URL in frontend config.** Verify the API URL in your frontend matches `.boa/config.json`. Common mistake: trailing slash mismatch or missing `/prod` stage.
 
-**3. Wrong API URL in frontend config.** Verify the API URL in your frontend matches `.boa/config.json`. Common mistake: trailing slash mismatch or missing `/prod` stage.
+**3. CORS allowlist missing.** If the request reaches the Lambda but the browser blocks the response, check the `ALLOWED_ORIGINS` env var on the function and make sure the caller's `Origin` header is in the list.
 
 ## Quick Reference: Error → Most Likely Cause
 
@@ -192,10 +180,9 @@ define: { global: 'globalThis' }
 |-------|---------------------|
 | 403 on all requests | Missing Cedar policy for the table |
 | 500 Internal Server Error | Lambda logs (`aws logs tail`) |
-| CORS error in browser | Lambda missing CORS headers |
-| "User is not authorized" | `AllowAdminCreateUserOnly` is `true` |
-| "global is not defined" | Missing `global: 'globalThis'` in Vite |
-| "Cannot find module" | Missing `npm install` before `sam build` |
+| `relation "user" does not exist` | Run `boa deploy` to apply the `better_auth` schema |
+| CORS error in browser | Origin missing from `ALLOWED_ORIGINS` |
+| "Cannot find module" | Lambda package missing dependencies — run `boa deploy` |
 | "too many connections" | Connection pool not at module scope |
 | ROLLBACK_COMPLETE | Delete stack, then redeploy |
 | Migration SQL error | DSQL constraint (no FK, no SERIAL, ASYNC indexes) |

@@ -7,104 +7,45 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | # | Pitfall | Severity | Details In |
 |---|---------|----------|-----------|
 | **Auth** | | | |
-| 1 | Self-sign-up disabled by default (`AllowAdminCreateUserOnly: true`) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
-| 2 | Users stuck in UNCONFIRMED (missing pre-signup trigger) | CRITICAL | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
-| 3 | `update-user-pool` CLI wipes all Lambda triggers | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
-| 4 | Cognito SDK fails in browser — `global is not defined` (Vite) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #7 |
-| 5 | Wrong API Gateway type — HTTP API instead of REST API | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
-| 6 | Wrong authorizer context path (`claims.sub` vs `authorizer.userId`) | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
+| 1 | Wrong authorizer context keys (use flat `authorizer.userId`, not `claims.sub`) | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
+| 2 | Editing the `better_auth` schema by hand | HIGH | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
+| 3 | Sign-up fails with "relation \"user\" does not exist" — run `boa deploy` to re-apply the better-auth schema | MEDIUM | [AUTH-PATTERNS.md](AUTH-PATTERNS.md) |
 | **Database** | | | |
-| 7 | Hardcoded database credentials instead of IAM auth | CRITICAL | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
-| 8 | `SERIAL`/`BIGSERIAL` in DSQL (use `TEXT DEFAULT gen_random_uuid()`) | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
-| 9 | `REFERENCES` (foreign keys) in DSQL — not supported | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
-| 10 | `CREATE INDEX` without `ASYNC` — DSQL requires it | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
-| 11 | Connection exhaustion in Lambda (pool outside handler) | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
-| 12 | Missing indexes on foreign key columns | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 4 | Hardcoded database credentials instead of IAM auth | CRITICAL | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 5 | `SERIAL`/`BIGSERIAL` in DSQL (use `TEXT DEFAULT gen_random_uuid()`) | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 6 | `REFERENCES` (foreign keys) in DSQL — not supported | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 7 | `CREATE INDEX` without `ASYNC` — DSQL requires it | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 8 | Connection exhaustion in Lambda (pool outside handler) | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| 9 | Missing indexes on foreign-key-style columns | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
 | **Deployment** | | | |
-| 13 | `AWS_REGION` as Lambda env var (reserved — use `REGION_NAME`) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
-| 14 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../SKILL.md) Critical Rule #4 |
-| 15 | SAM build fails — missing `package.json` or `version` field | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
-| 24 | Function URL 403 Forbidden (missing `lambda:InvokeFunction` permission) | CRITICAL | See below |
-| 25 | Failed to fetch / silent network errors on HTTP APIs | MEDIUM | See below |
+| 10 | `AWS_REGION` as Lambda env var (reserved — use `REGION_NAME`) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
+| 11 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../SKILL.md) |
+| 12 | Failed to fetch / silent network errors when calling an HTTP ALB from an HTTPS frontend | MEDIUM | See below |
 | **Functions** | | | |
-| 16 | Circular dependency: function env vars referencing `${Api}` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
-| 17 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
+| 13 | Lambda env var referencing `${Api}` creates a CloudFormation dependency cycle | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
+| 14 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | **Frontend** | | | |
-| 18 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../SKILL.md) Critical Rule #8 |
-| 19 | CORS errors — Lambda missing headers or OPTIONS not configured | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
-| 20 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
-| 26 | Async form submit handler reads `event.currentTarget` after `await` | MEDIUM | [SKILL.md](../SKILL.md) Frontend Configuration |
+| 15 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../SKILL.md) |
+| 16 | CORS errors — origin not in the `ALLOWED_ORIGINS` allowlist | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
+| 17 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
+| 18 | Async form submit handler reads `event.currentTarget` after `await` | MEDIUM | [SKILL.md](../SKILL.md) |
 | **Storage** | | | |
-| 21 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
-| 22 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
-| **Corporate Accounts** | | | |
-| 23 | Corporate security policies auto-disable Cognito self-sign-up | HIGH | See below |
+| 19 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
+| 20 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 
-## Corporate AWS Accounts — Self-Sign-Up
+## Failed to Fetch / Mixed Content on ALB
 
-Some enterprises (including Amazon) run automated security scans that set `AllowAdminCreateUserOnly: true` on Cognito user pools. This breaks BOA's sign-up flow silently — self-sign-up works initially, then stops working after the next security scan.
+The default API Gateway REST traffic layer always serves over HTTPS.
+This pitfall only applies to the ALB extension.
 
-**Symptoms:** Sign-up returns "User creation is not allowed" or the SAM template setting keeps reverting.
+Chrome's HTTPS-First mode (default since Chrome 117) silently
+rewrites `http://` subresource requests to `https://`. If the ALB is
+configured with an HTTP listener only, the request fails with
+`TypeError: Failed to fetch` and no CORS error in the console. Any
+frontend served over HTTPS also blocks HTTP API calls as mixed
+content.
 
-**Workaround:** If this happens, tell the developer their corporate AWS account blocks self-sign-up. They can:
-1. Request a security exception for the user pool
-2. Use a personal AWS account for development (free tier covers everything BOA uses)
-
-## Function URL 403 — Missing Permission (October 2025)
-
-Since October 2025, AWS requires two resource-based policy
-statements for public Lambda Function URLs:
-
-1. `lambda:InvokeFunctionUrl` — all SAM versions generate
-2. `lambda:InvokeFunction` — SAM v1.101.0+ generates this;
-   older versions require an explicit `AWS::Lambda::Permission`
-
-Without both, the Function URL returns 403 Forbidden on
-every request. No Lambda logs are generated because the
-request never reaches the handler.
-
-**Symptoms:** Every API request returns
-`{"Message":"Forbidden"}` with HTTP 403. No CloudWatch
-logs for the Lambda function. `boa verify` fails the
-Function URL permission check.
-
-**Fix for new deployments:** Already handled — the BOA
-SAM template includes both permissions.
-
-**Fix for existing deployments created before this was
-fixed:** Run `boa deploy` to redeploy the stack with the
-updated template. The new permission is added
-automatically.
-
-**Manual fix (without redeploying):**
-```bash
-aws lambda add-permission \
-  --function-name <project-name>-api \
-  --statement-id FunctionURLInvokePermission \
-  --action lambda:InvokeFunction \
-  --principal "*" \
-  --invoked-via-function-url
-```
-
-## Failed to Fetch / Silent Network Errors on HTTP APIs
-
-Chrome's HTTPS-First mode (default since Chrome 117)
-silently rewrites `http://` subresource requests to
-`https://`. If the API endpoint does not support HTTPS,
-the request fails with `TypeError: Failed to fetch` and
-no CORS error in the console.
-
-**Root cause:** The API endpoint uses HTTP instead of
-HTTPS. Any frontend served over HTTPS also blocks HTTP
-API calls as mixed content.
-
-**Resolution:** API Gateway REST is now the default traffic
-layer and provides HTTPS out of the box via the
-`*.execute-api.<region>.amazonaws.com` endpoint. This
-issue only affects the ALB extension when used without an
-ACM certificate.
-
-**If using ALB extension:** Request an ACM certificate for
-your domain, add an HTTPS listener to the ALB, and
-redirect HTTP to HTTPS. Update `.boa/config.json` `apiUrl`
-to use the HTTPS URL.
+**Fix:** Request an ACM certificate for your domain, pass it to
+`boa extend alb --certificate-arn <arn>` (the extension provisions an
+HTTPS listener and redirects HTTP to HTTPS), and update
+`.boa/config.json` `apiUrl` to the HTTPS URL.

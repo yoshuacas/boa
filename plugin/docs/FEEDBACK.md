@@ -4,7 +4,7 @@ When you encounter a bug or limitation in BOA (not a developer error — a probl
 
 ## What qualifies as BOA feedback
 
-- A workaround you had to apply because the SAM template was wrong (CORS, permissions, etc.)
+- A workaround you had to apply because the CloudFormation template was wrong (CORS, permissions, dependency ordering, etc.)
 - A CLI command that failed unexpectedly or produced confusing output
 - A BOA skill instruction that was missing, wrong, or led you down the wrong path
 - A pattern that should work but doesn't (e.g., @supabase/supabase-js sends headers the CORS config doesn't allow)

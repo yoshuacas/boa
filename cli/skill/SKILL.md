@@ -2,7 +2,7 @@
 name: boa
 description: Build serverless backends on AWS with Aurora DSQL, better-auth, Lambda (API Gateway REST + WAF), and S3. Use when building a backend, deploying to AWS, setting up auth, creating APIs, or adding storage. Covers the same capabilities as Supabase but fully serverless on AWS.
 license: Apache-2.0
-compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), SAM CLI, Node.js 18+, psql, jq
+compatibility: Requires boa-cli (npm), AWS CLI (>= 2.32), Node.js 18+, psql, jq, zip
 allowed-tools: "Bash(boa *) Bash(npm *) Bash(brew *) Bash(apt *) Bash(sudo *) Read Grep Glob Write Edit"
 metadata:
   author: aws
@@ -63,7 +63,7 @@ All operations go through the `boa` CLI. The developer can also run these comman
 | Command | What it does |
 |---------|-------------|
 | `boa init <name>` | Create project, deploy backend, write `.boa/config.json` |
-| `boa deploy` | Rebuild + redeploy (SAM build/deploy, bundle policies) |
+| `boa deploy` | Rebuild + redeploy (package Lambda, update CloudFormation stack, bundle policies) |
 | `boa migrate` | Apply pending SQL migrations to DSQL |
 | `boa verify` | Check all backend components are correct |
 | `boa teardown` | Destroy everything (with confirmation) |
@@ -103,7 +103,7 @@ The developer described what they want. Create the backend, then build on it.
 
 These come from hundreds of real AI-built backends. Every rule prevents a real failure.
 
-1. **Auth provider**: New projects use `AUTH_PROVIDER=better-auth`; do not add Cognito unless the developer explicitly asks for a legacy provider.
+1. **Auth provider**: New projects use `AUTH_PROVIDER=better-auth`.
 2. **Lambda runtime**: Always Node.js 20.x — never Python (binary dependency failures in Lambda)
 3. **Reserved env vars**: Never set `AWS_REGION` as Lambda env var — use `REGION_NAME`
 4. **S3 security**: Never make buckets public — always use presigned URLs
@@ -125,7 +125,7 @@ Check what's installed and what's missing:
 boa check
 ```
 
-This checks the platform, all required tools (aws, sam, node, psql, jq), AWS credentials, and region. Present the output to the developer as a clean checklist.
+This checks the platform, all required tools (aws, node, psql, jq, zip), AWS credentials, and region. Present the output to the developer as a clean checklist.
 
 ### If the BOA CLI is not installed
 
@@ -138,8 +138,10 @@ npm install -g boa-cli
 **macOS:**
 
 ```bash
-brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
+brew install awscli node jq libpq && brew link --force libpq
 ```
+
+`zip` ships with macOS. No install needed.
 
 **Linux (Ubuntu/Debian):**
 
@@ -148,14 +150,11 @@ brew install awscli aws-sam-cli node jq libpq && brew link --force libpq
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
   && unzip -qo /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install --update
 
-# SAM CLI
-pip3 install aws-sam-cli
-
 # Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
 
-# psql and jq
-sudo apt-get install -y postgresql-client jq
+# psql, jq, zip
+sudo apt-get install -y postgresql-client jq zip
 ```
 
 After installing, re-run `boa check` to confirm everything passes.

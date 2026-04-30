@@ -33,20 +33,21 @@ await supabase.auth.signOut();
 
 ## Backend Configuration
 
-The BOA SAM template sets:
+The BOA CloudFormation template sets these Lambda env vars:
 
 ```yaml
 AUTH_PROVIDER: better-auth
 JWT_SECRET: '{{resolve:ssm:/<project>/jwt-secret}}'
 BETTER_AUTH_SECRET: '{{resolve:ssm:/<project>/better-auth-secret}}'
-BETTER_AUTH_URL: https://<id>.execute-api.<region>.amazonaws.com/prod
 DSQL_ENDPOINT: <cluster endpoint>
 REGION_NAME: <region>
 ```
 
 `boa init` creates the secrets in SSM Parameter Store and bootstraps the
 `better_auth` schema. Do not put auth secrets in code, `.env`, or
-frontend config.
+frontend config. The Lambda derives its public base URL from the
+incoming request's `Host` and `X-Forwarded-Proto` headers on the first
+invocation, so no URL env var is required.
 
 ## DSQL Schema
 
@@ -72,12 +73,6 @@ permit(
 
 ## Common Mistakes
 
-### Adding Cognito to New Projects
-
-Cognito is no longer the default BOA auth provider. Do not add Cognito
-resources, Cognito SDKs, pre-signup triggers, or Vite polyfills unless
-the developer explicitly asks for legacy Cognito integration.
-
 ### Editing better_auth Tables
 
 Do not create app relationships to tables in the `better_auth` schema.
@@ -97,10 +92,10 @@ boa verify
 
 ### Wrong Authorizer Context Path
 
-BOA passes flat authorizer context keys:
+BOA passes flat authorizer context keys. Always read:
 
 ```javascript
-event.requestContext.authorizer.userId   // correct
-event.requestContext.authorizer.email    // correct
-event.requestContext.authorizer.claims.sub  // wrong Cognito format
+event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
+event.requestContext.authorizer.userId   // user UUID or '' for anon
+event.requestContext.authorizer.email    // user email or ''
 ```

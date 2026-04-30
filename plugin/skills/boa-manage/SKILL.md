@@ -1,8 +1,8 @@
 ---
 name: boa-manage
-description: Inspect, manage, and operate a running BOA backend — view tables and schema, check stack status, tail Lambda logs, seed data, open the dashboard, test APIs locally with sam local, and monitor costs. Use this skill when a developer wants to see what's in their backend, check on their deployment, view logs, manage data, run local tests, or understand their AWS usage. Triggers on phrases like "show me my tables", "what's deployed", "open dashboard", "view logs", "seed data", "test locally", "status", "how much is this costing".
+description: Inspect, manage, and operate a running BOA backend — view tables and schema, check stack status, tail Lambda logs, seed data, open the dashboard, run API smoke tests, and monitor costs. Use this skill when a developer wants to see what's in their backend, check on their deployment, view logs, manage data, or understand their AWS usage. Triggers on phrases like "show me my tables", "what's deployed", "open dashboard", "view logs", "seed data", "smoke test", "status", "how much is this costing".
 license: Apache-2.0
-allowed-tools: "Bash(aws *) Bash(sam *) Bash(psql *) Bash(curl *) Bash(jq *) Bash(node *) Bash(npm *) Bash(bash *) Bash(open *) Read Grep Glob Write Edit"
+allowed-tools: "Bash(aws *) Bash(psql *) Bash(curl *) Bash(jq *) Bash(node *) Bash(npm *) Bash(bash *) Bash(open *) Read Grep Glob Write Edit"
 ---
 
 # BOA Manage — Inspect & Operate
@@ -198,25 +198,17 @@ boa migrate
 
 ## Local Testing
 
-### Test API locally with SAM
+Use the deployed backend for smoke tests, or invoke the Lambda directly with the AWS CLI.
+
+### Invoke the Lambda function directly
 
 ```bash
-# Build and start local API (requires Docker)
-boa deploy  # builds the SAM template
-sam local start-api \
-  --template .boa/.aws-sam/build/template.yaml \
-  --env-vars <(jq -n --arg ep "$DSQL_ENDPOINT" --arg r "$REGION" \
-    '{"Parameters": {"DSQL_ENDPOINT": $ep, "REGION_NAME": $r}}') \
-  --port 3001
-```
-
-Then test:
-
-```bash
-curl http://localhost:3001/auth/v1/signup \
-  -H "apikey: $ANON_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"Test123!"}'
+aws lambda invoke \
+  --function-name "${STACK_NAME}-api" \
+  --region "$REGION" \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"httpMethod":"GET","path":"/rest/v1/","headers":{"apikey":"'$ANON_KEY'","host":"example.com","x-forwarded-proto":"https"},"requestContext":{"stage":"prod"}}' \
+  /tmp/lambda-out.json && cat /tmp/lambda-out.json
 ```
 
 ### Quick API smoke test (against deployed backend)

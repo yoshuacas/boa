@@ -13,29 +13,29 @@ The BOA skill teaches your agent to build serverless backends on AWS.
 | API        | API Gateway REST + WAF (default) |
 | Storage    | Amazon S3                |
 | Hosting    | AWS Amplify              |
-| IaC        | SAM / CloudFormation     |
+| IaC        | CloudFormation           |
 
 API Gateway REST + WAF is the default traffic layer. ALB is available as an extension (`boa extend alb`) for long-running requests, streaming, or high-throughput workloads.
 
 **pgrest-lambda** provides a PostgREST-compatible REST API and GoTrue-compatible auth backed by better-auth. `@supabase/supabase-js` works as a drop-in client. The Lambda handlers are thin wrappers (~20 lines total).
 
 ## Critical Rules
-1. New projects use `AUTH_PROVIDER=better-auth`; do not add Cognito unless explicitly requested
-2. Always use Node.js for Lambda — never Python (binary dependency failures)
-3. Never set `AWS_REGION` as Lambda env var — it's reserved; use `REGION_NAME`
-4. Never make S3 buckets public — always use presigned URLs
-5. Never use `/<*>` as Amplify SPA redirect — use regex excluding static assets
-6. DSQL requires IAM auth tokens for connections — never hardcode credentials
+1. New projects use `AUTH_PROVIDER=better-auth`.
+2. Always use Node.js for Lambda — never Python (binary dependency failures).
+3. Never set `AWS_REGION` as Lambda env var — it is reserved; use `REGION_NAME`.
+4. Never make S3 buckets public — always use presigned URLs.
+5. Never use `/<*>` as the Amplify SPA redirect — use a regex that excludes static assets.
+6. DSQL requires IAM auth tokens for connections — never hardcode credentials.
 7. Extensions are optional. The default backend works without any extensions.
 
 ## Authorizer Contract
-pgrest-lambda handles JWT validation internally. The BOA custom Lambda authorizer (JWT dual-layer validation) passes flat keys:
+pgrest-lambda handles JWT validation internally and attaches flat keys to every event:
 ```javascript
 event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
 event.requestContext.authorizer.userId   // user UUID or '' for anon
 event.requestContext.authorizer.email    // user email or ''
 ```
-Do NOT use `event.requestContext.authorizer.claims.sub` — that is the old Cognito format.
+Custom Lambda code should read these flat keys.
 
 ## Key Files
 | File | Purpose |

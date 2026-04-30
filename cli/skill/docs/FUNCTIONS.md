@@ -1,332 +1,48 @@
 # Custom Functions
 
-Run custom server-side code on AWS Lambda. Functions are created on demand when the developer needs logic beyond CRUD — webhook handlers, third-party API calls, scheduled jobs, or data processing.
+The default BOA stack has a single Lambda function. `pgrest-lambda`
+handles every `/rest/v1/*` and `/auth/v1/*` route, so agents do not
+add custom Lambda functions for CRUD, auth, or presigned URL flows.
 
-## Convention
+Use a custom function only when the developer explicitly needs logic
+that pgrest-lambda cannot express: a third-party webhook signature
+check, an outbound integration with a service that requires server
+credentials (Stripe, Twilio, SES), or a scheduled job that must not
+be triggered from the client.
 
-Each function lives in its own directory under `functions/`:
+## Current Scope
 
-```
-project/
-├── migrations/
-├── policies/
-├── functions/
-│   ├── stripe-webhook/
-│   │   ├── index.mjs         # handler (required)
-│   │   └── package.json      # dependencies (if any beyond the defaults)
-│   ├── send-email/
-│   │   └── index.mjs
-│   └── daily-report/
-│       └── index.mjs
-└── .boa/config.json
-```
+BOA today does not ship a `functions/<name>/` scaffold or a built-in
+extension that adds arbitrary Lambda functions. The default template
+(`cli/templates/backend.yaml`) declares one `AWS::Lambda::Function`
+resource named `ApiFunction` plus its integration, role, and
+permissions.
 
-The function name is the directory name. The entry point is always `index.mjs` with an exported `handler` function.
+To add a custom function, add a new `AWS::Lambda::Function` resource
+to the template in place (or via `.boa/template.yaml` override),
+along with its IAM role, environment variables, and event source
+(API Gateway method, EventBridge rule, S3 notification). Run
+`boa deploy` to package the Lambda source and update the stack.
 
-## Writing a Function
+## Conventions for a Custom Function
 
-Every function is a standard Lambda handler — receives an event, returns a response:
+If the developer needs one:
 
-```javascript
-// functions/process-order/index.mjs
-export async function handler(event) {
-  const body = JSON.parse(event.body || '{}');
-  const userId = event.requestContext?.authorizer?.userId || '';
-
-  // Your logic here
-  const result = await processOrder(body, userId);
-
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: JSON.stringify(result),
-  };
-}
-```
-
-### Auto-injected environment variables
-
-Every function gets these automatically — no configuration needed:
-
-| Variable | Description | How to use |
-|----------|-------------|-----------|
-| `API_URL` | The BOA REST API endpoint | Connect @supabase/supabase-js |
-| `ANON_KEY` | Public API key (respects Cedar policies) | Client-level access |
-| `SERVICE_ROLE_KEY` | Admin API key (bypasses Cedar) | Server-side admin operations |
-| `DSQL_ENDPOINT` | Aurora DSQL hostname | Direct database access |
-| `BUCKET_NAME` | S3 storage bucket | File operations |
-| `REGION_NAME` | AWS region (never use `AWS_REGION`) | SDK clients |
-
-### Using @supabase/supabase-js inside a function
-
-```javascript
-import { createClient } from '@supabase/supabase-js';
-
-// Service role client — bypasses Cedar policies (admin access)
-const supabase = createClient(
-  process.env.API_URL,
-  process.env.SERVICE_ROLE_KEY
-);
-
-export async function handler(event) {
-  // Query data using the REST API
-  const { data: users } = await supabase.from('users').select('*');
-
-  // Insert data
-  await supabase.from('audit_log').insert({
-    action: 'report_generated',
-    created_at: new Date().toISOString(),
-  });
-
-  return { statusCode: 200, body: JSON.stringify({ users }) };
-}
-```
-
-### Direct database access
-
-For complex queries that go beyond the REST API:
-
-```javascript
-import pg from 'pg';
-import { DsqlSigner } from '@aws-sdk/dsql-signer';
-
-const signer = new DsqlSigner({
-  hostname: process.env.DSQL_ENDPOINT,
-  region: process.env.REGION_NAME,
-});
-
-let pool;
-async function getPool() {
-  if (!pool) {
-    const token = await signer.getDbConnectAdminAuthToken();
-    pool = new pg.Pool({
-      host: process.env.DSQL_ENDPOINT,
-      port: 5432,
-      user: 'admin',
-      password: token,
-      database: 'postgres',
-      ssl: { rejectUnauthorized: true },
-      max: 1,
-    });
-  }
-  return pool;
-}
-
-export async function handler(event) {
-  const db = await getPool();
-  const result = await db.query(
-    'SELECT player_id, SUM(goals) as total_goals FROM game_stats GROUP BY player_id ORDER BY total_goals DESC LIMIT 10'
-  );
-  return { statusCode: 200, body: JSON.stringify(result.rows) };
-}
-```
-
-Initialize the pool outside the handler so it persists across warm invocations.
-
-## Three Function Types
-
-### 1. API Functions (called from the frontend)
-
-Invoked via `supabase.functions.invoke()` or direct HTTP. Protected by the BOA authorizer (JWT required by default).
-
-```javascript
-// Frontend code
-const { data, error } = await supabase.functions.invoke('process-order', {
-  body: { items: cart, shipping: address }
-});
-```
-
-The endpoint is `POST /functions/v1/process-order`. The BOA authorizer validates the JWT and passes user info:
-
-```javascript
-// Inside the function — access the authenticated user
-const role = event.requestContext.authorizer.role;       // 'authenticated'
-const userId = event.requestContext.authorizer.userId;   // user UUID
-const email = event.requestContext.authorizer.email;     // user email
-```
-
-**SAM template resource (generated by the agent):**
-
-```yaml
-ProcessOrderFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    Handler: index.handler
-    Runtime: nodejs20.x
-    CodeUri: functions/process-order/
-    Timeout: 30
-    MemorySize: 256
-    Environment:
-      Variables:
-        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
-        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
-        DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
-        BUCKET_NAME: !Ref StorageBucket
-        REGION_NAME: !Ref AWS::Region
-    Events:
-      Api:
-        Type: Api
-        Properties:
-          RestApiId: !Ref Api
-          Path: /functions/v1/process-order
-          Method: ANY
-```
-
-### 2. Webhook Functions (called by external services)
-
-Invoked by external services (Stripe, GitHub, Twilio). JWT verification is disabled — the function validates the webhook signature itself.
-
-```javascript
-// functions/stripe-webhook/index.mjs
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-export async function handler(event) {
-  // Verify Stripe signature (instead of JWT)
-  const sig = event.headers['stripe-signature'] || event.headers['Stripe-Signature'];
-  let stripeEvent;
-  try {
-    stripeEvent = stripe.webhooks.constructEvent(event.body, sig, endpointSecret);
-  } catch (err) {
-    return { statusCode: 400, body: `Webhook signature verification failed` };
-  }
-
-  if (stripeEvent.type === 'checkout.session.completed') {
-    const session = stripeEvent.data.object;
-    const supabase = createClient(process.env.API_URL, process.env.SERVICE_ROLE_KEY);
-    await supabase.from('orders').update({ status: 'paid' }).eq('stripe_session_id', session.id);
-  }
-
-  return { statusCode: 200, body: JSON.stringify({ received: true }) };
-}
-```
-
-**SAM template — note `Auth: NONE` on the route:**
-
-```yaml
-StripeWebhookFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    Handler: index.handler
-    Runtime: nodejs20.x
-    CodeUri: functions/stripe-webhook/
-    Timeout: 30
-    Environment:
-      Variables:
-        # auto-injected vars plus function-specific secrets
-        STRIPE_SECRET_KEY: !Sub "{{resolve:ssm:/${ProjectName}/stripe-secret-key}}"
-        STRIPE_WEBHOOK_SECRET: !Sub "{{resolve:ssm:/${ProjectName}/stripe-webhook-secret}}"
-        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
-        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
-        REGION_NAME: !Ref AWS::Region
-    Events:
-      Api:
-        Type: Api
-        Properties:
-          RestApiId: !Ref Api
-          Path: /functions/v1/stripe-webhook
-          Method: POST
-          Auth:
-            Authorizer: NONE    # external services don't have a JWT
-```
-
-**Store secrets in SSM Parameter Store (use `String` type, not `SecureString`):**
-
-```bash
-aws ssm put-parameter --name "/<stack-name>/stripe-secret-key" --value "sk_live_..." --type String --region $REGION
-aws ssm put-parameter --name "/<stack-name>/stripe-webhook-secret" --value "whsec_..." --type String --region $REGION
-```
-
-### 3. Scheduled Functions (cron jobs)
-
-Triggered on a schedule by EventBridge Scheduler. No HTTP endpoint — runs automatically.
-
-```javascript
-// functions/daily-report/index.mjs
-export async function handler(event) {
-  const supabase = createClient(process.env.API_URL, process.env.SERVICE_ROLE_KEY);
-
-  const { data: stats } = await supabase
-    .from('game_stats')
-    .select('player_id, goals, assists')
-    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
-
-  // Process and store report
-  await supabase.from('daily_reports').insert({
-    date: new Date().toISOString().split('T')[0],
-    data: stats,
-  });
-
-  return { statusCode: 200 };
-}
-```
-
-**SAM template — ScheduleV2 event instead of Api:**
-
-```yaml
-DailyReportFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    Handler: index.handler
-    Runtime: nodejs20.x
-    CodeUri: functions/daily-report/
-    Timeout: 60
-    Environment:
-      Variables:
-        API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
-        SERVICE_ROLE_KEY: !Sub "{{resolve:ssm:/${ProjectName}/service-role-key}}"
-        DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
-        REGION_NAME: !Ref AWS::Region
-    Events:
-      Schedule:
-        Type: ScheduleV2
-        Properties:
-          ScheduleExpression: "cron(0 9 * * ? *)"    # daily at 9am UTC
-          Description: "Generate daily stats report"
-```
-
-Common schedule expressions:
-| Schedule | Expression |
-|----------|-----------|
-| Every 5 minutes | `rate(5 minutes)` |
-| Every hour | `rate(1 hour)` |
-| Daily at midnight UTC | `cron(0 0 * * ? *)` |
-| Weekdays at 9am UTC | `cron(0 9 ? * MON-FRI *)` |
-| First of every month | `cron(0 0 1 * ? *)` |
-
-## Adding a Function (Agent Workflow)
-
-When the developer asks for custom logic:
-
-1. Create the function directory and handler:
-   ```bash
-   mkdir -p functions/<function-name>
-   ```
-   Write `functions/<function-name>/index.mjs` with the handler.
-
-2. If the function needs npm dependencies beyond the defaults, create `functions/<function-name>/package.json`:
-   ```json
-   {
-     "dependencies": { "stripe": "^14.0.0" }
-   }
-   ```
-
-3. Add the SAM resource to `template.yaml` — use the appropriate pattern (API, webhook, or scheduled).
-
-4. If the function needs secrets, store them in SSM:
-   ```bash
-   aws ssm put-parameter --name "/<stack-name>/<secret-name>" --value "<value>" --type String --region $REGION
-   ```
-
-5. Deploy:
-   ```bash
-   boa deploy
-   ```
+- Put the source in `cli/templates/lambda/` alongside the default
+  handler, or in a separate directory that `boa deploy` packages
+  explicitly.
+- Read the same flat authorizer keys pgrest-lambda uses so the
+  function integrates with the rest of the stack:
+  ```javascript
+  event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
+  event.requestContext.authorizer.userId   // user UUID or '' for anon
+  event.requestContext.authorizer.email    // user email or ''
+  ```
+- Use `REGION_NAME`, never `AWS_REGION`.
+- Store secrets in SSM Parameter Store with `--type String`
+  (CloudFormation's `{{resolve:ssm:/...}}` does not resolve
+  `SecureString` for Lambda env vars) and reference them with
+  `!Sub '{{resolve:ssm:/${ProjectName}/my-secret}}'`.
 
 ## Function Defaults
 
@@ -334,42 +50,33 @@ When the developer asks for custom logic:
 |---------|-------|-----|
 | Runtime | Node.js 20.x | Never Python (binary dependency failures on Lambda) |
 | Timeout | 30 seconds | Sufficient for API calls; increase for batch processing |
-| Memory | 256 MB | Good balance of cost vs. performance |
+| Memory | 256 MB | Balance of cost vs. performance |
 | Architecture | arm64 | 20% cheaper, same performance |
 | Region | Same as the stack | Co-located with database and storage |
 
 ## Common Mistakes
 
-### Circular dependency when referencing `${Api}` in function env vars
+### SSM `SecureString` does not work with Lambda env vars
 
-When a function registers an event on an API (`RestApiId: !Ref Api`) AND references that same API in its environment variables (`API_URL: !Sub "https://${Api}.execute-api..."`), CloudFormation detects a circular dependency and the deploy fails.
+CloudFormation's `{{resolve:ssm:...}}` only resolves `String` type
+parameters. The `{{resolve:ssm-secure:...}}` prefix is not supported
+for Lambda environment variables.
 
-**Fix:** Store the API URL in SSM during bootstrap and resolve it from there:
-```yaml
-API_URL: !Sub "{{resolve:ssm:/${ProjectName}/api-url}}"
-```
-The bootstrap script should store the API URL in SSM after the initial deploy. This breaks the dependency cycle because the SSM value is resolved at deploy time without creating a resource reference.
+Store secrets as `--type String`:
 
-### SSM SecureString does not work with Lambda env vars
-
-CloudFormation's `{{resolve:ssm:...}}` only resolves `String` type parameters. The `{{resolve:ssm-secure:...}}` prefix exists for `SecureString` but is NOT supported for Lambda environment variables.
-
-**Fix:** Use `--type String` (not `--type SecureString`) when storing parameters:
 ```bash
 aws ssm put-parameter --name "/<stack-name>/my-secret" --value "..." --type String
 ```
-If you need encrypted secrets, read them at runtime from SSM using the AWS SDK instead of injecting them as env vars.
 
-### Missing `version` field in function package.json
+If the value must be encrypted at rest with a non-AWS-owned key, read
+it at runtime from SSM using the AWS SDK and decrypt in the handler,
+rather than injecting it as an env var.
 
-SAM's Node.js builder requires both `name` and `version` in `package.json`. Without `version`, `sam build` fails with "NPM Failed: Invalid package".
+### Referencing the RestApi in function env vars
 
-**Fix:** Always include version:
-```json
-{
-  "name": "my-function",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {}
-}
-```
+A Lambda that declares an API Gateway event on `!Ref Api` and also
+references `${Api}` in its environment variables closes a
+CloudFormation dependency cycle. Derive the public base URL from the
+request at runtime (`event.headers.host` plus
+`event.headers['x-forwarded-proto']` and
+`event.requestContext.stage`) instead of passing it as an env var.

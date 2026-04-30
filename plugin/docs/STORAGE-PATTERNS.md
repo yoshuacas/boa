@@ -4,7 +4,7 @@ Amazon S3 patterns for the BOA stack. All file access uses presigned URLs. Never
 
 ---
 
-## S3 Bucket Configuration (SAM)
+## S3 Bucket Configuration
 
 ```yaml
 StorageBucket:

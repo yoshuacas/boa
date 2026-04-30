@@ -1,19 +1,19 @@
 # BOA Architecture Patterns
 
-Example schema and architecture patterns using the BOA stack (Aurora DSQL + Cognito + Lambda + API Gateway + S3). These are starting points — BOA works for any app that needs a serverless backend, not just these examples.
+Example schema and architecture patterns using the BOA stack (Aurora DSQL + better-auth + Lambda + API Gateway + S3). These are starting points. BOA works for any app that needs a serverless backend, not just these examples.
 
 ---
 
 ## App Type 1: Productivity App (Todo, Notes, Project Management)
 
 **Complexity**: Simple
-**Services**: DSQL + Cognito + Lambda + API Gateway
+**Services**: DSQL + better-auth + Lambda + API Gateway
 
 ### Schema
 
 ```sql
 CREATE TABLE users (
-  id TEXT PRIMARY KEY,             -- Cognito sub
+  id TEXT PRIMARY KEY,             -- better-auth user id
   email TEXT UNIQUE NOT NULL,
   display_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -49,7 +49,7 @@ CREATE INDEX ASYNC idx_items_user_completed ON items(user_id, completed);
 ## App Type 2: Social App (Posts, Comments, Likes)
 
 **Complexity**: Medium
-**Services**: DSQL + Cognito + Lambda + API Gateway + S3
+**Services**: DSQL + better-auth + Lambda + API Gateway + S3
 
 ### Schema
 
@@ -129,7 +129,7 @@ LIMIT 20 OFFSET $2;
 ## App Type 3: Real-time App (Chat, Collaboration)
 
 **Complexity**: Medium-High
-**Services**: DSQL + Cognito + Lambda + API Gateway (REST + WebSocket) + S3
+**Services**: DSQL + better-auth + Lambda + API Gateway (REST + WebSocket) + S3
 
 ### Schema
 
@@ -174,7 +174,7 @@ CREATE INDEX ASYNC idx_ws_connections_room ON ws_connections(room_id);
 
 ### WebSocket Flow
 
-1. Client connects to WebSocket API with Cognito JWT
+1. Client connects to WebSocket API with a better-auth JWT
 2. `$connect` handler stores connection in `ws_connections`
 3. Client sends `{ "action": "join", "roomId": "..." }`
 4. Handler updates `ws_connections.room_id`
@@ -186,7 +186,7 @@ CREATE INDEX ASYNC idx_ws_connections_room ON ws_connections(room_id);
 ## App Type 4: E-Commerce (Products, Cart, Orders)
 
 **Complexity**: High
-**Services**: DSQL + Cognito + Lambda + API Gateway + S3
+**Services**: DSQL + better-auth + Lambda + API Gateway + S3
 
 ### Schema
 
@@ -260,7 +260,7 @@ COMMIT;
 ## App Type 5: Multi-tenant SaaS (CRM, Analytics, Admin)
 
 **Complexity**: Very High
-**Services**: DSQL + Cognito + Lambda + API Gateway + S3 + EventBridge (scheduled)
+**Services**: DSQL + better-auth + Lambda + API Gateway + S3 + EventBridge (scheduled)
 
 ### Schema
 
@@ -335,9 +335,9 @@ const tasks = await pool.query(
 | Decision | Chosen | Rejected | Rationale |
 |----------|--------|----------|-----------|
 | Database | Aurora DSQL | DynamoDB, Aurora Serverless v2 | DSQL scales to zero, PostgreSQL-compatible, IAM auth, no connection management |
-| Auth | Cognito | Auth0, custom JWT | Lives in customer's AWS account, free up to 10K MAU, integrates with API GW |
+| Auth | better-auth on Aurora DSQL | Cognito, Auth0, custom JWT | Self-contained in the customer's stack, no per-MAU fee, database-backed, agents can inspect sessions with SQL |
 | Authorization | Cedar | PostgreSQL RLS, custom middleware | Policy-as-code, agents can read/write it, deny-by-default, ~5μs per eval |
 | Compute | Lambda (Node.js) | Fargate, EC2, Python Lambda | Scales to zero, no provisioning, Node.js avoids native dependency issues |
-| API | REST API Gateway | HTTP API, AppSync | Cognito authorizer support, request validation, usage plans |
+| API | REST API Gateway + WAF | HTTP API, AppSync | HTTPS by default, WAF rate limiting, request validation, usage plans |
 | Storage | S3 + presigned URLs | Public buckets, EFS | Secure by default, no server-side proxy needed, unlimited scale |
-| IaC | SAM/CloudFormation | CDK, Terraform | SAM is purpose-built for serverless, one command deploy |
+| IaC | CloudFormation | CDK, Terraform | The `boa` CLI wraps CloudFormation so one command deploys, updates, and tears down the stack |

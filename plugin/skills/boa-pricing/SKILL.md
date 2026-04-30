@@ -51,11 +51,21 @@ Use these AWS rates (us-east-1):
 - **DPUs per operation:** Read = 0.02, Write = 0.05, Delete = 0.03
 - **Free tier:** 100,000 DPUs + 1 GB storage
 
-### Cognito
-- **0 - 10,000 MAU:** Free
-- **10,001 - 100,000 MAU:** $0.0055/MAU
-- **100,001 - 1,000,000 MAU:** $0.0046/MAU
-- **1,000,001 - 10,000,000 MAU:** $0.00325/MAU
+### Authentication (better-auth on DSQL)
+
+better-auth stores users, sessions, and accounts as rows in the
+`better_auth` schema on the same Aurora DSQL cluster BOA already
+deploys. There is no managed identity service, so auth has no per-MAU
+fee. The cost shows up as a small amount of extra DSQL storage and
+DPUs:
+
+- **Per user at rest:** roughly 1 KB (`user` + `account` rows)
+- **Per active session:** roughly 0.5 KB (`session` row + JWT metadata)
+- **Per sign-in:** a handful of DSQL operations (read user, read
+  account, insert session, issue JWT) — estimate 5 reads + 1 write.
+
+Fold these into the DSQL numbers below; auth does not need its own
+line item.
 
 ### Lambda
 - **Requests:** $0.20 per million
@@ -86,8 +96,6 @@ Deletes = Writes × 0.05 (estimate)
 DSQL DPUs = (Reads × 0.02) + (Writes × 0.05) + (Deletes × 0.03)
 DSQL Cost = max(0, (DPUs - 100,000) × $0.000008) + max(0, (DB_Storage_GB - 1) × $0.33)
 
-Cognito Cost = tiered pricing on MAU (first 10K free)
-
 Lambda Requests Cost = max(0, (Total_Requests - 1,000,000)) × $0.20 / 1,000,000
 Lambda Compute Cost = Total_Requests × 0.256 × 0.1 × $0.0000166667
 Lambda Cost = Requests Cost + Compute Cost
@@ -97,7 +105,7 @@ API GW Cost = max(0, (Total_Requests - 1,000,000)) × $3.50 / 1,000,000
 S3 Storage = MAU × storage_per_user
 S3 Cost = max(0, (S3_Storage_GB - 5)) × $0.023 + PUT_costs + GET_costs
 
-BOA Total = DSQL + Cognito + Lambda + API GW + S3
+BOA Total = DSQL + Lambda + API GW + S3
 ```
 
 ## Step 3: Calculate Supabase Equivalent
@@ -157,9 +165,9 @@ Based on the numbers, tell the developer:
 
 **Cost optimization tips for BOA:**
 - API Gateway is often the biggest cost at scale. Consider CloudFront caching for read-heavy APIs.
-- DSQL is very cheap — storage is $0.33/GB and operations are fractions of a cent.
-- Cognito is free up to 10K MAU, then $0.0055/MAU — cheaper than Supabase's $0.00325/MAU overage only because Supabase includes 100K MAU in Pro.
-- Lambda costs are minimal — the compute is cheap at 256MB/100ms per request.
+- DSQL is very cheap: storage is $0.33/GB and operations are fractions of a cent.
+- Auth lives on DSQL, so it has no per-MAU line item. Each signed-in user adds roughly 1.5 KB of storage plus a few DPUs per sign-in.
+- Lambda costs are minimal because the function runs at 256 MB for about 100 ms per request.
 
 **Be honest.** BOA's per-request pricing means it wins at low scale and loses at high scale for request-heavy apps. The crossover point depends on the app profile. Don't oversell either side — show the numbers and let the developer decide.
 
