@@ -1,9 +1,0 @@
-{
-  "name": "weekly-standings-email",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "@aws-sdk/client-ses": "^3.500.0"
-  }
-}

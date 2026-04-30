@@ -6,11 +6,11 @@ Build a marketplace where users can list products for sale, other users can brow
 
 ## Expected outcome
 
-- DSQL database with users, products, cart_items, orders, order_items tables
-- Cognito user pool with self-signup
-- Lambda function with CRUD + checkout transaction
-- S3 bucket for product images
-- REST API Gateway with Cognito authorizer
-- Checkout uses SQL transactions (BEGIN/COMMIT) for atomicity
+- DSQL tables: `products`, `cart_items`, `orders`, `order_items` (better-auth stores users in its own schema)
+- better-auth sign-up and sign-in working through `/auth/v1/*`
+- REST API exposing `/rest/v1/*` via pgrest-lambda
+- S3 bucket for product images, accessed through the built-in presigned URL endpoints
+- Cedar access policies: owners manage their products, authenticated users own their cart and orders
+- Checkout uses SQL transactions (BEGIN/COMMIT) for atomicity, issued through the REST API or a custom Lambda
 - Frontend with product listing, cart, checkout flow
-- Stack deployed via SAM
+- CloudFormation stack in `CREATE_COMPLETE` or `UPDATE_COMPLETE`

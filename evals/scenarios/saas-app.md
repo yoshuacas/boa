@@ -6,11 +6,11 @@ Build a project management SaaS where organizations can invite members, create p
 
 ## Expected outcome
 
-- DSQL database with users, organizations, org_members, projects, tasks tables
-- org_id on all tenant-scoped tables for isolation
-- Cognito user pool with self-signup
-- Lambda function with CRUD + org membership checks
-- REST API Gateway with Cognito authorizer
-- Multi-tenancy enforced at application layer (every query filters by org_id)
+- DSQL tables: `organizations`, `org_members`, `projects`, `tasks` (better-auth stores users in its own schema)
+- `org_id` on every tenant-scoped table for isolation
+- better-auth sign-up and sign-in working through `/auth/v1/*`
+- REST API exposing `/rest/v1/*` via pgrest-lambda
+- Cedar access policies enforce tenant isolation by comparing `org_members.user_id` against the authenticated principal
+- Role column on `org_members` with values `owner`, `admin`, `member`, used in policy conditions
 - Frontend with org switcher, project board, task management
-- Stack deployed via SAM
+- CloudFormation stack in `CREATE_COMPLETE` or `UPDATE_COMPLETE`

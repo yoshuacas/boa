@@ -6,9 +6,9 @@ Build a todo app where users can sign up, sign in, and manage their tasks. Each 
 
 ## Expected outcome
 
-- DSQL database with `users` and `todos` tables
-- Cognito user pool with self-signup enabled
-- Lambda function handling CRUD operations
-- REST API Gateway with Cognito authorizer
+- DSQL database with a `todos` table (better-auth stores users in its own schema)
+- better-auth sign-up and sign-in working through `/auth/v1/*`
+- REST API exposing `/rest/v1/todos` via pgrest-lambda
+- Cedar access policy limiting each row to its owner
 - Frontend that renders and allows interaction
-- Stack deployed via SAM
+- CloudFormation stack in `CREATE_COMPLETE` or `UPDATE_COMPLETE`

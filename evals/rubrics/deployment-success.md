@@ -1,7 +1,7 @@
 # Rubric: Deployment Success
 
 ## What we're verifying
-The SAM stack deploys without errors and all resources are created.
+The CloudFormation stack deploys without errors and all resources are created.
 
 ## How to verify
 
@@ -21,6 +21,6 @@ Stack status contains `FAILED`, `ROLLBACK`, or the describe-stacks command fails
 
 ## Common failure causes
 - Missing IAM permissions on the deploying user
-- SAM template syntax errors
+- CloudFormation template syntax errors
 - Resource name conflicts (stack already exists)
-- Lambda package too large (>50MB zipped)
+- Lambda package too large (>50 MB zipped)

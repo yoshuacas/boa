@@ -6,10 +6,10 @@ Build a chat application with rooms. Users can create rooms, join rooms, and sen
 
 ## Expected outcome
 
-- DSQL database with users, rooms, room_members, messages, ws_connections tables
-- Cognito user pool with self-signup
-- Lambda functions for REST API + WebSocket handlers
-- REST API Gateway for room/user management
-- WebSocket API Gateway for real-time messaging
+- DSQL tables: `rooms`, `room_members`, `messages`, `ws_connections` (better-auth stores users in its own schema)
+- better-auth sign-up and sign-in working through `/auth/v1/*`
+- REST API exposing `/rest/v1/*` for room and message management via pgrest-lambda
+- WebSocket API Gateway with a Lambda handler for real-time messaging
+- Cedar access policies limiting rooms to their members
 - Frontend with room list, message history, live updates
-- Stack deployed via SAM
+- CloudFormation stack in `CREATE_COMPLETE` or `UPDATE_COMPLETE`
