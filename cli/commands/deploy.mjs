@@ -163,8 +163,8 @@ export default async function deploy(_args, opts = {}) {
       },
     },
     {
-      title: 'Deploy stack',
-      run: async (_ctx, parent) => {
+      title: 'Provisioning cloud resources',
+      run: async () => {
         const parameters = {
           ProjectName: stackName,
           LambdaS3Bucket: deployLib.artifactsBucketName(state.accountId, region),
@@ -177,80 +177,69 @@ export default async function deploy(_args, opts = {}) {
           parameters.CertificateArn = cfg.certificateArn;
         }
 
-        // Create listr2 subtasks lazily as concepts arrive. We pre-
-        // allocate tasks for the known concepts so they show up in
-        // a stable order as CloudFormation events stream in.
-        const sub = new Map();
+        // One subtask per product concept (Database, File storage,
+        // API, Firewall). Each subtask blocks on two promises tied
+        // to the CloudFormation event stream: the concept resolves
+        // when CFN reports it in_progress (so listr2 shows a
+        // spinner), and resolves-or-rejects when CFN reports it
+        // complete or failed (turning the spinner into ✓ or ✗).
         const waiters = new Map();
-
-        const makeSub = (name) => {
-          if (sub.has(name)) return;
+        const subtasks = [];
+        for (const name of conceptsForExtensions(extensions)) {
           let resolveStart;
+          let resolveEnd;
+          let rejectEnd;
           const startPromise = new Promise((r) => { resolveStart = r; });
-          let resolveEnd, rejectEnd;
           const endPromise = new Promise((res, rej) => {
             resolveEnd = res; rejectEnd = rej;
           });
-          sub.set(name, {
+          waiters.set(name, { resolveStart, resolveEnd, rejectEnd });
+          subtasks.push({
             title: name,
             run: async () => {
-              await startPromise;    // wait until we see the concept go in_progress
-              await endPromise;      // wait for it to complete or fail
+              await startPromise;
+              await endPromise;
             },
           });
-          waiters.set(name, { resolveStart, resolveEnd, rejectEnd });
-        };
+        }
 
-        for (const name of conceptsForExtensions(extensions)) makeSub(name);
-
-        // The `onEvent` hook drives the subtask states.
-        const handleEvent = (name, state, reason) => {
-          makeSub(name);
+        // Drive the subtask promises from CFN events. Fire-and-
+        // forget the deploy in parallel — deployStack is now a
+        // real async function so the event loop stays free for
+        // listr2 to animate spinners between poll ticks.
+        const handleEvent = (name, status, reason) => {
           const w = waiters.get(name);
           if (!w) return;
-          if (state === 'in_progress') w.resolveStart();
-          else if (state === 'complete') { w.resolveStart(); w.resolveEnd(); }
-          else if (state === 'failed') {
+          if (status === 'in_progress') w.resolveStart();
+          else if (status === 'complete') { w.resolveStart(); w.resolveEnd(); }
+          else if (status === 'failed') {
             w.resolveStart();
             w.rejectEnd(new Error(`${name} failed: ${reason}`));
           }
         };
 
-        // deployStack is CPU-synchronous (it busy-waits on a CFN
-        // poll loop), so we hand it to setImmediate to release the
-        // event loop. That lets listr2 paint the subtasks and lets
-        // the onEvent callback drive them as concepts report back.
-        const deployPromise = new Promise((resolve, reject) => {
-          setImmediate(() => {
-            try {
-              deployLib.deployStack({
-                stackName, region,
-                templateUrl: state.templateUrl,
-                parameters,
-                onEvent: handleEvent,
-              });
-              // A no-op update emits no events — resolve any
-              // subtasks still waiting so they don't hang.
-              for (const w of waiters.values()) {
-                w.resolveStart();
-                w.resolveEnd();
-              }
-              resolve();
-            } catch (err) {
-              for (const w of waiters.values()) w.rejectEnd(err);
-              reject(err);
-            }
-          });
+        const deployPromise = deployLib.deployStack({
+          stackName, region,
+          templateUrl: state.templateUrl,
+          parameters,
+          onEvent: handleEvent,
+        }).then(() => {
+          // A no-op update emits no events for our concepts — make
+          // sure every subtask completes so they don't hang.
+          for (const w of waiters.values()) {
+            w.resolveStart();
+            w.resolveEnd();
+          }
+        }, (err) => {
+          for (const w of waiters.values()) w.rejectEnd(err);
+          throw err;
         });
 
-        // Attach an invisible awaiter subtask that gates the parent
-        // task on the real deploy promise. Without it listr2 would
-        // resolve this task as soon as the concept subtasks all
-        // reach 'complete', which can happen slightly before
-        // deployStack returns.
-        const subtasks = [...sub.values()];
+        // Append a hidden gating task so the parent's ✓ only lands
+        // after deployStack actually returns, not just when the
+        // concept subtasks all resolve.
         subtasks.push({
-          title: 'Wait for CloudFormation',
+          title: 'Finalizing',
           run: () => deployPromise,
         });
         return subtasks;

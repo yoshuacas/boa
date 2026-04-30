@@ -371,7 +371,7 @@ export default async function init(args) {
   const accountIdForBucket = accountId;
   parameters.LambdaS3Bucket =
     deployLib.artifactsBucketName(accountIdForBucket, region);
-  deployLib.deployStack({
+  await deployLib.deployStack({
     stackName: name, region, templateUrl, parameters,
   });
 

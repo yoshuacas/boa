@@ -17,19 +17,11 @@ const LAMBDA_SRC_DIR = join(__dirname, '..', 'templates', 'lambda');
 const ARTIFACTS_BUCKET_PREFIX = 'boa-cli-artifacts';
 
 function sleepMs(ms) {
-  // Synchronous sleep — deploy is a CLI command, we want to block
-  // until the next poll without involving async/await.
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    // busy-wait through a no-op system call so the process stays
-    // responsive to SIGINT without spinning at 100% CPU
-    const remaining = end - Date.now();
-    if (remaining <= 0) break;
-    Atomics.wait(
-      new Int32Array(new SharedArrayBuffer(4)), 0, 0,
-      Math.min(remaining, 250),
-    );
-  }
+  // Non-blocking sleep — the CFN poll loop yields between polls
+  // so listr2's spinner renderer gets the ticks it needs to
+  // animate, and SIGINT still unwinds cleanly because we're in
+  // async land.
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function accountIdFromSts() {
@@ -405,7 +397,7 @@ function drainStackEvents(stackName, region, cutoffIso, seenIds, ui) {
 // When `onEvent` is provided, concept-level progress is reported
 // through the callback instead of being printed to stdout. Callers
 // that want the default printed UI can omit `onEvent`.
-function waitForTerminalStatus(stackName, region, opts = {}) {
+async function waitForTerminalStatus(stackName, region, opts = {}) {
   const {
     timeoutMs = 30 * 60 * 1000,
     pollIntervalMs = 5_000,
@@ -431,8 +423,7 @@ function waitForTerminalStatus(stackName, region, opts = {}) {
     } catch (err) {
       transientErrors += 1;
       if (transientErrors >= maxTransientErrors) throw err;
-      // Sleep and retry
-      sleepMs(pollIntervalMs);
+      await sleepMs(pollIntervalMs);
       continue;
     }
     if (ui && status !== null) {
@@ -453,21 +444,21 @@ function waitForTerminalStatus(stackName, region, opts = {}) {
     if (Date.now() - started > timeoutMs) {
       throw new Error(`Timed out waiting for stack ${stackName}, last status: ${status}`);
     }
-    sleepMs(pollIntervalMs);
+    await sleepMs(pollIntervalMs);
   }
 }
 
 // Previous `ROLLBACK_COMPLETE` or `REVIEW_IN_PROGRESS` stacks cannot
 // be updated — CFN only allows delete. Clean them up silently so a
 // retried first deploy does not require the user to run teardown.
-function cleanupStalledStack(stackName, region) {
+async function cleanupStalledStack(stackName, region) {
   const status = stackStatus(stackName, region);
   if (status === 'ROLLBACK_COMPLETE' || status === 'REVIEW_IN_PROGRESS') {
     run(
       `aws cloudformation delete-stack --stack-name ${shellEscape(stackName)} ` +
       `--region ${shellEscape(region)}`
     );
-    waitForTerminalStatus(stackName, region, { streamEvents: false });
+    await waitForTerminalStatus(stackName, region, { streamEvents: false });
   }
 }
 
@@ -486,10 +477,10 @@ function formatParams(params) {
 // Pass `onEvent(name, state, reason)` to receive concept-level
 // progress instead of having this function print to stdout. Useful
 // when wrapping the deploy in a listr2 task tree.
-export function deployStack({
+export async function deployStack({
   stackName, region, templateUrl, parameters, onEvent = null,
 }) {
-  cleanupStalledStack(stackName, region);
+  await cleanupStalledStack(stackName, region);
   const exists = stackExists(stackName, region);
   const verb = exists ? 'update-stack' : 'create-stack';
   const paramStr = formatParams(parameters);
@@ -512,15 +503,15 @@ export function deployStack({
     throw err;
   }
 
-  waitForTerminalStatus(stackName, region, { onEvent });
+  await waitForTerminalStatus(stackName, region, { onEvent });
 }
 
-export function deleteStack(stackName, region) {
+export async function deleteStack(stackName, region) {
   run(
     `aws cloudformation delete-stack --stack-name ${shellEscape(stackName)} ` +
     `--region ${shellEscape(region)}`
   );
-  waitForTerminalStatus(stackName, region);
+  await waitForTerminalStatus(stackName, region);
 }
 
 // Stage the Lambda source into the project's build dir, overlaying

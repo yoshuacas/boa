@@ -164,7 +164,7 @@ export default async function teardown(_args) {
   // 10. Delete CloudFormation stack
   console.log('');
   console.log(`Deleting CloudFormation stack '${stackName}'...`);
-  deployLib.deleteStack(stackName, region);
+  await deployLib.deleteStack(stackName, region);
   ok('Stack deleted');
 
   // 11-13. Delete retained resources
