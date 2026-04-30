@@ -14,6 +14,7 @@ import { ensureLambdaDepsInstalled } from '../lib/lambda-deps.mjs';
 import { getPinnedPgrestLambdaVersion } from '../lib/lambda-deps.mjs';
 import { copySkill } from '../lib/skill.mjs';
 import { bootstrapBetterAuthSchema } from '../lib/auth-schema.mjs';
+import { runTasks, heading, warn, summary, blank, color, sym } from '../lib/ui.mjs';
 
 export function needsMigrationWarning(cfg) {
   const extensions = cfg.extensions || [];
@@ -93,35 +94,35 @@ export function buildDeployConfig(cfg, outputs, extensions) {
   return result;
 }
 
-export default async function deploy(_args, opts = {}) {
-  // 1. Load config (exits if missing)
-  const cfg = config.requireConfig();
+// Concepts the stack-progress UI can report on. Listed up-front so
+// the task tree shows them in a stable order (pending -> running ->
+// done) as CloudFormation events arrive, rather than popping in
+// only when they first appear. Keyed by extension so we don't
+// surface concepts that won't participate in this deploy.
+function conceptsForExtensions(extensions) {
+  const base = ['Database', 'File storage', 'API', 'Firewall'];
+  if (extensions.includes('alb')) base.push('Load balancer');
+  return base;
+}
 
-  // 2. Read stack name and region
+export default async function deploy(_args, opts = {}) {
+  const cfg = config.requireConfig();
   const { stackName, region } = cfg;
 
-  // 3. Print header
-  console.log(
-    `Deploying stack '${stackName}' in region '${region}'...`
-  );
-  console.log('');
+  heading(`Deploying ${color.bold(stackName)} to ${region}`);
+  blank();
 
-  // Warn if API URL will change
   const migration = needsMigrationWarning(cfg);
   if (migration) {
-    console.log(`  ! ${migration}`);
-    console.log(
-      '    Your API URL will change. Update your frontend config after deploy.'
-    );
-    console.log('');
+    warn(migration);
+    warn('Your API URL will change. Update your frontend config after deploy.');
+    blank();
   }
 
-  // 4. Legacy ALB detection — must happen BEFORE resolveTemplate()
+  // Legacy ALB detection — MUST happen before resolveTemplate().
   const extensions = cfg.extensions || [];
   if (cfg.alb && !extensions.includes('alb')) {
-    console.log(
-      '  Adding alb to extensions for explicit tracking.'
-    );
+    warn('Adding alb to extensions for explicit tracking.');
     const merged = mergeTemplate(['alb']);
     mkdirSync(join(process.cwd(), '.boa'), { recursive: true });
     writeFileSync(
@@ -130,87 +131,184 @@ export default async function deploy(_args, opts = {}) {
     extensions.push('alb');
   }
 
-  // 5. Ensure lambda dependencies match the pinned pgrest-lambda version
-  ensureLambdaDepsInstalled();
-
-  // 6. Package Lambda + template and upload artifacts
-  console.log('Packaging Lambda...');
   const templatePath = resolveTemplate(process.cwd());
-  const { lambdaKey, accountId } = deployLib.packageArtifacts({
-    projectDir: process.cwd(),
-    templatePath,
-    region,
-    stackName,
-  });
-  const templateUrl = deployLib.uploadTemplate({
-    templatePath,
-    bucket: deployLib.artifactsBucketName(accountId, region),
-    region,
-    stackName,
-  });
 
-  console.log('');
+  // Shared state across tasks. Using a single object so each task
+  // can hand the next what it produced (lambdaKey, outputs, ...).
+  const state = { cfg, stackName, region, extensions, templatePath };
 
-  // 7. Deploy CloudFormation stack
-  console.log('Deploying...');
-  const parameters = {
-    ProjectName: stackName,
-    LambdaS3Bucket: deployLib.artifactsBucketName(accountId, region),
-    LambdaS3Key: lambdaKey,
-  };
-  if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
-    // CloudFormation CommaDelimitedList wants a single string here
-    parameters.AllowedOrigins = cfg.allowedOrigins.join(',');
-  }
-  if (cfg.certificateArn) {
-    parameters.CertificateArn = cfg.certificateArn;
-  }
-  deployLib.deployStack({
-    stackName, region, templateUrl, parameters,
-  });
+  await runTasks([
+    {
+      title: 'Check Lambda dependencies',
+      run: () => { ensureLambdaDepsInstalled(); },
+    },
+    {
+      title: 'Package Lambda and upload artifacts',
+      run: async (_ctx, t) => {
+        t.update('packaging and uploading to S3…');
+        const { lambdaKey, accountId } = deployLib.packageArtifacts({
+          projectDir: process.cwd(),
+          templatePath,
+          region,
+          stackName,
+        });
+        state.lambdaKey = lambdaKey;
+        state.accountId = accountId;
+        state.templateUrl = deployLib.uploadTemplate({
+          templatePath,
+          bucket: deployLib.artifactsBucketName(accountId, region),
+          region,
+          stackName,
+        });
+      },
+    },
+    {
+      title: 'Deploy stack',
+      run: async (_ctx, parent) => {
+        const parameters = {
+          ProjectName: stackName,
+          LambdaS3Bucket: deployLib.artifactsBucketName(state.accountId, region),
+          LambdaS3Key: state.lambdaKey,
+        };
+        if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
+          parameters.AllowedOrigins = cfg.allowedOrigins.join(',');
+        }
+        if (cfg.certificateArn) {
+          parameters.CertificateArn = cfg.certificateArn;
+        }
 
-  // 8. Extract fresh CloudFormation outputs
-  console.log('');
-  console.log('Updating configuration...');
-  const outputs = aws.cfnDescribeStacks(stackName, region);
+        // Create listr2 subtasks lazily as concepts arrive. We pre-
+        // allocate tasks for the known concepts so they show up in
+        // a stable order as CloudFormation events stream in.
+        const sub = new Map();
+        const waiters = new Map();
 
-  // 8b. Keep better-auth's private schema present after deploys.
-  const dsqlEndpoint = getOutputValue(outputs, 'DsqlEndpoint');
-  if ((cfg.authProvider || 'better-auth') === 'better-auth') {
-    console.log('Creating auth tables...');
-    bootstrapBetterAuthSchema(dsqlEndpoint, region);
-  }
+        const makeSub = (name) => {
+          if (sub.has(name)) return;
+          let resolveStart;
+          const startPromise = new Promise((r) => { resolveStart = r; });
+          let resolveEnd, rejectEnd;
+          const endPromise = new Promise((res, rej) => {
+            resolveEnd = res; rejectEnd = rej;
+          });
+          sub.set(name, {
+            title: name,
+            run: async () => {
+              await startPromise;    // wait until we see the concept go in_progress
+              await endPromise;      // wait for it to complete or fail
+            },
+          });
+          waiters.set(name, { resolveStart, resolveEnd, rejectEnd });
+        };
+
+        for (const name of conceptsForExtensions(extensions)) makeSub(name);
+
+        // The `onEvent` hook drives the subtask states.
+        const handleEvent = (name, state, reason) => {
+          makeSub(name);
+          const w = waiters.get(name);
+          if (!w) return;
+          if (state === 'in_progress') w.resolveStart();
+          else if (state === 'complete') { w.resolveStart(); w.resolveEnd(); }
+          else if (state === 'failed') {
+            w.resolveStart();
+            w.rejectEnd(new Error(`${name} failed: ${reason}`));
+          }
+        };
+
+        // deployStack is CPU-synchronous (it busy-waits on a CFN
+        // poll loop), so we hand it to setImmediate to release the
+        // event loop. That lets listr2 paint the subtasks and lets
+        // the onEvent callback drive them as concepts report back.
+        const deployPromise = new Promise((resolve, reject) => {
+          setImmediate(() => {
+            try {
+              deployLib.deployStack({
+                stackName, region,
+                templateUrl: state.templateUrl,
+                parameters,
+                onEvent: handleEvent,
+              });
+              // A no-op update emits no events — resolve any
+              // subtasks still waiting so they don't hang.
+              for (const w of waiters.values()) {
+                w.resolveStart();
+                w.resolveEnd();
+              }
+              resolve();
+            } catch (err) {
+              for (const w of waiters.values()) w.rejectEnd(err);
+              reject(err);
+            }
+          });
+        });
+
+        // Attach an invisible awaiter subtask that gates the parent
+        // task on the real deploy promise. Without it listr2 would
+        // resolve this task as soon as the concept subtasks all
+        // reach 'complete', which can happen slightly before
+        // deployStack returns.
+        const subtasks = [...sub.values()];
+        subtasks.push({
+          title: 'Wait for CloudFormation',
+          run: () => deployPromise,
+        });
+        return subtasks;
+      },
+    },
+    {
+      title: 'Read stack outputs',
+      run: () => {
+        state.outputs = aws.cfnDescribeStacks(stackName, region);
+      },
+    },
+    {
+      title: 'Ensure auth schema',
+      skip: () => (cfg.authProvider || 'better-auth') !== 'better-auth'
+        ? 'auth provider is not better-auth' : false,
+      run: () => {
+        const dsqlEndpoint = getOutputValue(state.outputs, 'DsqlEndpoint');
+        bootstrapBetterAuthSchema(dsqlEndpoint, region);
+      },
+    },
+    {
+      title: 'Write configuration',
+      skip: () => opts.skipConfigWrite ? 'opts.skipConfigWrite' : false,
+      run: () => {
+        const updated = buildDeployConfig(cfg, state.outputs, extensions);
+        state.updatedConfig = updated;
+        config.write(updated);
+        copySkill(process.cwd());
+      },
+    },
+    {
+      title: 'Apply database migrations',
+      skip: () => {
+        const dir = join(process.cwd(), 'migrations');
+        if (!existsSync(dir)) return 'no migrations/ directory';
+        const sql = readdirSync(dir).filter((f) => f.endsWith('.sql'));
+        return sql.length === 0 ? 'no .sql files' : false;
+      },
+      run: async () => {
+        const migrate = await import('./migrate.mjs');
+        await migrate.default([]);
+      },
+    },
+  ]);
 
   if (opts.skipConfigWrite) {
-    return outputs;
+    return state.outputs;
   }
 
-  // 9. Build config — preserve keys and accountId
-  const updatedConfig = buildDeployConfig(
-    cfg, outputs, extensions
-  );
-  config.write(updatedConfig);
-
-  // Refresh bundled skill from CLI
-  copySkill(process.cwd());
-
-  console.log('');
-  console.log(
-    'Deploy complete. Configuration updated at .boa/config.json'
-  );
-  console.log(`API URL: ${updatedConfig.apiUrl}`);
-
-  // 10. Run migrations if any .sql files exist
-  const migrationsDir = join(process.cwd(), 'migrations');
-  if (existsSync(migrationsDir)) {
-    const sqlFiles = readdirSync(migrationsDir).filter(
-      (f) => f.endsWith('.sql')
-    );
-    if (sqlFiles.length > 0) {
-      console.log('');
-      console.log('Running database migrations...');
-      const migrate = await import('./migrate.mjs');
-      await migrate.default([]);
-    }
-  }
+  const c = state.updatedConfig;
+  summary('Deployment complete', [
+    ['API URL', c.apiUrl],
+    ['Stack', c.stackName],
+    ['Region', c.region],
+    ['Auth', c.authProvider],
+    ['Storage', c.bucketName],
+    ['Database', c.dsqlEndpoint],
+  ]);
+  blank();
+  console.log(`  ${sym.arrow} Next: add tables in ${color.cyan('migrations/')} and policies in ${color.cyan('policies/')}, then run ${color.bold('boa deploy')}.`);
 }

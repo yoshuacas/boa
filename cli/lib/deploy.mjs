@@ -127,9 +127,9 @@ export function uploadLambdaZip({
   } catch {
     // fall through — needs upload
   }
-  run(
+  exec(
     `aws s3 cp ${shellEscape(zipPath)} s3://${bucket}/${key} ` +
-    `--region ${shellEscape(region)}`
+    `--region ${shellEscape(region)} --quiet`
   );
   return { bucket, key, uploaded: true };
 }
@@ -143,9 +143,9 @@ export function uploadTemplate({
   const body = readFileSync(templatePath, 'utf8');
   const hash = createHash('sha256').update(body).digest('hex');
   const key = `templates/${hash}.yaml`;
-  run(
+  exec(
     `aws s3 cp ${shellEscape(templatePath)} s3://${bucket}/${key} ` +
-    `--region ${shellEscape(region)}`
+    `--region ${shellEscape(region)} --quiet`
   );
   return `https://s3.${region}.amazonaws.com/${bucket}/${key}`;
 }
@@ -324,6 +324,50 @@ function makeProgressUI() {
   return { recordEvent };
 }
 
+// Variant of makeProgressUI that forwards concept state transitions
+// to an external callback instead of rendering to stdout. Used when
+// the deploy is wrapped in a listr2 task tree — the callback mutates
+// listr2 subtasks so the two renderers don't fight for the terminal.
+function makeCallbackUI(onEvent) {
+  const concepts = new Map();
+
+  function stateOf(c) {
+    if (c.failureReason) return 'failed';
+    if (c.completed) return 'complete';
+    return 'in_progress';
+  }
+
+  function recordEvent(logicalId, status, reason) {
+    const name = CONCEPT_OF[logicalId];
+    if (!name) return false;
+    let c = concepts.get(name);
+    if (!c) {
+      c = { ids: new Map(), completed: false, failureReason: null, lastState: null };
+      concepts.set(name, c);
+    }
+    c.ids.set(logicalId, status);
+    if (status.endsWith('_FAILED') || status === 'ROLLBACK_IN_PROGRESS') {
+      c.failureReason = c.failureReason || reason || status;
+    }
+    if (!c.completed && !c.failureReason) {
+      const statuses = [...c.ids.values()];
+      const isCompleteStatus = (s) =>
+        s === 'CREATE_COMPLETE' || s === 'UPDATE_COMPLETE';
+      if (statuses.length > 0 && statuses.every(isCompleteStatus)) {
+        c.completed = true;
+      }
+    }
+    const state = stateOf(c);
+    if (state !== c.lastState) {
+      c.lastState = state;
+      try { onEvent(name, state, c.failureReason); } catch { /* ignore */ }
+    }
+    return true;
+  }
+
+  return { recordEvent };
+}
+
 // Stream per-resource events to the console so the user sees progress
 // during the long CloudFormation phase. Each event is seen once; the
 // progress UI folds related resources into product concepts.
@@ -357,17 +401,26 @@ function drainStackEvents(stackName, region, cutoffIso, seenIds, ui) {
 // errors that kill `aws cloudformation wait` (intermittent endpoint
 // failures, throttling). Retries up to `maxTransientErrors` in a row
 // before giving up; polls every 5 s.
+//
+// When `onEvent` is provided, concept-level progress is reported
+// through the callback instead of being printed to stdout. Callers
+// that want the default printed UI can omit `onEvent`.
 function waitForTerminalStatus(stackName, region, opts = {}) {
   const {
     timeoutMs = 30 * 60 * 1000,
     pollIntervalMs = 5_000,
     maxTransientErrors = 5,
     streamEvents = true,
+    onEvent = null,
   } = opts;
   const started = Date.now();
   const cutoffIso = new Date(started - 1000).toISOString();
   const seenIds = new Set();
-  const ui = streamEvents ? makeProgressUI() : null;
+  const ui = streamEvents
+    ? (onEvent
+      ? makeCallbackUI(onEvent)
+      : makeProgressUI())
+    : null;
   let transientErrors = 0;
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -429,8 +482,12 @@ function formatParams(params) {
 // Create or update the CloudFormation stack, waiting for the operation
 // to complete. Returns when the stack reaches a terminal state; throws
 // on failure so the caller can surface the stack events.
+//
+// Pass `onEvent(name, state, reason)` to receive concept-level
+// progress instead of having this function print to stdout. Useful
+// when wrapping the deploy in a listr2 task tree.
 export function deployStack({
-  stackName, region, templateUrl, parameters,
+  stackName, region, templateUrl, parameters, onEvent = null,
 }) {
   cleanupStalledStack(stackName, region);
   const exists = stackExists(stackName, region);
@@ -455,7 +512,7 @@ export function deployStack({
     throw err;
   }
 
-  waitForTerminalStatus(stackName, region);
+  waitForTerminalStatus(stackName, region, { onEvent });
 }
 
 export function deleteStack(stackName, region) {

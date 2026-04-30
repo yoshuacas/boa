@@ -30,6 +30,9 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "cli-table3": "^0.6.5",
+    "listr2": "^10.2.1",
+    "picocolors": "^1.1.1",
     "yaml": "^2.8.3"
   }
 }

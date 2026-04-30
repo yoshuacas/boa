@@ -2,44 +2,37 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
-import { header } from '../lib/output.mjs';
+import { heading, summary, table, blank, color, warn } from '../lib/ui.mjs';
 
 export default async function status(_args) {
-  // 1. Load config
   const cfg = config.requireConfig();
   const {
     stackName, region, apiUrl, dsqlEndpoint, deployedAt,
   } = cfg;
 
-  // 2. Print header and stack info
-  console.log('');
-  header('BOA Status');
-  console.log('');
-  console.log(`  Stack:       ${stackName}`);
-  console.log(`  Region:      ${region}`);
-  console.log(`  API URL:     ${apiUrl}`);
-  if (cfg.apiGateway) {
-    console.log(
-      `  API Gateway: ${cfg.apiGateway.restApiId}`
-        + ` (stage: ${cfg.apiGateway.stage})`
-    );
-  } else if (cfg.alb) {
-    console.log(`  ALB:         ${cfg.alb.dnsName}`);
-  }
-  console.log(`  Deployed at: ${deployedAt}`);
-  const extensions = cfg.extensions || [];
-  console.log(
-    `  Extensions:  ${extensions.length > 0 ? extensions.join(', ') : '(none)'}`
-  );
+  heading('BOA status');
 
-  // 3-7. Database queries (graceful degradation)
+  const trafficLayer = cfg.apiGateway
+    ? `API Gateway (${cfg.apiGateway.restApiId}, stage ${cfg.apiGateway.stage})`
+    : cfg.alb
+      ? `ALB (${cfg.alb.dnsName})`
+      : '(none)';
+
+  const extensions = cfg.extensions || [];
+  summary(null, [
+    ['Stack', stackName],
+    ['Region', region],
+    ['API URL', apiUrl],
+    ['Traffic', trafficLayer],
+    ['Deployed', deployedAt],
+    ['Extensions', extensions.length > 0 ? extensions.join(', ') : color.dim('(none)')],
+  ]);
+
   try {
     const token = aws.dsqlGenerateAuthToken(dsqlEndpoint, region);
-    const connstr = `host=${dsqlEndpoint} port=5432`
-      + ` dbname=postgres user=admin sslmode=require`;
+    const connstr = `host=${dsqlEndpoint} port=5432 dbname=postgres user=admin sslmode=require`;
     const psqlEnv = { ...process.env, PGPASSWORD: token };
 
-    // 4. Query database tables
     const tablesRaw = aws.exec(
       `psql "${connstr}" -t -A -c `
         + `"SELECT c.relname AS tablename`
@@ -51,22 +44,12 @@ export default async function status(_args) {
         + ` ORDER BY c.relname"`,
       { env: psqlEnv }
     );
+    const tables = tablesRaw ? tablesRaw.split('\n').filter(Boolean) : [];
 
-    const tables = tablesRaw
-      ? tablesRaw.split('\n').filter(Boolean)
-      : [];
+    blank();
+    heading('Tables');
+    table(['Name'], tables.map((t) => [t]));
 
-    console.log('');
-    console.log('Tables:');
-    if (tables.length === 0) {
-      console.log('  (none)');
-    } else {
-      for (const t of tables) {
-        console.log(`  ${t}`);
-      }
-    }
-
-    // 5. Query applied migrations
     let appliedRows = [];
     try {
       const appliedRaw = aws.exec(
@@ -75,57 +58,40 @@ export default async function status(_args) {
           + ` FROM _boa_migrations ORDER BY name"`,
         { env: psqlEnv }
       );
-      if (appliedRaw) {
-        appliedRows = appliedRaw.split('\n').filter(Boolean);
-      }
-    } catch {
-      // _boa_migrations doesn't exist — treat as empty
-    }
+      if (appliedRaw) appliedRows = appliedRaw.split('\n').filter(Boolean);
+    } catch { /* tracking table missing */ }
 
     const appliedNames = new Set();
-    const appliedDisplay = [];
+    const applied = [];
     for (const row of appliedRows) {
       const sep = row.indexOf('|');
       if (sep > 0) {
         const name = row.slice(0, sep);
         const appliedAt = row.slice(sep + 1);
         appliedNames.add(name);
-        appliedDisplay.push({ name, appliedAt });
+        applied.push([name, appliedAt]);
       }
     }
 
-    console.log('');
-    console.log('Applied migrations:');
-    if (appliedDisplay.length === 0) {
-      console.log('  (none)');
-    } else {
-      for (const m of appliedDisplay) {
-        console.log(`  ${m.name}    ${m.appliedAt}`);
-      }
-    }
+    blank();
+    heading('Applied migrations');
+    table(['Name', 'Applied at'], applied);
 
-    // 6. Scan migrations/ for pending files
     const migrationsDir = join(process.cwd(), 'migrations');
     let pending = [];
     if (existsSync(migrationsDir)) {
-      const sqlFiles = readdirSync(migrationsDir)
+      pending = readdirSync(migrationsDir)
         .filter((f) => f.endsWith('.sql'))
-        .sort();
-      pending = sqlFiles.filter((f) => !appliedNames.has(f));
+        .sort()
+        .filter((f) => !appliedNames.has(f));
     }
 
-    console.log('');
-    console.log('Pending migrations:');
-    if (pending.length === 0) {
-      console.log('  (none)');
-    } else {
-      for (const p of pending) {
-        console.log(`  ${p}`);
-      }
-    }
+    blank();
+    heading('Pending migrations');
+    table(['Name'], pending.map((p) => [p]),
+      { emptyMessage: 'none — run `boa deploy` to apply any new .sql files' });
   } catch {
-    // Graceful degradation — database unreachable
-    console.log('');
-    console.log('Database info unavailable (connection failed).');
+    blank();
+    warn('Database info unavailable (connection failed).');
   }
 }

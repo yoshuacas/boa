@@ -5,6 +5,7 @@ import {
 import { join, basename } from 'node:path';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
+import { runTasks, color } from '../lib/ui.mjs';
 
 export function sha256(filePath) {
   const content = readFileSync(filePath);
@@ -14,7 +15,6 @@ export function sha256(filePath) {
 export default async function migrate(args) {
   const dryRun = args.includes('--dry-run');
 
-  // 1. Load config
   const cfg = config.requireConfig();
   const { dsqlEndpoint, region } = cfg;
 
@@ -25,12 +25,9 @@ export default async function migrate(args) {
     process.exit(1);
   }
 
-  // 2. Check for migrations/ directory
   const migrationsDir = join(process.cwd(), 'migrations');
   if (!existsSync(migrationsDir)) {
-    console.log(
-      'No migrations/ directory found. Nothing to migrate.'
-    );
+    console.log(color.dim('No migrations/ directory found. Nothing to migrate.'));
     return;
   }
 
@@ -39,124 +36,103 @@ export default async function migrate(args) {
     .sort();
 
   if (sqlFiles.length === 0) {
-    console.log(
-      'No .sql files in migrations/. Nothing to migrate.'
-    );
+    console.log(color.dim('No .sql files in migrations/. Nothing to migrate.'));
     return;
   }
 
-  console.log(`Found ${sqlFiles.length} migration file(s).`);
-  console.log('');
-
-  // 4. Generate DSQL IAM auth token
   const token = aws.dsqlGenerateAuthToken(dsqlEndpoint, region);
   const connstr = `host=${dsqlEndpoint} port=5432 dbname=postgres user=admin sslmode=require`;
   const psqlEnv = { ...process.env, PGPASSWORD: token };
 
-  // 5. Create tracking table
-  aws.exec(
-    `psql "${connstr}" -q -c "CREATE TABLE IF NOT EXISTS _boa_migrations (name TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ DEFAULT NOW())"`,
-    { env: psqlEnv }
-  );
+  // Build the plan up front so each migration becomes its own task,
+  // decide-once-and-render instead of narrating row-by-row.
+  const tracking = {
+    applied: new Map(),
+    applyCount: 0,
+    skipCount: 0,
+    dryRunCount: 0,
+  };
 
-  // 6. Load applied migrations
-  const appliedRaw = aws.exec(
-    `psql "${connstr}" -t -A -c "SELECT name || '|' || checksum FROM _boa_migrations ORDER BY name"`,
-    { env: psqlEnv }
-  );
-
-  const applied = new Map();
-  if (appliedRaw) {
-    for (const line of appliedRaw.split('\n')) {
-      const sep = line.indexOf('|');
-      if (sep > 0) {
-        applied.set(line.slice(0, sep), line.slice(sep + 1));
-      }
-    }
-  }
-
-  // 7. Apply pending migrations
-  let applyCount = 0;
-  let skipCount = 0;
-  let dryRunCount = 0;
-
-  for (const file of sqlFiles) {
-    const filePath = join(migrationsDir, file);
-    const checksum = sha256(filePath);
-    const storedChecksum = applied.get(file);
-
-    // Already applied — verify checksum
-    if (storedChecksum !== undefined) {
-      if (checksum !== storedChecksum) {
-        console.error(
-          `  [ERROR] ${file} -- file modified after being applied`
-        );
-        console.error(
-          'Never edit an applied migration. Write a new migration to fix the issue.'
-        );
-        process.exit(1);
-      }
-      console.log(`  [skip] ${file}`);
-      skipCount++;
-      continue;
-    }
-
-    // Dry run — show what would run
-    if (dryRun) {
-      console.log(`  [dry-run] ${file}`);
-      dryRunCount++;
-      continue;
-    }
-
-    // Apply migration
-    console.log(`  [run]  ${file} ...`);
-    try {
-      aws.exec(`psql "${connstr}" -q -v ON_ERROR_STOP=1 -f "${filePath}"`, {
-        env: psqlEnv,
-      });
-    } catch {
-      console.error(`  [FAIL] ${file}`);
-      console.error('');
-      console.error(
-        "Migration failed. Fix the issue and run 'boa migrate' again."
-      );
-      console.error(
-        'Migrations that were already applied before this run are safe.'
-      );
-      process.exit(1);
-    }
-
-    // Record migration (use dollar-quoting to prevent SQL injection from filenames)
-    const safeName = file.replace(/'/g, "''");
-    const safeChecksum = checksum.replace(/'/g, "''");
-    aws.exec(
-      `psql "${connstr}" -q -c "INSERT INTO _boa_migrations (name, checksum) VALUES ('${safeName}', '${safeChecksum}')"`,
-      { env: psqlEnv }
-    );
-    console.log(`  [done] ${file}`);
-    applyCount++;
-  }
-
-  // 8. Refresh PostgREST schema cache
-  if (applyCount > 0) {
-    const { apiUrl, serviceRoleKey } = cfg;
-    if (apiUrl && serviceRoleKey) {
-      console.log('');
-      console.log('Refreshing PostgREST schema cache...');
-      try {
+  await runTasks([
+    {
+      title: 'Load migration history',
+      run: () => {
         aws.exec(
-          `curl -s -X GET "${apiUrl}/rest/v1/_refresh" -H "apikey: ${serviceRoleKey}" -o /dev/null -w ""`
+          `psql "${connstr}" -q -c "CREATE TABLE IF NOT EXISTS _boa_migrations (name TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ DEFAULT NOW())"`,
+          { env: psqlEnv }
         );
-        console.log('  [OK] Schema cache refreshed');
-      } catch {
-        // Non-fatal — cache refresh is best-effort
-      }
-    }
-  }
+        const appliedRaw = aws.exec(
+          `psql "${connstr}" -t -A -c "SELECT name || '|' || checksum FROM _boa_migrations ORDER BY name"`,
+          { env: psqlEnv }
+        );
+        if (appliedRaw) {
+          for (const line of appliedRaw.split('\n')) {
+            const sep = line.indexOf('|');
+            if (sep > 0) {
+              tracking.applied.set(line.slice(0, sep), line.slice(sep + 1));
+            }
+          }
+        }
+      },
+    },
+    {
+      title: `Apply ${sqlFiles.length} migration(s)`,
+      run: () => sqlFiles.map((file) => ({
+        title: file,
+        skip: () => {
+          const checksum = sha256(join(migrationsDir, file));
+          const stored = tracking.applied.get(file);
+          if (stored === undefined) return false;
+          if (stored !== checksum) {
+            throw new Error(
+              `${file} was modified after being applied — never edit an applied migration; write a new one to fix the issue.`
+            );
+          }
+          tracking.skipCount++;
+          return 'already applied';
+        },
+        run: () => {
+          const filePath = join(migrationsDir, file);
+          const checksum = sha256(filePath);
 
-  // 9. Summary
-  console.log('');
-  const parts = [`${applyCount} applied`, `${skipCount} skipped`];
-  if (dryRunCount > 0) parts.push(`${dryRunCount} would apply`);
-  console.log(`Migration complete: ${parts.join(', ')}.`);
+          if (dryRun) {
+            tracking.dryRunCount++;
+            return;
+          }
+
+          aws.exec(`psql "${connstr}" -q -v ON_ERROR_STOP=1 -f "${filePath}"`, {
+            env: psqlEnv,
+          });
+          const safeName = file.replace(/'/g, "''");
+          const safeChecksum = checksum.replace(/'/g, "''");
+          aws.exec(
+            `psql "${connstr}" -q -c "INSERT INTO _boa_migrations (name, checksum) VALUES ('${safeName}', '${safeChecksum}')"`,
+            { env: psqlEnv }
+          );
+          tracking.applyCount++;
+        },
+      })),
+    },
+    {
+      title: 'Refresh PostgREST schema cache',
+      skip: () => tracking.applyCount === 0
+        ? 'no new migrations applied' : false,
+      run: () => {
+        const { apiUrl, serviceRoleKey } = cfg;
+        if (!apiUrl || !serviceRoleKey) return;
+        try {
+          aws.exec(
+            `curl -s -X GET "${apiUrl}/rest/v1/_refresh" -H "apikey: ${serviceRoleKey}" -o /dev/null -w ""`
+          );
+        } catch { /* best-effort */ }
+      },
+    },
+  ]);
+
+  const parts = [
+    `${tracking.applyCount} applied`,
+    `${tracking.skipCount} skipped`,
+  ];
+  if (tracking.dryRunCount > 0) parts.push(`${tracking.dryRunCount} would apply`);
+  console.log(color.dim(`Migration complete: ${parts.join(', ')}.`));
 }
