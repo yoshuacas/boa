@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
 import { shellEscape } from '../lib/aws.mjs';
-import * as sam from '../lib/sam.mjs';
+import * as deployLib from '../lib/deploy.mjs';
 import * as config from '../lib/config.mjs';
 import { ok, fail } from '../lib/output.mjs';
 
@@ -164,7 +164,7 @@ export default async function teardown(_args) {
   // 10. Delete CloudFormation stack
   console.log('');
   console.log(`Deleting CloudFormation stack '${stackName}'...`);
-  sam.remove(stackName, region);
+  deployLib.deleteStack(stackName, region);
   ok('Stack deleted');
 
   // 11-13. Delete retained resources

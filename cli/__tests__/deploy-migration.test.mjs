@@ -162,4 +162,72 @@ describe('deploy migration warning', () => {
     assert.equal(result.alb.vpcId, 'vpc-abc123');
     assert.equal(result.apiGateway, undefined);
   });
+
+  it('preserves allowedOrigins from prior config', () => {
+    // Regression: buildDeployConfig used to silently drop
+    // cfg.allowedOrigins, so each `boa deploy` wiped the CORS
+    // allowlist from .boa/config.json and every subsequent deploy
+    // re-deployed the Lambda with no CORS headers.
+    const cfg = {
+      stackName: 'test', region: 'us-east-1',
+      accountId: '123', anonKey: 'k', serviceRoleKey: 'k',
+      allowedOrigins: ['https://app.example.com', 'http://localhost:3000'],
+    };
+    const fakeOutputs = [
+      { OutputKey: 'ApiGatewayUrl', OutputValue: 'https://x.example.com/prod' },
+      { OutputKey: 'RestApiId', OutputValue: 'abc123' },
+      { OutputKey: 'BucketName', OutputValue: 'bucket' },
+      { OutputKey: 'DsqlEndpoint', OutputValue: 'ep' },
+    ];
+
+    const result = buildDeployConfig(cfg, fakeOutputs, []);
+    assert.deepEqual(
+      result.allowedOrigins,
+      ['https://app.example.com', 'http://localhost:3000'],
+      'allowedOrigins must round-trip through buildDeployConfig',
+    );
+  });
+
+  it('preserves certificateArn from prior config', () => {
+    const cfg = {
+      stackName: 'test', region: 'us-east-1',
+      accountId: '123', anonKey: 'k', serviceRoleKey: 'k',
+      certificateArn: 'arn:aws:acm:us-east-1:123:certificate/xyz',
+    };
+    const fakeOutputs = [
+      { OutputKey: 'ApiGatewayUrl', OutputValue: 'https://x.example.com/prod' },
+      { OutputKey: 'RestApiId', OutputValue: 'abc123' },
+      { OutputKey: 'BucketName', OutputValue: 'bucket' },
+      { OutputKey: 'DsqlEndpoint', OutputValue: 'ep' },
+    ];
+
+    const result = buildDeployConfig(cfg, fakeOutputs, []);
+    assert.equal(
+      result.certificateArn,
+      'arn:aws:acm:us-east-1:123:certificate/xyz',
+      'certificateArn must round-trip through buildDeployConfig',
+    );
+  });
+
+  it('omits allowedOrigins when absent or empty', () => {
+    const cfg = {
+      stackName: 'test', region: 'us-east-1',
+      accountId: '123', anonKey: 'k', serviceRoleKey: 'k',
+    };
+    const fakeOutputs = [
+      { OutputKey: 'ApiGatewayUrl', OutputValue: 'https://x/prod' },
+      { OutputKey: 'BucketName', OutputValue: 'bucket' },
+      { OutputKey: 'DsqlEndpoint', OutputValue: 'ep' },
+    ];
+    const result = buildDeployConfig(cfg, fakeOutputs, []);
+    assert.equal(result.allowedOrigins, undefined);
+
+    const result2 = buildDeployConfig(
+      { ...cfg, allowedOrigins: [] }, fakeOutputs, [],
+    );
+    assert.equal(
+      result2.allowedOrigins, undefined,
+      'empty array should not round-trip as an empty array',
+    );
+  });
 });

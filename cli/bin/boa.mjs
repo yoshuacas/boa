@@ -52,4 +52,15 @@ if (!COMMANDS.includes(command)) {
 }
 
 const mod = await import(`../commands/${command}.mjs`);
-await mod.default(args);
+try {
+  await mod.default(args);
+} catch (err) {
+  if (err && err.isDeployFailure) {
+    console.error('');
+    console.error(`Deploy failed. CloudFormation rolled the stack back to ${err.stackStatus}.`);
+    console.error('Some resources have deletion protection and may still exist in your account.');
+    console.error("Run 'boa teardown' to clean up before retrying.");
+    exit(1);
+  }
+  throw err;
+}

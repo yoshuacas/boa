@@ -50,32 +50,35 @@ export function mergeTemplate(extensions) {
     const fragment = parseDocument(
       readFileSync(entry.fragmentPath, 'utf8'),
     );
-    const fragResources = fragment.get('Resources', true);
-    if (fragResources) {
-      const baseResources = doc.get('Resources', true);
-      for (const item of fragResources.items) {
-        baseResources.add(item);
-      }
-    }
-    const fragOutputs = fragment.get('Outputs', true);
-    if (fragOutputs) {
-      const baseOutputs = doc.get('Outputs', true);
-      for (const item of fragOutputs.items) {
-        baseOutputs.add(item);
-      }
+    for (const section of ['Parameters', 'Resources', 'Outputs']) {
+      const frag = fragment.get(section, true);
+      if (!frag) continue;
+      const base = doc.get(section, true);
+      for (const item of frag.items) base.add(item);
     }
   }
 
   if (active.includes('alb')) {
+    // ALB replaces the API Gateway stack. Strip every API Gateway
+    // resource the base template installs so the merged stack ends
+    // up with only the ALB traffic layer.
     const baseResources = doc.get('Resources', true);
-    baseResources.delete('Api');
-    baseResources.delete('WafApiGatewayAssociation');
+    const apiGatewayResources = [
+      'Api',
+      'ApiProxyPlusResource',
+      'ApiRootMethod',
+      'ApiProxyPlusMethod',
+      'ApiDeployment',
+      'ApiprodStage',
+      'ApiFunctionProxyRootPermissionprod',
+      'ApiFunctionProxyPlusPermissionprod',
+      'WafApiGatewayAssociation',
+    ];
+    for (const r of apiGatewayResources) baseResources.delete(r);
 
     const apiProps = doc.getIn(
       ['Resources', 'ApiFunction', 'Properties'], true,
     );
-    apiProps.delete('Events');
-
     apiProps.set(
       'ReservedConcurrentExecutions', doc.createNode(50),
     );

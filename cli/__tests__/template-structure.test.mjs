@@ -14,11 +14,22 @@ const template = readFileSync(TEMPLATE_PATH, 'utf8');
 // API Gateway traffic layer (default)
 // -----------------------------------------------------------
 
-describe('SAM template — API Gateway default', () => {
-  it('contains AWS::Serverless::Api resource', () => {
+describe('CloudFormation template — API Gateway default', () => {
+  it('contains AWS::ApiGateway::RestApi resource', () => {
     assert.ok(
-      template.includes('AWS::Serverless::Api'),
-      'template should contain AWS::Serverless::Api'
+      template.includes('AWS::ApiGateway::RestApi'),
+      'template should contain AWS::ApiGateway::RestApi'
+    );
+  });
+
+  it('does NOT declare the SAM transform', () => {
+    assert.ok(
+      !template.includes('AWS::Serverless-2016-10-31'),
+      'template should not declare the SAM transform'
+    );
+    assert.ok(
+      !template.includes('AWS::Serverless::'),
+      'template should not use any AWS::Serverless::* types'
     );
   });
 
@@ -84,14 +95,18 @@ describe('SAM template — API Gateway default', () => {
     );
   });
 
-  it('ApiFunction has Events with ProxyRoot and ProxyPlus', () => {
+  it('API Gateway exposes root ANY and {proxy+} ANY methods', () => {
     assert.ok(
-      template.includes('ProxyRoot'),
-      'ApiFunction should have ProxyRoot event'
+      template.includes('ApiRootMethod'),
+      'template should have ApiRootMethod for /'
     );
     assert.ok(
-      template.includes('ProxyPlus'),
-      'ApiFunction should have ProxyPlus event'
+      template.includes('ApiProxyPlusMethod'),
+      'template should have ApiProxyPlusMethod for /{proxy+}'
+    );
+    assert.ok(
+      template.includes("PathPart: '{proxy+}'"),
+      'template should define a {proxy+} resource'
     );
   });
 

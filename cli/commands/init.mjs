@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import {
-  existsSync, mkdirSync, readdirSync, cpSync, writeFileSync,
+  existsSync, mkdirSync, readdirSync, writeFileSync,
 } from 'node:fs';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as aws from '../lib/aws.mjs';
-import * as sam from '../lib/sam.mjs';
+import * as deployLib from '../lib/deploy.mjs';
 import * as config from '../lib/config.mjs';
 import { generateKeys } from '../lib/keys.mjs';
 import { ok, header } from '../lib/output.mjs';
@@ -354,27 +354,26 @@ export default async function init(args) {
   // 9. Ensure lambda dependencies match the pinned pgrest-lambda version
   ensureLambdaDepsInstalled();
 
-  // 10. SAM build
-  console.log('Building SAM application...');
-  const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
-  sam.build(TEMPLATE_PATH, buildDir, region);
-
-  // 10. Copy Cedar policies if present
-  const policiesDir = join(process.cwd(), 'policies');
-  if (existsSync(policiesDir)) {
-    const policyFiles = readdirSync(policiesDir);
-    if (policyFiles.length > 0) {
-      const dest = join(buildDir, 'ApiFunction', 'policies');
-      cpSync(policiesDir, dest, { recursive: true });
-    }
-  }
+  // 10. Package Lambda and upload artifacts
+  console.log('Packaging Lambda...');
+  const { lambdaKey, templateUrl } = deployLib.packageArtifacts({
+    projectDir: process.cwd(),
+    templatePath: TEMPLATE_PATH,
+    region,
+    stackName: name,
+  });
 
   console.log('');
 
-  // 11. SAM deploy
+  // 11. Deploy CloudFormation stack
   console.log(`Deploying stack '${name}' to ${region}...`);
-  const builtTemplate = join(buildDir, 'template.yaml');
-  sam.deploy(builtTemplate, name, region);
+  const parameters = { ProjectName: name, LambdaS3Key: lambdaKey };
+  const accountIdForBucket = accountId;
+  parameters.LambdaS3Bucket =
+    deployLib.artifactsBucketName(accountIdForBucket, region);
+  deployLib.deployStack({
+    stackName: name, region, templateUrl, parameters,
+  });
 
   // 12. Extract CloudFormation outputs
   console.log('');

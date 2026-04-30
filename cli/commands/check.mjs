@@ -73,7 +73,7 @@ export default async function check(_args) {
     console.log(`Missing: ${missing.join(' ')}`);
     if (platform === 'macOS') {
       console.log(
-        'Install:  brew install awscli aws-sam-cli node jq libpq' +
+        'Install:  brew install awscli node jq libpq' +
         ' && brew link --force libpq'
       );
     } else {

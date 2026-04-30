@@ -67,11 +67,11 @@ describe('template merging — base (no extensions)', () => {
     );
   });
 
-  it('mergeTemplate([]) result contains AWS::Serverless::Api', () => {
+  it('mergeTemplate([]) result contains AWS::ApiGateway::RestApi', () => {
     const result = mergeTemplate([]);
     assert.ok(
-      result.includes('AWS::Serverless::Api'),
-      'base template should contain AWS::Serverless::Api'
+      result.includes('AWS::ApiGateway::RestApi'),
+      'base template should contain AWS::ApiGateway::RestApi'
     );
   });
 
@@ -117,25 +117,29 @@ describe('template merging — alb extension', () => {
     );
   });
 
-  it('result does NOT contain AWS::Serverless::Api', () => {
+  it('result does NOT contain AWS::ApiGateway::RestApi', () => {
     const result = mergeTemplate(['alb']);
     assert.ok(
-      !result.includes('AWS::Serverless::Api'),
-      'merged template should NOT contain AWS::Serverless::Api'
+      !result.includes('AWS::ApiGateway::RestApi'),
+      'merged template should NOT contain AWS::ApiGateway::RestApi'
     );
   });
 
-  it('ApiFunction does NOT have Events', () => {
+  it('does NOT contain API Gateway wiring after alb merge', () => {
     const result = mergeTemplate(['alb']);
-    const start = result.indexOf('ApiFunction:');
-    assert.ok(start !== -1, 'should contain ApiFunction');
-    const section = result.slice(
-      start, start + 1500
-    );
-    assert.ok(
-      !section.includes('Events:'),
-      'ApiFunction should NOT have Events after alb merge'
-    );
+    for (const r of [
+      'ApiProxyPlusResource',
+      'ApiRootMethod',
+      'ApiProxyPlusMethod',
+      'ApiDeployment',
+      'ApiprodStage',
+      'WafApiGatewayAssociation',
+    ]) {
+      assert.ok(
+        !result.includes(r),
+        `merged template should not contain ${r}`
+      );
+    }
   });
 
   it('ApiFunction has ReservedConcurrentExecutions: 50', () => {

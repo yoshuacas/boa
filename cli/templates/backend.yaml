@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
 Description: BOA - Backend on AWS serverless stack (API Gateway, WAF, Aurora DSQL, Lambda, S3)
 
 Parameters:
@@ -9,6 +8,12 @@ Parameters:
     Default: boa-app
     AllowedPattern: '[a-z0-9\-]+'
     ConstraintDescription: Lowercase alphanumeric characters and hyphens only
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket holding the packaged Lambda zip
+  LambdaS3Key:
+    Type: String
+    Description: S3 key of the packaged Lambda zip
   AllowedOrigins:
     Type: CommaDelimitedList
     Description: >
@@ -18,12 +23,6 @@ Parameters:
 
 Conditions:
   HasAllowedOrigins: !Not [!Equals [!Join ['', !Ref AllowedOrigins], '']]
-
-Globals:
-  Function:
-    Timeout: 30
-    Runtime: nodejs20.x
-    MemorySize: 256
 
 Resources:
   # -------------------------------------------------------
@@ -40,14 +39,99 @@ Resources:
           Value: !Ref ProjectName
 
   # -------------------------------------------------------
+  # Storage — S3 bucket (private, CORS for presigned URLs)
+  # -------------------------------------------------------
+  StorageBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub '${ProjectName}-storage-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration: !If
+        - HasAllowedOrigins
+        - CorsRules:
+            - AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+              AllowedOrigins: !Ref AllowedOrigins
+              MaxAge: 3600
+        - !Ref AWS::NoValue
+
+  # -------------------------------------------------------
+  # Compute — Lambda execution role
+  # -------------------------------------------------------
+  ApiFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DsqlConnect
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                  - dsql:DbConnectAdmin
+                Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
+        # Expanded from the SAM S3CrudPolicy policy template so the
+        # default stack no longer depends on the SAM transform.
+        - PolicyName: StorageBucketCrud
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                  - s3:ListBucketMultipartUploads
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                  - s3:DeleteObject
+                  - s3:DeleteObjectTagging
+                  - s3:DeleteObjectVersion
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:PutObjectTagging
+                  - s3:RestoreObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${StorageBucket}'
+                  - !Sub 'arn:aws:s3:::${StorageBucket}/*'
+
+  # -------------------------------------------------------
   # Compute — Lambda API function
   # -------------------------------------------------------
   ApiFunction:
-    Type: AWS::Serverless::Function
+    Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${ProjectName}-api'
       Handler: index.handler
-      CodeUri: ./lambda/
+      Runtime: nodejs20.x
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt ApiFunctionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref LambdaS3Key
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
@@ -58,42 +142,86 @@ Resources:
           AUTH_PROVIDER: better-auth
           POLICIES_PATH: ./policies
           ALLOWED_ORIGINS: !Join [',', !Ref AllowedOrigins]
-      Events:
-        ProxyRoot:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /
-            Method: ANY
-        ProxyPlus:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /{proxy+}
-            Method: ANY
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dsql:DbConnect
-                - dsql:DbConnectAdmin
-              Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
-        - S3CrudPolicy:
-            BucketName: !Ref StorageBucket
 
   # -------------------------------------------------------
   # Traffic layer — API Gateway REST + WAF
   # -------------------------------------------------------
+  # CORS is handled inside the Lambda (origin-echo against the
+  # ALLOWED_ORIGINS env var) rather than at the API Gateway level.
+  # This lets us validate the request Origin against an allowlist
+  # and avoid returning `Access-Control-Allow-Origin: *`. Empty
+  # allowlist → no CORS headers (same-origin still works).
   Api:
-    Type: AWS::Serverless::Api
+    Type: AWS::ApiGateway::RestApi
     Properties:
       Name: !Sub '${ProjectName}-api'
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  ApiProxyPlusResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: '{proxy+}'
+
+  ApiRootMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !GetAtt Api.RootResourceId
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations'
+
+  ApiProxyPlusMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref ApiProxyPlusResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations'
+
+  # Deployment must depend on every Method the stage exposes so that
+  # CloudFormation does not race the stage past a partial API.
+  ApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - ApiRootMethod
+      - ApiProxyPlusMethod
+    Properties:
+      RestApiId: !Ref Api
+
+  ApiprodStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId: !Ref Api
+      DeploymentId: !Ref ApiDeployment
       StageName: prod
-      # CORS is handled inside the Lambda (origin-echo against the
-      # ALLOWED_ORIGINS env var) rather than at the API Gateway level.
-      # This lets us validate the request Origin against an allowlist
-      # and avoid returning `Access-Control-Allow-Origin: *`. Empty
-      # allowlist → no CORS headers (same-origin still works).
+
+  ApiFunctionProxyRootPermissionprod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/'
+
+  ApiFunctionProxyPlusPermissionprod:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*'
 
   WafWebAcl:
     Type: AWS::WAFv2::WebACL
@@ -134,40 +262,10 @@ Resources:
 
   WafApiGatewayAssociation:
     Type: AWS::WAFv2::WebACLAssociation
-    # The stage resource is created by SAM from the function's Api
-    # events, under the logical name ApiprodStage. The association
-    # must wait for the stage to exist before WAF can attach to it.
     DependsOn: ApiprodStage
     Properties:
       ResourceArn: !Sub 'arn:aws:apigateway:${AWS::Region}::/restapis/${Api}/stages/prod'
       WebACLArn: !GetAtt WafWebAcl.Arn
-
-  # -------------------------------------------------------
-  # Storage — S3 bucket (private, CORS for presigned URLs)
-  # -------------------------------------------------------
-  StorageBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BucketName: !Sub '${ProjectName}-storage-${AWS::AccountId}'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      CorsConfiguration: !If
-        - HasAllowedOrigins
-        - CorsRules:
-            - AllowedHeaders:
-                - '*'
-              AllowedMethods:
-                - GET
-                - PUT
-                - POST
-              AllowedOrigins: !Ref AllowedOrigins
-              MaxAge: 3600
-        - !Ref AWS::NoValue
 
 Outputs:
   ApiGatewayUrl:

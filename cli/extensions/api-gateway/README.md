@@ -1,31 +1,10 @@
 # API Gateway Extension
 
-Adds an API Gateway REST API in front of the Lambda
-Function URL. Use this extension when you need:
+API Gateway REST + WAF is the default traffic layer for every BOA backend. `boa extend api-gateway` is kept as a recognized name for forward compatibility but does not add anything to the stack.
 
-- Rate limiting and throttling
-- AWS WAF integration
-- Usage plans and API keys
-- Custom domain names (with a future custom-domain
-  extension)
+To customize rate limiting, CORS, or WAF rules, edit the relevant resource in `cli/templates/backend.yaml` (or `.boa/template.yaml`) and run `boa deploy`:
 
-## What it adds
+- `WafWebAcl` owns the rate limit (`RateBasedStatement.Limit`) and the AWS-managed IP reputation rule.
+- `ApiFunction.Environment.Variables.ALLOWED_ORIGINS` controls CORS. It is fed by the `AllowedOrigins` stack parameter, which `boa deploy` sets from `cfg.allowedOrigins` in `.boa/config.json`.
 
-- `AWS::Serverless::Api` resource with CORS and gateway
-  responses configured
-- API events on `ApiFunction` (ProxyRoot `/` and
-  ProxyPlus `/{proxy+}`)
-- `ApiGatewayUrl` CloudFormation output
-
-## What it does NOT add
-
-- No Lambda authorizer — pgrest-lambda handles JWT
-  validation internally
-- No additional Lambda functions
-
-## Usage
-
-```sh
-boa extend api-gateway    # Add API Gateway
-boa remove api-gateway    # Remove API Gateway
-```
+See [plugin/docs/API-PATTERNS.md](../../../plugin/docs/API-PATTERNS.md) for how requests flow through the default traffic layer.

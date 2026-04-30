@@ -1,10 +1,10 @@
 import {
-  existsSync, readdirSync, cpSync,
+  existsSync, readdirSync,
   mkdirSync, writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import * as aws from '../lib/aws.mjs';
-import * as sam from '../lib/sam.mjs';
+import * as deployLib from '../lib/deploy.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
 import {
@@ -66,6 +66,13 @@ export function buildDeployConfig(cfg, outputs, extensions) {
     extensions: filtered,
   };
 
+  if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
+    result.allowedOrigins = cfg.allowedOrigins;
+  }
+  if (cfg.certificateArn) {
+    result.certificateArn = cfg.certificateArn;
+  }
+
   if (filtered.includes('alb')) {
     const albUrl = getOutputValue(outputs, 'AlbUrl');
     const albArn = getOutputValue(outputs, 'AlbArn');
@@ -126,36 +133,41 @@ export default async function deploy(_args, opts = {}) {
   // 5. Ensure lambda dependencies match the pinned pgrest-lambda version
   ensureLambdaDepsInstalled();
 
-  // 6. SAM build
-  console.log('Building SAM application...');
-  const buildDir = join(process.cwd(), '.boa', '.aws-sam', 'build');
+  // 6. Package Lambda + template and upload artifacts
+  console.log('Packaging Lambda...');
   const templatePath = resolveTemplate(process.cwd());
-  sam.build(templatePath, buildDir, region);
-
-  // 6. Copy Cedar policies if present
-  const policiesDir = join(process.cwd(), 'policies');
-  if (existsSync(policiesDir)) {
-    const policyFiles = readdirSync(policiesDir);
-    if (policyFiles.length > 0) {
-      const dest = join(buildDir, 'ApiFunction', 'policies');
-      cpSync(policiesDir, dest, { recursive: true });
-    }
-  }
+  const { lambdaKey, accountId } = deployLib.packageArtifacts({
+    projectDir: process.cwd(),
+    templatePath,
+    region,
+    stackName,
+  });
+  const templateUrl = deployLib.uploadTemplate({
+    templatePath,
+    bucket: deployLib.artifactsBucketName(accountId, region),
+    region,
+    stackName,
+  });
 
   console.log('');
 
-  // 7. SAM deploy
+  // 7. Deploy CloudFormation stack
   console.log('Deploying...');
-  const builtTemplate = join(buildDir, 'template.yaml');
-  const extraParams = {};
+  const parameters = {
+    ProjectName: stackName,
+    LambdaS3Bucket: deployLib.artifactsBucketName(accountId, region),
+    LambdaS3Key: lambdaKey,
+  };
   if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
     // CloudFormation CommaDelimitedList wants a single string here
-    extraParams.AllowedOrigins = cfg.allowedOrigins.join(',');
+    parameters.AllowedOrigins = cfg.allowedOrigins.join(',');
   }
   if (cfg.certificateArn) {
-    extraParams.CertificateArn = cfg.certificateArn;
+    parameters.CertificateArn = cfg.certificateArn;
   }
-  sam.deploy(builtTemplate, stackName, region, extraParams);
+  deployLib.deployStack({
+    stackName, region, templateUrl, parameters,
+  });
 
   // 8. Extract fresh CloudFormation outputs
   console.log('');
