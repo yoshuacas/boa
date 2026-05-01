@@ -52,50 +52,32 @@ export default async function teardown(_args) {
     authProvider = userPoolId ? 'cognito' : 'better-auth',
   } = cfg;
 
-  // 3. Print destructive operation warning box
+  // 3. Print destructive operation warning box. Inner width is 62 chars;
+  //    row() pads content to that width so the right-side rail aligns.
+  const BOX_WIDTH = 62;
+  const row = (text) => `║${text.padEnd(BOX_WIDTH, ' ')}║`;
+  const hr = (left, right) => `${left}${'═'.repeat(BOX_WIDTH)}${right}`;
+  const center = (text) => {
+    const pad = Math.max(0, BOX_WIDTH - text.length);
+    const left = Math.floor(pad / 2);
+    return ' '.repeat(left) + text + ' '.repeat(pad - left);
+  };
+
   console.log('');
-  console.log(
-    '╔══════════════════════════════════════════════════════════════╗'
-  );
-  console.log(
-    '║                    DESTRUCTIVE OPERATION                    ║'
-  );
-  console.log(
-    '╠══════════════════════════════════════════════════════════════╣'
-  );
-  console.log(
-    '║  This will PERMANENTLY DESTROY:                             ║'
-  );
-  console.log(
-    '║    • All database tables and data (Aurora DSQL)             ║'
-  );
-  console.log(
-    '║    • All user accounts                                     ║'
-  );
-  console.log(
-    '║    • All uploaded files (S3)                                ║'
-  );
-  console.log(
-    '║    • All Lambda functions and API endpoints                 ║'
-  );
-  console.log(
-    '║                                                             ║'
-  );
-  console.log(
-    '║  This CANNOT be undone.                                     ║'
-  );
-  console.log(
-    '║                                                             ║'
-  );
-  console.log(
-    '║  If you\'re trying to FIX a problem, stop here.             ║'
-  );
-  console.log(
-    '║  Use boa deploy to redeploy, or debug the specific issue.  ║'
-  );
-  console.log(
-    '╚══════════════════════════════════════════════════════════════╝'
-  );
+  console.log(hr('╔', '╗'));
+  console.log(row(center('DESTRUCTIVE OPERATION')));
+  console.log(hr('╠', '╣'));
+  console.log(row('  This will PERMANENTLY DESTROY:'));
+  console.log(row('    • All database tables and data (Aurora DSQL)'));
+  console.log(row('    • All user accounts'));
+  console.log(row('    • All uploaded files (S3)'));
+  console.log(row('    • All Lambda functions and API endpoints'));
+  console.log(row(''));
+  console.log(row('  This CANNOT be undone.'));
+  console.log(row(''));
+  console.log(row('  If you\'re trying to FIX a problem, stop here.'));
+  console.log(row('  Use `boa deploy` to redeploy, or debug the issue.'));
+  console.log(hr('╚', '╝'));
 
   // 4. Print stack details
   console.log('');
