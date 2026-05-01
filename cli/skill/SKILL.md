@@ -96,8 +96,9 @@ The developer described what they want. Create the backend, then build on it.
 4. **Schema** — Write migration files in `migrations/`. See DSQL constraints below and [MIGRATIONS.md](docs/MIGRATIONS.md).
 5. **Policies** — Write access policy files in `policies/`. See [POLICIES.md](docs/POLICIES.md). **Tables without policies will return 403 on all requests.**
 6. **Deploy changes** — Run `boa deploy` (bundles policies and applies migrations)
-7. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
-8. **Verify** — Run `boa verify`
+7. **Verify the access matrix** — Before building any UI, assert your policies enforce what you intended. See [POLICIES.md — Verifying Access Policies](docs/POLICIES.md#verifying-access-policies) for the curl-based matrix template. Skipping this step is the #1 source of silent backend bugs.
+8. **Frontend** — Connect using `@supabase/supabase-js` with `apiUrl` and `anonKey` from `.boa/config.json`
+9. **Verify deployment** — Run `boa verify`
 
 ## Critical Rules
 

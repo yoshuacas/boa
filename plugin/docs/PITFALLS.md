@@ -17,6 +17,11 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 7 | `CREATE INDEX` without `ASYNC` — DSQL requires it | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
 | 8 | Connection exhaustion in Lambda (pool outside handler) | HIGH | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
 | 9 | Missing indexes on foreign-key-style columns | MEDIUM | [DSQL-PATTERNS.md](DSQL-PATTERNS.md) |
+| **Access policies** | | | |
+| A | `resource in PgrestLambda::Table::"x"` in a row-level SELECT/UPDATE/DELETE — throws `PGRST000 — unsupported operator 'in'` at query time. Use a column-based guard like `resource has <unique-col>` instead | HIGH | [POLICIES.md](POLICIES.md) |
+| B | Policy references a column some tables don't have (e.g. `resource.handle == ""`) — the engine's `has`-guard short-circuits safely, but a direct attribute comparison on a missing column surfaces as `42703 column … does not exist` | HIGH | [POLICIES.md](POLICIES.md) |
+| C | Added a column that a policy references without backfilling — existing rows stay `NULL` and the policy silently hides them. `ALTER TABLE ... ADD COLUMN ... DEFAULT <v>` is not allowed on DSQL, so the backfill `UPDATE` must run in the same migration | HIGH | [POLICIES.md](POLICIES.md) |
+| D | Policy change appears not to take effect — the policy cache TTL is 5 minutes. Force a fresh cold start by redeploying, or hit `POST /rest/v1/_refresh` with the service-role key | LOW | [POLICIES.md](POLICIES.md) |
 | **Deployment** | | | |
 | 10 | `AWS_REGION` as Lambda env var (reserved — use `REGION_NAME`) | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 11 | Python Lambda with native dependencies (use Node.js) | HIGH | [SKILL.md](../skills/boa/SKILL.md) |
