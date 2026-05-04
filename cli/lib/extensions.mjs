@@ -6,6 +6,7 @@ import { parseDocument } from 'yaml';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXTENSIONS_DIR = join(__dirname, '..', 'extensions');
 const BASE_TEMPLATE = join(__dirname, '..', 'templates', 'backend.yaml');
+const LAMBDA_DIR = join(__dirname, '..', 'templates', 'lambda');
 
 export function getRegistry() {
   return {
@@ -17,6 +18,10 @@ export function getRegistry() {
     'alb': {
       description: 'ALB + VPC + HTTP listener for long requests or streaming',
       fragmentPath: join(EXTENSIONS_DIR, 'alb', 'fragment.yaml'),
+    },
+    'realtime': {
+      description: 'Realtime channels (postgres_changes, broadcast) via AppSync Events',
+      fragmentPath: join(EXTENSIONS_DIR, 'realtime', 'fragment.yaml'),
     },
   };
 }
@@ -45,6 +50,16 @@ export function mergeTemplate(extensions) {
 
   const doc = parseDocument(baseText);
 
+  // The base template's CodeUri is relative (`./lambda/`) and resolves
+  // against the bundled cli/templates/ dir. When we write the merged
+  // template to `.boa/template.yaml`, the same relative path would
+  // resolve to `.boa/lambda/` and SAM would quietly skip the build.
+  // Rewrite to the absolute path of the bundled lambda directory.
+  doc.setIn(
+    ['Resources', 'ApiFunction', 'Properties', 'CodeUri'],
+    LAMBDA_DIR,
+  );
+
   for (const ext of active) {
     const entry = registry[ext];
     const fragment = parseDocument(
@@ -63,6 +78,26 @@ export function mergeTemplate(extensions) {
       for (const item of fragOutputs.items) {
         baseOutputs.add(item);
       }
+    }
+  }
+
+  if (active.includes('realtime')) {
+    // Inject REALTIME_HTTP_ENDPOINT onto the ApiFunction so the
+    // publisher knows where to POST. The env var is only meaningful
+    // when the AppSync fragment is merged in, so we add it here
+    // rather than in the base template.
+    const envVars = doc.getIn(
+      [
+        'Resources', 'ApiFunction', 'Properties',
+        'Environment', 'Variables',
+      ],
+      true,
+    );
+    if (envVars) {
+      const scalar = doc.createNode({
+        'Fn::GetAtt': ['RealtimeEventApi', 'Dns.Http'],
+      });
+      envVars.set('REALTIME_HTTP_ENDPOINT', scalar);
     }
   }
 

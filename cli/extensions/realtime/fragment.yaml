@@ -1,0 +1,94 @@
+Resources:
+  # ---------------------------------------------------------------
+  # AppSync Events API — WebSocket transport for realtime.
+  # v1 uses API_KEY auth everywhere. M2 swaps subscribe to a Lambda
+  # authorizer that verifies better-auth JWTs + evaluates Cedar.
+  # Publisher (ApiFunction) uses IAM to publish so no long-lived
+  # secret sits in Lambda env.
+  # ---------------------------------------------------------------
+  RealtimeEventApi:
+    Type: AWS::AppSync::Api
+    Properties:
+      Name: !Sub '${ProjectName}-realtime'
+      EventConfig:
+        AuthProviders:
+          - AuthType: API_KEY
+          - AuthType: AWS_IAM
+        ConnectionAuthModes:
+          - AuthType: API_KEY
+        DefaultPublishAuthModes:
+          - AuthType: AWS_IAM
+        DefaultSubscribeAuthModes:
+          - AuthType: API_KEY
+
+  # Subscriber-facing API key. Rotates with the stack; clients read
+  # it from the published config (not a secret — it only grants
+  # channel-subscribe, guarded by the channel-namespace auth modes).
+  RealtimeApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt RealtimeEventApi.ApiId
+      Description: !Sub '${ProjectName} realtime subscriber key'
+
+  # AppSync Events matches channels to namespaces by first path
+  # segment. Two namespaces to cover the v1 channel scheme:
+  #   /db/public/{table}/{op}         → "db"  namespace
+  #   /broadcast/{room}/{event}       → "broadcast" namespace
+  # Publisher is the Lambda (IAM); subscribers use the API key in v1.
+  # M2 swaps subscribe to a JWT Lambda authorizer + Cedar.
+  RealtimeDbNamespace:
+    Type: AWS::AppSync::ChannelNamespace
+    Properties:
+      ApiId: !GetAtt RealtimeEventApi.ApiId
+      Name: db
+      PublishAuthModes:
+        - AuthType: AWS_IAM
+      SubscribeAuthModes:
+        - AuthType: API_KEY
+
+  RealtimeBroadcastNamespace:
+    Type: AWS::AppSync::ChannelNamespace
+    Properties:
+      ApiId: !GetAtt RealtimeEventApi.ApiId
+      Name: broadcast
+      # Broadcast v1: API_KEY for both sides. M4 swaps publish to
+      # the JWT authorizer once the Cedar action lands.
+      PublishAuthModes:
+        - AuthType: API_KEY
+      SubscribeAuthModes:
+        - AuthType: API_KEY
+
+  # Grant the existing ApiFunction permission to publish events.
+  # SAM merges this policy onto the function's execution role.
+  RealtimePublishPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${ProjectName}-realtime-publish'
+      Roles:
+        - !Ref ApiFunctionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - appsync:EventConnect
+              - appsync:EventPublish
+              - appsync:EventSubscribe
+            Resource: !Sub 'arn:aws:appsync:${AWS::Region}:${AWS::AccountId}:apis/${RealtimeEventApi.ApiId}/*'
+
+Outputs:
+  RealtimeHttpEndpoint:
+    Description: AppSync Events HTTP endpoint (Lambda publishes here)
+    Value: !GetAtt RealtimeEventApi.Dns.Http
+
+  RealtimeWebsocketEndpoint:
+    Description: AppSync Events realtime WebSocket endpoint
+    Value: !GetAtt RealtimeEventApi.Dns.Realtime
+
+  RealtimeApiId:
+    Description: AppSync Events API ID
+    Value: !GetAtt RealtimeEventApi.ApiId
+
+  RealtimeApiKey:
+    Description: AppSync subscriber API key (public, included in client config)
+    Value: !GetAtt RealtimeApiKey.ApiKey

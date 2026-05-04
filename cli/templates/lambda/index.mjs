@@ -1,5 +1,6 @@
 import { createPgrest } from 'pgrest-lambda';
 import { handler as uploadHandler } from './presigned-upload.mjs';
+import { publishFromResponse } from './realtime-publisher.mjs';
 
 function getStorageOpenApiPaths(baseUrl) {
   const storageUrl = baseUrl.replace(/\/rest\/v1\/?$/, '');
@@ -202,5 +203,11 @@ export async function handler(rawEvent) {
   }
 
   // Auth + REST engine (PostgREST-compatible API, GoTrue-compatible auth)
-  return addStatusDescription(await pgrest.handler(event), isAlb);
+  const response = await pgrest.handler(event);
+
+  // Fire-and-forget publish of DB mutations to AppSync Events.
+  // No-op when REALTIME_HTTP_ENDPOINT is unset (extension disabled).
+  await publishFromResponse(event, response);
+
+  return addStatusDescription(response, isAlb);
 }
