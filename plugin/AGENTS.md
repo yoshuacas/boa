@@ -30,6 +30,9 @@ When building a backend, deploying to AWS, setting up auth, creating APIs, or ad
 
 ALB is available as an extension (`boa extend alb`) for long-running requests, streaming, or high throughput.
 
+## BOA Studio
+BOA Studio is a web UI for managing your backend. Deploy it with `boa studio deploy --repo <url> --token <pat>`. Update with `boa studio update`. Remove with `boa studio remove`.
+
 ## References
 - Full skill: `skills/boa/SKILL.md`
 - Pitfalls: `docs/PITFALLS.md`
