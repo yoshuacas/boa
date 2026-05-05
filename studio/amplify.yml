@@ -1,0 +1,28 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        # Amplify branch env vars are available during build but not at Lambda
+        # runtime by default. Writing them to .env.production makes Next.js
+        # include them in the SSR Lambda so server-side code can read them.
+        - env | grep -e STUDIO_ >> .env.production
+        # The SSR Lambda's execution role (auto-created by Amplify) doesn't have
+        # SSM permissions. Fetch the BOA config at build time using the Amplify
+        # service role and embed it so the Lambda doesn't need SSM at runtime.
+        # Single-quote the value so dotenv preserves the JSON double-quotes as-is.
+        - |
+          BOA_CFG=$(aws ssm get-parameter --name "$STUDIO_SSM_CONFIG_PATH" --region "${STUDIO_COGNITO_REGION:-us-east-1}" --query Parameter.Value --output text | tr -d '\n')
+          printf "STUDIO_BOA_CONFIG='%s'\n" "$BOA_CFG" >> .env.production
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
