@@ -34,11 +34,7 @@ async function deploy(args) {
 
   if (!opts.repo) {
     console.error('Error: --repo <url> is required');
-    console.error('  Example: boa studio deploy --repo https://github.com/org/repo --token ghp_...');
-    process.exit(1);
-  }
-  if (!opts.token) {
-    console.error('Error: --token <github-pat> is required');
+    console.error('  Example: boa studio deploy --repo https://github.com/org/repo');
     process.exit(1);
   }
 
@@ -77,7 +73,7 @@ async function deploy(args) {
           `SessionSecret=${sessionSecret}`,
           `AccessToken=${accessToken}`,
           `GitHubRepo=${opts.repo}`,
-          `GitHubToken=${opts.token}`,
+          `GitHubToken=${opts.token || ''}`,
           `GitBranch=${branch}`,
         ].map((p) => aws.shellEscape(p)).join(' ');
 
@@ -144,7 +140,11 @@ async function deploy(args) {
     ['Branch', branch],
   ]);
   blank();
-  console.log(`  ${sym.arrow} Build in progress. Studio will be live at the URL above in a few minutes.`);
+  if (opts.token) {
+    console.log(`  ${sym.arrow} Build in progress. Studio will be live at the URL above in a few minutes.`);
+  } else {
+    console.log(`  ${sym.arrow} Auto-build is disabled (no GitHub token). Run 'boa studio update' to trigger the first build.`);
+  }
   if (authMode === 'token') {
     blank();
     console.log(`  ${sym.info} Your access token is stored in SSM at /${stackName}/studio-config.`);
@@ -293,7 +293,7 @@ Subcommands:
 
 Options for deploy:
   --repo <url>           GitHub repo URL (required)
-  --token <pat>          GitHub personal access token (required)
+  --token <pat>          GitHub personal access token (optional for public repos)
   --branch <branch>      Branch to deploy (default: main)
   --auth-mode <mode>     Auth mode: token or cognito (default: token)
   --session-secret <s>   Session cookie secret (auto-generated if omitted)

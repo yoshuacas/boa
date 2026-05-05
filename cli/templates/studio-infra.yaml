@@ -36,8 +36,9 @@ Parameters:
 
   GitHubToken:
     Type: String
-    Description: GitHub personal access token with repo scope.
+    Description: GitHub personal access token with repo scope. Optional for public repos — omit to disable auto-build (use 'boa studio update' to trigger rebuilds manually).
     NoEcho: true
+    Default: ''
 
   GitBranch:
     Type: String
@@ -58,8 +59,9 @@ Parameters:
   # ComputeRoleArn (SSR Lambda execution role) IS set via CloudFormation below.
 
 Conditions:
-  IsTokenMode:   !Equals [!Ref AuthMode, 'token']
-  IsCognitoMode: !Equals [!Ref AuthMode, 'cognito']
+  IsTokenMode:      !Equals [!Ref AuthMode, 'token']
+  IsCognitoMode:    !Equals [!Ref AuthMode, 'cognito']
+  HasGitHubToken:   !Not [!Equals [!Ref GitHubToken, '']]
 
 Resources:
 
@@ -184,7 +186,7 @@ Resources:
     Properties:
       Name: !Sub 'boa-studio-${BoaStackName}'
       Repository: !Ref GitHubRepo
-      OauthToken: !Ref GitHubToken
+      OauthToken: !If [HasGitHubToken, !Ref GitHubToken, !Ref 'AWS::NoValue']
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       # ComputeRoleArn sets the SSR Lambda execution role (separate from the
       # build service role). Without this, Amplify creates an execution role
@@ -205,7 +207,7 @@ Resources:
     Properties:
       AppId: !GetAtt AmplifyApp.AppId
       BranchName: !Ref GitBranch
-      EnableAutoBuild: true
+      EnableAutoBuild: !If [HasGitHubToken, true, false]
       # These env vars are available at both build time AND SSR Lambda runtime.
       # Unlike amplify.yml env.secrets (build-only), branch-level env vars are
       # injected into the WEB_COMPUTE Lambda execution environment.
