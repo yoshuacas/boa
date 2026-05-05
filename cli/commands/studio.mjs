@@ -73,7 +73,7 @@ async function deploy(args) {
           `SessionSecret=${sessionSecret}`,
           `AccessToken=${accessToken}`,
           `GitHubRepo=${opts.repo}`,
-          `GitHubToken=${opts.token || ''}`,
+          ...(opts.token ? [`GitHubToken=${opts.token}`] : []),
           `GitBranch=${branch}`,
         ].map((p) => aws.shellEscape(p)).join(' ');
 
