@@ -352,21 +352,20 @@ BOA Studio is a web UI for managing your backend — browse tables, view logs, m
 
 ```bash
 # Deploy Studio for the first time
-boa studio deploy --repo https://github.com/org/repo --token ghp_...
+boa studio deploy --repo https://github.com/org/repo
 
-# Trigger a rebuild (e.g. after backend config changes)
+# Trigger a rebuild (e.g. after backend config changes or a new push)
 boa studio update
 
 # Remove Studio (backend is unaffected)
 boa studio remove
 ```
 
-Studio requires a GitHub repo and a personal access token (repo scope) for Amplify to pull and build from. Credentials are never stored in `.boa/config.json` — only the resulting Amplify app ID and URL are saved.
+Studio deploys from a public GitHub repo. Builds are triggered manually via `boa studio update` — there is no auto-build webhook. Only the Amplify app ID and URL are saved to `.boa/config.json`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--repo <url>` | required | GitHub repo URL |
-| `--token <pat>` | required | GitHub personal access token |
 | `--branch <branch>` | main | Branch to deploy from |
 | `--auth-mode <token\|cognito>` | token | Studio login method |
 | `--session-secret` | auto-generated | Cookie signing secret |

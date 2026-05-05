@@ -18,7 +18,6 @@ function parseDeployArgs(args) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--repo' && i + 1 < args.length) opts.repo = args[++i];
-    else if (a === '--token' && i + 1 < args.length) opts.token = args[++i];
     else if (a === '--branch' && i + 1 < args.length) opts.branch = args[++i];
     else if (a === '--auth-mode' && i + 1 < args.length) opts.authMode = args[++i];
     else if (a === '--session-secret' && i + 1 < args.length) opts.sessionSecret = args[++i];
@@ -73,7 +72,6 @@ async function deploy(args) {
           `SessionSecret=${sessionSecret}`,
           `AccessToken=${accessToken}`,
           `GitHubRepo=${opts.repo}`,
-          ...(opts.token ? [`GitHubToken=${opts.token}`] : []),
           `GitBranch=${branch}`,
         ].map((p) => aws.shellEscape(p)).join(' ');
 
@@ -140,11 +138,7 @@ async function deploy(args) {
     ['Branch', branch],
   ]);
   blank();
-  if (opts.token) {
-    console.log(`  ${sym.arrow} Build in progress. Studio will be live at the URL above in a few minutes.`);
-  } else {
-    console.log(`  ${sym.arrow} Auto-build is disabled (no GitHub token). Run 'boa studio update' to trigger the first build.`);
-  }
+  console.log(`  ${sym.arrow} Run 'boa studio update' to trigger the first build.`);
   if (authMode === 'token') {
     blank();
     console.log(`  ${sym.info} Your access token is stored in SSM at /${stackName}/studio-config.`);
@@ -293,7 +287,6 @@ Subcommands:
 
 Options for deploy:
   --repo <url>           GitHub repo URL (required)
-  --token <pat>          GitHub personal access token (optional for public repos)
   --branch <branch>      Branch to deploy (default: main)
   --auth-mode <mode>     Auth mode: token or cognito (default: token)
   --session-secret <s>   Session cookie secret (auto-generated if omitted)
