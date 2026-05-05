@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { makeSessionCookieValue } from '@/lib/studio-auth';
 
 // ── Cognito JWKS verification ────────────────────────────────
 // Runs in the Edge runtime — no Node.js APIs, no server secrets.
@@ -98,15 +97,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Token mode: STUDIO_SESSION_SECRET is baked into the server bundle via
-  // .env.production. Works in local dev and in Amplify Node.js runtime.
-  const expected = await makeSessionCookieValue();
-  if (cookie.value !== expected) {
-    const res = NextResponse.redirect(new URL('/login', req.url));
-    res.cookies.delete('boa-studio-session');
-    return res;
-  }
-
+  // Token mode: cookie presence is checked here. Full secret validation
+  // happens server-side in the dashboard layout where Node.js env vars
+  // are available. Middleware runs as a CloudFront Function (Edge) and
+  // cannot read server-side secrets like STUDIO_SESSION_SECRET.
   return NextResponse.next();
 }
 

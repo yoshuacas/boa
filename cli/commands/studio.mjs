@@ -4,7 +4,11 @@ import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
+import { buildStudio } from '../lib/studio-build.mjs';
 import { runTasks, heading, summary, blank, color, sym, ok, fail } from '../lib/ui.mjs';
+
+const PHASE1_TEMPLATE = fileURLToPath(new URL('../templates/studio-infra.yaml', import.meta.url));
+const PHASE2_TEMPLATE = fileURLToPath(new URL('../templates/studio-infra-app.yaml', import.meta.url));
 
 async function prompt(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -17,146 +21,164 @@ function parseDeployArgs(args) {
   const opts = {};
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--repo' && i + 1 < args.length) opts.repo = args[++i];
-    else if (a === '--branch' && i + 1 < args.length) opts.branch = args[++i];
-    else if (a === '--auth-mode' && i + 1 < args.length) opts.authMode = args[++i];
+    if      (a === '--repo'           && i + 1 < args.length) opts.repo          = args[++i];
+    else if (a === '--branch'         && i + 1 < args.length) opts.branch        = args[++i];
+    else if (a === '--auth-mode'      && i + 1 < args.length) opts.authMode      = args[++i];
     else if (a === '--session-secret' && i + 1 < args.length) opts.sessionSecret = args[++i];
-    else if (a === '--access-token' && i + 1 < args.length) opts.accessToken = args[++i];
+    else if (a === '--access-token'   && i + 1 < args.length) opts.accessToken   = args[++i];
   }
   return opts;
 }
 
+function lambdaS3Key() {
+  return `studio-lambda-${Date.now()}.zip`;
+}
+
 async function deploy(args) {
   const opts = parseDeployArgs(args);
-  const cfg = config.requireConfig();
+  const cfg  = config.requireConfig();
   const { stackName, region } = cfg;
 
-  if (!opts.repo) {
-    console.error('Error: --repo <url> is required');
-    console.error('  Example: boa studio deploy --repo https://github.com/org/repo');
-    process.exit(1);
-  }
-
-  if (cfg.studio?.amplifyAppId) {
-    console.error("Error: BOA Studio is already deployed for this project.");
+  if (cfg.studio?.distributionId) {
+    console.error('Error: BOA Studio is already deployed for this project.');
     console.error("  Run 'boa studio remove' first if you want to redeploy.");
     process.exit(1);
   }
 
-  const branch = opts.branch || 'main';
-  const authMode = opts.authMode || 'token';
+  const branch        = opts.branch        || 'main';
+  const authMode      = opts.authMode      || 'token';
   const sessionSecret = opts.sessionSecret || randomBytes(32).toString('hex');
-  const accessToken = opts.accessToken
-    || (authMode === 'token' ? randomBytes(24).toString('hex') : '');
-  const studioStackName = `boa-studio-${stackName}`;
-  const templatePath = fileURLToPath(
-    new URL('../templates/studio-infra.yaml', import.meta.url)
-  );
+  const accessToken   = opts.accessToken   || (authMode === 'token' ? randomBytes(24).toString('hex') : '');
+  const phase1Stack   = `boa-studio-${stackName}`;
+  const phase2Stack   = `boa-studio-app-${stackName}`;
 
   const state = {};
 
   heading(`Deploying BOA Studio for ${color.bold(stackName)}`);
   blank();
 
+  // ── Phase 1: IAM + Cognito + S3 ─────────────────────────────
   await runTasks([
     {
       title: 'Write backend config to SSM',
       run: () => {
-        aws.ssmPutParameter(
-          `/${stackName}/studio-config`,
-          JSON.stringify(cfg),
-          region
-        );
+        aws.ssmPutParameter(`/${stackName}/studio-config`, JSON.stringify(cfg), region);
       },
     },
     {
-      title: 'Deploy Studio infrastructure (IAM, Cognito)',
+      title: 'Deploy Phase 1 stack (IAM, Cognito, S3)',
       run: () => {
-        const paramOverrides = [
+        const params = [
           `BoaStackName=${stackName}`,
           `AuthMode=${authMode}`,
-          `SessionSecret=${sessionSecret}`,
-          `AccessToken=${accessToken}`,
         ].map((p) => aws.shellEscape(p)).join(' ');
 
         aws.run(
           `aws cloudformation deploy` +
-          ` --stack-name ${aws.shellEscape(studioStackName)}` +
-          ` --template-file ${aws.shellEscape(templatePath)}` +
-          ` --parameter-overrides ${paramOverrides}` +
+          ` --stack-name ${aws.shellEscape(phase1Stack)}` +
+          ` --template-file ${aws.shellEscape(PHASE1_TEMPLATE)}` +
+          ` --parameter-overrides ${params}` +
           ` --capabilities CAPABILITY_NAMED_IAM` +
           ` --region ${aws.shellEscape(region)}`
         );
       },
     },
     {
-      title: 'Read stack outputs',
+      title: 'Read Phase 1 outputs',
       run: () => {
-        state.outputs = aws.cfnDescribeStacks(studioStackName, region);
-        state.roleArn = getOutputValue(state.outputs, 'AmplifyRoleArn');
+        const outputs         = aws.cfnDescribeStacks(phase1Stack, region);
+        state.lambdaRoleArn   = getOutputValue(outputs, 'LambdaRoleArn');
+        state.artifactsBucket = getOutputValue(outputs, 'ArtifactsBucketName');
+        state.staticBucket    = getOutputValue(outputs, 'StaticBucketName');
+        state.cognitoPoolId   = getOutputValue(outputs, 'CognitoUserPoolId') || '';
+        state.cognitoClientId = getOutputValue(outputs, 'CognitoClientId') || '';
       },
     },
+  ]);
+
+  // ── Build ────────────────────────────────────────────────────
+  blank();
+  console.log(`  ${sym.arrow} Building BOA Studio (this takes a few minutes)...`);
+  blank();
+
+  const build = await buildStudio({
+    repo:              opts.repo,
+    ref:               branch,
+    authMode,
+    cognitoRegion:     authMode === 'cognito' ? region : undefined,
+    cognitoUserPoolId: state.cognitoPoolId  || undefined,
+    cognitoClientId:   state.cognitoClientId || undefined,
+  });
+
+  // ── Phase 2: Upload + Lambda + CloudFront ────────────────────
+  blank();
+  await runTasks([
     {
-      title: 'Create Amplify app',
+      title: 'Upload Lambda zip to S3',
       run: () => {
-        const result = aws.exec(
-          `aws amplify create-app` +
-          ` --name ${aws.shellEscape(studioStackName)}` +
-          ` --repository ${aws.shellEscape(opts.repo)}` +
-          ` --platform WEB_COMPUTE` +
-          ` --iam-service-role-arn ${aws.shellEscape(state.roleArn)}` +
+        state.lambdaS3Key = lambdaS3Key();
+        aws.exec(
+          `aws s3 cp ${aws.shellEscape(build.lambdaZip)}` +
+          ` s3://${aws.shellEscape(state.artifactsBucket)}/${aws.shellEscape(state.lambdaS3Key)}` +
           ` --region ${aws.shellEscape(region)}`
         );
-        const app = JSON.parse(result).app;
-        state.appId = app.appId;
-        state.defaultDomain = app.defaultDomain;
       },
     },
     {
-      title: 'Configure Amplify app root and compute role',
+      title: 'Sync static assets to S3',
       run: () => {
         aws.exec(
-          `aws amplify update-app --app-id ${aws.shellEscape(state.appId)}` +
-          ` --app-root studio` +
-          ` --compute-role-arn ${aws.shellEscape(state.roleArn)}` +
+          `aws s3 sync ${aws.shellEscape(build.assetsDir)}` +
+          ` s3://${aws.shellEscape(state.staticBucket)}` +
+          ` --delete --region ${aws.shellEscape(region)}`
+        );
+      },
+    },
+    {
+      title: 'Deploy Phase 2 stack (Lambda, CloudFront)',
+      run: () => {
+        const params = [
+          `BoaStackName=${stackName}`,
+          `LambdaRoleArn=${state.lambdaRoleArn}`,
+          `ArtifactsBucket=${state.artifactsBucket}`,
+          `LambdaS3Key=${state.lambdaS3Key}`,
+          `StaticBucket=${state.staticBucket}`,
+          `AuthMode=${authMode}`,
+          `SessionSecret=${sessionSecret}`,
+          `AccessToken=${accessToken}`,
+          ...(state.cognitoPoolId   ? [`CognitoUserPoolId=${state.cognitoPoolId}`]   : []),
+          ...(state.cognitoClientId ? [`CognitoClientId=${state.cognitoClientId}`] : []),
+        ].map((p) => aws.shellEscape(p)).join(' ');
+
+        aws.run(
+          `aws cloudformation deploy` +
+          ` --stack-name ${aws.shellEscape(phase2Stack)}` +
+          ` --template-file ${aws.shellEscape(PHASE2_TEMPLATE)}` +
+          ` --parameter-overrides ${params}` +
           ` --region ${aws.shellEscape(region)}`
         );
       },
     },
     {
-      title: 'Create branch',
+      title: 'Read Phase 2 outputs',
       run: () => {
-        const envVars = {
-          STUDIO_REGION: region,
-          STUDIO_SESSION_SECRET: sessionSecret,
-          STUDIO_SSM_CONFIG_PATH: `/${stackName}/studio-config`,
-          STUDIO_ACCESS_TOKEN: accessToken,
-          NEXT_PUBLIC_STUDIO_MODE: 'cloud',
-          NEXT_PUBLIC_STUDIO_AUTH: authMode,
-        };
-        if (authMode === 'cognito') {
-          envVars.STUDIO_COGNITO_USER_POOL_ID = getOutputValue(state.outputs, 'CognitoUserPoolId');
-          envVars.STUDIO_COGNITO_CLIENT_ID = getOutputValue(state.outputs, 'CognitoClientId');
-          envVars.STUDIO_COGNITO_REGION = region;
-        }
-        aws.exec(
-          `aws amplify create-branch` +
-          ` --app-id ${aws.shellEscape(state.appId)}` +
-          ` --branch-name ${aws.shellEscape(branch)}` +
-          ` --no-enable-auto-build` +
-          ` --environment-variables ${aws.shellEscape(JSON.stringify(envVars))}` +
-          ` --region ${aws.shellEscape(region)}`
-        );
-        state.studioUrl = `https://${branch}.${state.defaultDomain}`;
+        const outputs            = aws.cfnDescribeStacks(phase2Stack, region);
+        state.studioUrl          = getOutputValue(outputs, 'StudioUrl');
+        state.distributionId     = getOutputValue(outputs, 'DistributionId');
+        state.lambdaFunctionName = getOutputValue(outputs, 'LambdaFunctionName');
       },
     },
     {
       title: 'Save Studio configuration',
       run: () => {
         cfg.studio = {
-          stackName: studioStackName,
-          amplifyAppId: state.appId,
-          amplifyUrl: state.studioUrl,
+          phase1Stack,
+          phase2Stack,
+          studioUrl:           state.studioUrl,
+          distributionId:      state.distributionId,
+          lambdaFunctionName:  state.lambdaFunctionName,
+          artifactsBucket:     state.artifactsBucket,
+          staticBucket:        state.staticBucket,
           authMode,
           branch,
         };
@@ -165,17 +187,17 @@ async function deploy(args) {
     },
   ]);
 
+  build.cleanup();
+
   summary('BOA Studio deployed', [
     ['Studio URL', state.studioUrl],
-    ['Stack', studioStackName],
-    ['Auth mode', authMode],
-    ['Branch', branch],
+    ['Auth mode',  authMode],
+    ['Stack',      phase2Stack],
   ]);
-  blank();
-  console.log(`  ${sym.arrow} Run 'boa studio update' to trigger the first build.`);
+
   if (authMode === 'token') {
     blank();
-    console.log(`  ${sym.info} Your access token is stored in SSM at /${stackName}/studio-config.`);
+    console.log(`  ${sym.info} Access token stored in SSM at /${stackName}/studio-config`);
   }
 }
 
@@ -183,43 +205,101 @@ async function update(_args) {
   const cfg = config.requireConfig();
   const { stackName, region } = cfg;
 
-  if (!cfg.studio?.amplifyAppId) {
+  if (!cfg.studio?.distributionId) {
     console.error("Error: BOA Studio is not deployed. Run 'boa studio deploy' first.");
     process.exit(1);
   }
 
-  const { amplifyAppId, branch = 'main', amplifyUrl } = cfg.studio;
+  const {
+    phase1Stack,
+    lambdaFunctionName,
+    artifactsBucket,
+    staticBucket,
+    distributionId,
+    authMode = 'token',
+    branch = 'main',
+  } = cfg.studio;
 
   heading(`Updating BOA Studio for ${color.bold(stackName)}`);
   blank();
 
+  // Refresh SSM config
+  aws.ssmPutParameter(`/${stackName}/studio-config`, JSON.stringify(cfg), region);
+  ok('Backend config refreshed in SSM');
+
+  // Read Cognito IDs if needed
+  let cognitoPoolId, cognitoClientId;
+  if (authMode === 'cognito') {
+    const p1Outputs = aws.cfnDescribeStacks(phase1Stack, region);
+    cognitoPoolId   = getOutputValue(p1Outputs, 'CognitoUserPoolId') || '';
+    cognitoClientId = getOutputValue(p1Outputs, 'CognitoClientId') || '';
+  }
+
+  blank();
+  console.log(`  ${sym.arrow} Building BOA Studio (this takes a few minutes)...`);
+  blank();
+
+  const build = await buildStudio({
+    ref: branch,
+    authMode,
+    cognitoRegion:     authMode === 'cognito' ? region : undefined,
+    cognitoUserPoolId: cognitoPoolId,
+    cognitoClientId,
+  });
+
+  const state = {};
+
   await runTasks([
     {
-      title: 'Refresh backend config in SSM',
+      title: 'Upload Lambda zip to S3',
       run: () => {
-        aws.ssmPutParameter(
-          `/${stackName}/studio-config`,
-          JSON.stringify(cfg),
-          region
+        state.lambdaS3Key = lambdaS3Key();
+        aws.exec(
+          `aws s3 cp ${aws.shellEscape(build.lambdaZip)}` +
+          ` s3://${aws.shellEscape(artifactsBucket)}/${aws.shellEscape(state.lambdaS3Key)}` +
+          ` --region ${aws.shellEscape(region)}`
         );
       },
     },
     {
-      title: 'Trigger Studio rebuild',
+      title: 'Update Lambda function code',
       run: () => {
         aws.exec(
-          `aws amplify start-job --app-id ${aws.shellEscape(amplifyAppId)}` +
-          ` --branch-name ${aws.shellEscape(branch)}` +
-          ` --job-type RELEASE` +
+          `aws lambda update-function-code` +
+          ` --function-name ${aws.shellEscape(lambdaFunctionName)}` +
+          ` --s3-bucket ${aws.shellEscape(artifactsBucket)}` +
+          ` --s3-key ${aws.shellEscape(state.lambdaS3Key)}` +
+          ` --region ${aws.shellEscape(region)}`
+        );
+      },
+    },
+    {
+      title: 'Sync static assets to S3',
+      run: () => {
+        aws.exec(
+          `aws s3 sync ${aws.shellEscape(build.assetsDir)}` +
+          ` s3://${aws.shellEscape(staticBucket)}` +
+          ` --delete --region ${aws.shellEscape(region)}`
+        );
+      },
+    },
+    {
+      title: 'Invalidate CloudFront cache',
+      run: () => {
+        aws.exec(
+          `aws cloudfront create-invalidation` +
+          ` --distribution-id ${aws.shellEscape(distributionId)}` +
+          ` --paths '/*'` +
           ` --region ${aws.shellEscape(region)}`
         );
       },
     },
   ]);
 
+  build.cleanup();
+
   blank();
-  console.log(`  ${sym.ok} Build triggered. Studio will be updated at:`);
-  console.log(`     ${amplifyUrl}`);
+  ok(`Studio updated at ${cfg.studio.studioUrl}`);
 }
 
 async function remove(_args) {
@@ -233,63 +313,78 @@ async function remove(_args) {
   const { stackName, region } = cfg;
 
   if (!cfg.studio) {
-    console.error("Error: BOA Studio is not deployed for this project. Nothing to remove.");
+    console.error('Error: BOA Studio is not deployed for this project. Nothing to remove.');
     process.exit(1);
   }
 
-  const { stackName: studioStackName, authMode, amplifyUrl, amplifyAppId } = cfg.studio;
+  const { phase1Stack, phase2Stack, authMode, artifactsBucket, staticBucket } = cfg.studio;
 
   console.log('');
   console.log('This will permanently delete:');
-  console.log(`  • Amplify app and all builds`);
-  console.log(`  • IAM service role`);
+  console.log(`  • CloudFront distribution and Lambda function`);
+  console.log(`  • S3 buckets: ${artifactsBucket}, ${staticBucket}`);
   if (authMode === 'cognito') {
     console.log(`  • Cognito user pool (studio admin accounts)`);
   }
-  console.log(`  • CloudFormation stack: ${studioStackName}`);
+  console.log(`  • CloudFormation stacks: ${phase2Stack}, ${phase1Stack}`);
   console.log('');
   console.log('Your BOA backend (database, auth, API) is NOT affected.');
   console.log('');
 
-  const answer = await prompt(`Type the stack name to confirm [${studioStackName}]: `);
-
-  if (answer !== studioStackName) {
-    console.log(`Remove cancelled. You typed '${answer}' but expected '${studioStackName}'.`);
+  const answer = await prompt(`Type the stack name to confirm [${phase2Stack}]: `);
+  if (answer !== phase2Stack) {
+    console.log(`Remove cancelled. You typed '${answer}' but expected '${phase2Stack}'.`);
     process.exit(0);
   }
 
   console.log('');
 
-  // Delete Amplify app first (not tracked by CloudFormation)
-  if (amplifyAppId) {
-    console.log(`Deleting Amplify app '${studioStackName}'...`);
-    aws.exec(
-      `aws amplify delete-app --app-id ${aws.shellEscape(amplifyAppId)}` +
-      ` --region ${aws.shellEscape(region)}`
-    );
-    ok(`Amplify app deleted`);
+  // Empty S3 buckets (CFN cannot delete non-empty buckets)
+  for (const bucket of [staticBucket, artifactsBucket]) {
+    if (!bucket) continue;
+    console.log(`Emptying S3 bucket '${bucket}'...`);
+    aws.exec(`aws s3 rm s3://${aws.shellEscape(bucket)} --recursive --region ${aws.shellEscape(region)}`);
+    ok(`Bucket '${bucket}' emptied`);
   }
 
-  console.log(`Deleting CloudFormation stack '${studioStackName}'...`);
-
+  // Delete Phase 2 first (CloudFront, Lambda)
+  console.log(`Deleting stack '${phase2Stack}'...`);
   aws.exec(
     `aws cloudformation delete-stack` +
-    ` --stack-name ${aws.shellEscape(studioStackName)}` +
+    ` --stack-name ${aws.shellEscape(phase2Stack)}` +
     ` --region ${aws.shellEscape(region)}`
   );
+  await pollStackDeletion(phase2Stack, region);
+  ok(`Stack '${phase2Stack}' deleted`);
 
-  // Poll until stack is gone or deletion fails
-  let deleted = false;
+  // Delete Phase 1 (IAM, Cognito, S3)
+  console.log(`Deleting stack '${phase1Stack}'...`);
+  aws.exec(
+    `aws cloudformation delete-stack` +
+    ` --stack-name ${aws.shellEscape(phase1Stack)}` +
+    ` --region ${aws.shellEscape(region)}`
+  );
+  await pollStackDeletion(phase1Stack, region);
+  ok(`Stack '${phase1Stack}' deleted`);
+
+  delete cfg.studio;
+  config.write(cfg);
+  ok('Studio configuration removed from .boa/config.json');
+
+  console.log('');
+  console.log(`BOA Studio removed. Your backend at ${cfg.apiUrl} is unaffected.`);
+}
+
+async function pollStackDeletion(stackName, region) {
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 10000));
     try {
-      const out = aws.exec(
+      const status = aws.exec(
         `aws cloudformation describe-stacks` +
-        ` --stack-name ${aws.shellEscape(studioStackName)}` +
+        ` --stack-name ${aws.shellEscape(stackName)}` +
         ` --region ${aws.shellEscape(region)}` +
         ` --query 'Stacks[0].StackStatus' --output text`
-      );
-      const status = out.trim();
+      ).trim();
       if (status === 'DELETE_FAILED') {
         fail(`Stack deletion failed (status: DELETE_FAILED).`);
         console.error(`  Check the CloudFormation console for details.`);
@@ -297,26 +392,11 @@ async function remove(_args) {
       }
       process.stdout.write('.');
     } catch {
-      // describe-stacks throws when the stack no longer exists
-      deleted = true;
-      break;
+      return; // describe-stacks throws when stack no longer exists
     }
   }
-
-  if (!deleted) {
-    fail('Stack deletion timed out. Check the CloudFormation console.');
-    process.exit(1);
-  }
-
-  ok(`Stack '${studioStackName}' deleted`);
-
-  // Remove studio key from config
-  delete cfg.studio;
-  config.write(cfg);
-  ok('Studio configuration removed from .boa/config.json');
-
-  console.log('');
-  console.log(`BOA Studio removed. Your backend at ${cfg.apiUrl} is unaffected.`);
+  fail('Stack deletion timed out. Check the CloudFormation console.');
+  process.exit(1);
 }
 
 export default async function studio(args) {
@@ -331,11 +411,11 @@ Subcommands:
   remove    Remove Studio from this project
 
 Options for deploy:
-  --repo <url>           GitHub repo URL (required)
-  --branch <branch>      Branch to deploy (default: main)
+  --branch <branch>      Branch to build from (default: main)
   --auth-mode <mode>     Auth mode: token or cognito (default: token)
   --session-secret <s>   Session cookie secret (auto-generated if omitted)
-  --access-token <t>     Access token for token mode (auto-generated if omitted)`);
+  --access-token <t>     Access token for token mode (auto-generated if omitted)
+  --repo <owner/repo>    GitHub repo to build from (default: yoshuacas/boa)`);
     process.exit(0);
   }
 

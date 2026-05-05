@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: BOA Studio — IAM role and Cognito user pool. The Amplify app is created via CLI (no GitHub token required for public repos).
+Description: BOA Studio Phase 1 — IAM role, Cognito user pool, and S3 buckets.
 
 Parameters:
 
@@ -17,19 +17,7 @@ Parameters:
     AllowedValues: [token, cognito]
     Default: token
 
-  SessionSecret:
-    Type: String
-    Description: Secret used to sign session cookies. Generate with "openssl rand -hex 32".
-    NoEcho: true
-
-  AccessToken:
-    Type: String
-    Description: (Token mode only) Shared password for Studio login. Generate with "openssl rand -hex 24".
-    NoEcho: true
-    Default: ''
-
 Conditions:
-  IsTokenMode:   !Equals [!Ref AuthMode, 'token']
   IsCognitoMode: !Equals [!Ref AuthMode, 'cognito']
 
 Resources:
@@ -65,23 +53,17 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
 
-  # ── IAM — Amplify service role ──────────────────────────────
-  # Used as both the CodeBuild IAM role (fetches SSM config at build time)
-  # and the SSR Lambda execution role (ComputeRoleArn, set via CLI after
-  # Amplify app creation). Without ComputeRoleArn, AWS SDK calls in the
-  # SSR Lambda fail with "no credentials".
-  AmplifyServiceRole:
+  # ── IAM — Lambda execution role ────────────────────────────
+  StudioLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'boa-studio-amplify-role-${BoaStackName}'
+      RoleName: !Sub 'boa-studio-lambda-role-${BoaStackName}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              Service:
-                - amplify.amazonaws.com
-                - lambda.amazonaws.com
+              Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: boa-studio-permissions
@@ -153,11 +135,42 @@ Resources:
         - Key: Project
           Value: !Sub 'boa-studio-${BoaStackName}'
 
+  # ── S3 — Artifacts bucket (Lambda zip uploads) ─────────────
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'boa-studio-artifacts-${BoaStackName}-${AWS::AccountId}'
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-artifacts
+            Status: Enabled
+            ExpirationInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
+  # ── S3 — Static assets bucket (CloudFront origin) ──────────
+  StaticBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'boa-studio-static-${BoaStackName}-${AWS::AccountId}'
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
 Outputs:
 
-  AmplifyRoleArn:
-    Description: IAM role ARN for the Amplify service role (used as both IAMServiceRole and ComputeRoleArn)
-    Value: !GetAtt AmplifyServiceRole.Arn
+  LambdaRoleArn:
+    Description: IAM role ARN for the Studio Lambda execution role
+    Value: !GetAtt StudioLambdaRole.Arn
+
+  ArtifactsBucketName:
+    Description: S3 bucket for Lambda zip artifacts
+    Value: !Ref ArtifactsBucket
+
+  StaticBucketName:
+    Description: S3 bucket for CloudFront static assets
+    Value: !Ref StaticBucket
 
   CognitoUserPoolId:
     Condition: IsCognitoMode

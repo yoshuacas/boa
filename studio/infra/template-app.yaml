@@ -1,0 +1,194 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: BOA Studio Phase 2 — Lambda SSR function and CloudFront distribution.
+
+Parameters:
+
+  BoaStackName:
+    Type: String
+    Description: Name of the BOA backend stack.
+
+  LambdaRoleArn:
+    Type: String
+    Description: IAM role ARN for the Lambda execution role (from Phase 1 stack).
+
+  ArtifactsBucket:
+    Type: String
+    Description: S3 bucket name for Lambda zip artifacts (from Phase 1 stack).
+
+  LambdaS3Key:
+    Type: String
+    Description: S3 key of the Lambda zip in ArtifactsBucket.
+
+  StaticBucket:
+    Type: String
+    Description: S3 bucket name for static assets (from Phase 1 stack).
+
+  AuthMode:
+    Type: String
+    AllowedValues: [token, cognito]
+    Default: token
+
+  SessionSecret:
+    Type: String
+    NoEcho: true
+
+  AccessToken:
+    Type: String
+    NoEcho: true
+    Default: ''
+
+  CognitoUserPoolId:
+    Type: String
+    Default: ''
+
+  CognitoClientId:
+    Type: String
+    Default: ''
+
+Conditions:
+  IsCognitoMode: !Equals [!Ref AuthMode, 'cognito']
+
+Resources:
+
+  # ── Lambda — SSR function ────────────────────────────────────
+  StudioFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'boa-studio-ssr-${BoaStackName}'
+      Runtime: nodejs22.x
+      Handler: index.handler
+      Role: !Ref LambdaRoleArn
+      Code:
+        S3Bucket: !Ref ArtifactsBucket
+        S3Key: !Ref LambdaS3Key
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          STUDIO_REGION: !Ref 'AWS::Region'
+          STUDIO_SESSION_SECRET: !Ref SessionSecret
+          STUDIO_ACCESS_TOKEN: !Ref AccessToken
+          STUDIO_SSM_CONFIG_PATH: !Sub '/${BoaStackName}/studio-config'
+          NEXT_PUBLIC_STUDIO_MODE: cloud
+          NEXT_PUBLIC_STUDIO_AUTH: !Ref AuthMode
+          STUDIO_COGNITO_USER_POOL_ID: !If [IsCognitoMode, !Ref CognitoUserPoolId, '']
+          STUDIO_COGNITO_CLIENT_ID: !If [IsCognitoMode, !Ref CognitoClientId, '']
+          STUDIO_COGNITO_REGION: !If [IsCognitoMode, !Ref 'AWS::Region', '']
+
+  # ── Lambda Function URL — CloudFront uses IAM (OAC) signing ─
+  StudioFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref StudioFunction
+      AuthType: AWS_IAM
+
+  # Grant CloudFront permission to invoke via Function URL
+  StudioFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref StudioFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${StudioDistribution}'
+      FunctionUrlAuthType: AWS_IAM
+
+  # ── CloudFront OAC — Lambda Function URL origin ──────────────
+  LambdaOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'boa-studio-lambda-oac-${BoaStackName}'
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ── CloudFront OAC — S3 static assets origin ─────────────────
+  StaticOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'boa-studio-s3-oac-${BoaStackName}'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # Allow CloudFront to read static assets from S3
+  StaticBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${StaticBucket}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${StudioDistribution}'
+
+  # ── CloudFront distribution ───────────────────────────────────
+  StudioDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Comment: !Sub 'BOA Studio — ${BoaStackName}'
+        Origins:
+          # Lambda Function URL — SSR
+          - Id: lambda-ssr
+            DomainName: !Select
+              - 2
+              - !Split ['/', !GetAtt StudioFunctionUrl.FunctionUrl]
+            CustomOriginConfig:
+              HTTPSPort: 443
+              OriginProtocolPolicy: https-only
+            OriginAccessControlId: !GetAtt LambdaOAC.Id
+          # S3 — static assets
+          - Id: s3-static
+            DomainName: !Sub '${StaticBucket}.s3.${AWS::Region}.amazonaws.com'
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt StaticOAC.Id
+        # Static assets: served from S3, long-lived cache
+        CacheBehaviors:
+          - PathPattern: '/_next/static/*'
+            TargetOriginId: s3-static
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          - PathPattern: '/favicon.ico'
+            TargetOriginId: s3-static
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        # Default: SSR Lambda, no caching
+        DefaultCacheBehavior:
+          TargetOriginId: lambda-ssr
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad          # Managed-CachingDisabled
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # Managed-AllViewerExceptHostHeader
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
+Outputs:
+
+  StudioUrl:
+    Description: BOA Studio URL
+    Value: !Sub 'https://${StudioDistribution.DomainName}'
+
+  DistributionId:
+    Description: CloudFront distribution ID (for cache invalidation on update)
+    Value: !Ref StudioDistribution
+
+  LambdaFunctionName:
+    Description: Lambda function name (for direct code updates)
+    Value: !Ref StudioFunction

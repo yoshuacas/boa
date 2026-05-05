@@ -46,12 +46,20 @@ function syncSkill() {
 }
 
 function syncStudioInfra() {
-  const src = join(repoRoot, 'studio', 'infra', 'template.yaml');
-  const dest = join(__dirname, '..', 'templates', 'studio-infra.yaml');
-  copyFileSync(src, dest);
-  console.log(
-    `Synced ${relative(repoRoot, src)} to ${relative(repoRoot, dest)}`
-  );
+  const infraDir = join(repoRoot, 'studio', 'infra');
+  const templatesDir = join(__dirname, '..', 'templates');
+
+  const files = [
+    ['template.yaml',     'studio-infra.yaml'],
+    ['template-app.yaml', 'studio-infra-app.yaml'],
+  ];
+
+  for (const [src, dest] of files) {
+    const srcPath  = join(infraDir, src);
+    const destPath = join(templatesDir, dest);
+    copyFileSync(srcPath, destPath);
+    console.log(`Synced ${relative(repoRoot, srcPath)} to ${relative(repoRoot, destPath)}`);
+  }
 }
 
 syncSkill();
