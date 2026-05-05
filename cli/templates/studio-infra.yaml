@@ -1,0 +1,260 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: BOA Studio — cloud infrastructure (IAM role, SSM config, Cognito user pool, Amplify app)
+
+Parameters:
+
+  # ── BOA backend ────────────────────────────────────────────
+  BoaStackName:
+    Type: String
+    Description: Name of the BOA backend stack (e.g. boaapp). Used as the SSM path prefix.
+    AllowedPattern: '[a-z0-9\-]+'
+    ConstraintDescription: Lowercase alphanumeric characters and hyphens only.
+
+  # ── Auth ───────────────────────────────────────────────────
+  AuthMode:
+    Type: String
+    Description: Studio auth mode.
+    AllowedValues: [token, cognito]
+    Default: token
+
+  SessionSecret:
+    Type: String
+    Description: Secret used to sign session cookies. Generate with "openssl rand -hex 32".
+    NoEcho: true
+
+  AccessToken:
+    Type: String
+    Description: (Token mode only) Shared password for Studio login. Generate with "openssl rand -hex 24".
+    NoEcho: true
+    Default: ''
+
+  # ── Amplify ─────────────────────────────────────────────────
+  GitHubRepo:
+    Type: String
+    Description: Full GitHub repo URL (e.g. https://github.com/yoshuacas/boa).
+    Default: https://github.com/yoshuacas/boa
+
+  GitHubToken:
+    Type: String
+    Description: GitHub personal access token with repo scope.
+    NoEcho: true
+
+  GitBranch:
+    Type: String
+    Description: Branch to deploy from.
+    Default: main
+
+  # ── NOTE: AppRoot ────────────────────────────────────────────
+  # Amplify's AppRoot (the subdirectory to treat as the project root) is NOT
+  # exposed as a CloudFormation property on AWS::Amplify::App. After deploying
+  # this stack, set it once via CLI:
+  #
+  #   aws amplify update-app \
+  #     --app-id <AmplifyAppId output> \
+  #     --app-root studio \
+  #     --region <region>
+  #
+  # This tells Amplify to build from boa/studio/ rather than the repo root.
+  # ComputeRoleArn (SSR Lambda execution role) IS set via CloudFormation below.
+
+Conditions:
+  IsTokenMode:   !Equals [!Ref AuthMode, 'token']
+  IsCognitoMode: !Equals [!Ref AuthMode, 'cognito']
+
+Resources:
+
+  # ── Cognito — Studio admin user pool ───────────────────────
+  AdminUserPool:
+    Type: AWS::Cognito::UserPool
+    Condition: IsCognitoMode
+    Properties:
+      UserPoolName: !Sub 'boa-studio-admins-${BoaStackName}'
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      UserPoolTags:
+        Project: !Sub 'boa-studio-${BoaStackName}'
+
+  AdminUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Condition: IsCognitoMode
+    Properties:
+      ClientName: boa-studio
+      UserPoolId: !Ref AdminUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  # ── IAM — Amplify service role ──────────────────────────────
+  AmplifyServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'boa-studio-amplify-role-${BoaStackName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - amplify.amazonaws.com
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: boa-studio-permissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: DsqlConnect
+                Effect: Allow
+                Action:
+                  - dsql:DbConnectAdmin
+                Resource: '*'
+              - Sid: LambdaReadWrite
+                Effect: Allow
+                Action:
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:UpdateFunctionCode
+                  - lambda:ListFunctions
+                  - lambda:InvokeFunction
+                Resource: '*'
+              - Sid: CloudFormationRead
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:ListStackResources
+                Resource: '*'
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogDelivery
+                  - logs:FilterLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: '*'
+              - Sid: SSMConfigRead
+                Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
+              - Sid: S3ObjectAccess
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: '*'
+              - Sid: CognitoAdmin
+                Effect: Allow
+                Action:
+                  - cognito-idp:ListUsers
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminEnableUser
+                  - cognito-idp:AdminDisableUser
+                  - cognito-idp:AdminResetUserPassword
+                Resource: !If
+                  - IsCognitoMode
+                  - !GetAtt AdminUserPool.Arn
+                  - '*'
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
+  # ── Amplify app ─────────────────────────────────────────────
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: !Sub 'boa-studio-${BoaStackName}'
+      Repository: !Ref GitHubRepo
+      OauthToken: !Ref GitHubToken
+      IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
+      # ComputeRoleArn sets the SSR Lambda execution role (separate from the
+      # build service role). Without this, Amplify creates an execution role
+      # with no permissions and AWS SDK calls fail with "no credentials".
+      ComputeRoleArn: !GetAtt AmplifyServiceRole.Arn
+      Platform: WEB_COMPUTE
+      EnvironmentVariables:
+        - Name: NEXT_PUBLIC_STUDIO_MODE
+          Value: cloud
+        - Name: NEXT_PUBLIC_STUDIO_AUTH
+          Value: !Ref AuthMode
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
+  AmplifyBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt AmplifyApp.AppId
+      BranchName: !Ref GitBranch
+      EnableAutoBuild: true
+      # These env vars are available at both build time AND SSR Lambda runtime.
+      # Unlike amplify.yml env.secrets (build-only), branch-level env vars are
+      # injected into the WEB_COMPUTE Lambda execution environment.
+      EnvironmentVariables:
+        - Name: STUDIO_SESSION_SECRET
+          Value: !Ref SessionSecret
+        - Name: STUDIO_SSM_CONFIG_PATH
+          Value: !Sub '/${BoaStackName}/studio-config'
+        - Name: STUDIO_ACCESS_TOKEN
+          Value: !Ref AccessToken
+        - !If
+          - IsCognitoMode
+          - Name: STUDIO_COGNITO_USER_POOL_ID
+            Value: !Ref AdminUserPool
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsCognitoMode
+          - Name: STUDIO_COGNITO_CLIENT_ID
+            Value: !Ref AdminUserPoolClient
+          - !Ref 'AWS::NoValue'
+        - !If
+          - IsCognitoMode
+          - Name: STUDIO_COGNITO_REGION
+            Value: !Ref 'AWS::Region'
+          - !Ref 'AWS::NoValue'
+      Tags:
+        - Key: Project
+          Value: !Sub 'boa-studio-${BoaStackName}'
+
+Outputs:
+
+  AmplifyRoleArn:
+    Description: IAM role ARN for the Amplify service role
+    Value: !GetAtt AmplifyServiceRole.Arn
+
+  CognitoUserPoolId:
+    Condition: IsCognitoMode
+    Description: Cognito User Pool ID
+    Value: !Ref AdminUserPool
+
+  CognitoClientId:
+    Condition: IsCognitoMode
+    Description: Cognito App Client ID
+    Value: !Ref AdminUserPoolClient
+
+  AmplifyAppId:
+    Description: Amplify App ID
+    Value: !GetAtt AmplifyApp.AppId
+
+  AmplifyDefaultDomain:
+    Description: Studio URL
+    Value: !Sub 'https://${GitBranch}.${AmplifyApp.DefaultDomain}'

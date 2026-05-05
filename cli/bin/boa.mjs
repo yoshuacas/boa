@@ -27,6 +27,7 @@ Commands:
   remove <name>     Remove an infrastructure extension
   extensions        List available extensions
   rotate-keys       Rotate anon and service role keys (90-day lifetime)
+  studio <sub>      Manage BOA Studio (deploy, update, remove)
   feedback          Submit feedback to improve BOA
 
 Options:
@@ -43,6 +44,7 @@ const COMMANDS = [
   'init', 'deploy', 'migrate', 'verify',
   'teardown', 'status', 'check', 'feedback',
   'extend', 'remove', 'extensions', 'rotate-keys',
+  'studio',
 ];
 
 if (!COMMANDS.includes(command)) {

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {
+  copyFileSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -44,7 +45,17 @@ function syncSkill() {
   }
 }
 
+function syncStudioInfra() {
+  const src = join(repoRoot, 'studio', 'infra', 'template.yaml');
+  const dest = join(__dirname, '..', 'templates', 'studio-infra.yaml');
+  copyFileSync(src, dest);
+  console.log(
+    `Synced ${relative(repoRoot, src)} to ${relative(repoRoot, dest)}`
+  );
+}
+
 syncSkill();
+syncStudioInfra();
 
 console.log(
   `Synced ${relative(repoRoot, pluginSkill)} and ${relative(repoRoot, pluginDocs)} to ${relative(repoRoot, cliSkillDir)}`
