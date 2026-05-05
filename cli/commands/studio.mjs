@@ -1,9 +1,17 @@
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
-import { runTasks, heading, summary, blank, color, sym } from '../lib/ui.mjs';
+import { runTasks, heading, summary, blank, color, sym, ok, fail } from '../lib/ui.mjs';
+
+async function prompt(question) {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => { rl.close(); resolve(answer); });
+  });
+}
 
 function parseDeployArgs(args) {
   const opts = {};
@@ -143,6 +151,135 @@ async function deploy(args) {
   }
 }
 
+async function update(_args) {
+  const cfg = config.requireConfig();
+  const { stackName, region } = cfg;
+
+  if (!cfg.studio?.amplifyAppId) {
+    console.error("Error: BOA Studio is not deployed. Run 'boa studio deploy' first.");
+    process.exit(1);
+  }
+
+  const { amplifyAppId, branch = 'main', amplifyUrl } = cfg.studio;
+
+  heading(`Updating BOA Studio for ${color.bold(stackName)}`);
+  blank();
+
+  await runTasks([
+    {
+      title: 'Refresh backend config in SSM',
+      run: () => {
+        aws.ssmPutParameter(
+          `/${stackName}/studio-config`,
+          JSON.stringify(cfg),
+          region
+        );
+      },
+    },
+    {
+      title: 'Trigger Studio rebuild',
+      run: () => {
+        aws.exec(
+          `aws amplify start-job --app-id ${aws.shellEscape(amplifyAppId)}` +
+          ` --branch-name ${aws.shellEscape(branch)}` +
+          ` --job-type RELEASE` +
+          ` --region ${aws.shellEscape(region)}`
+        );
+      },
+    },
+  ]);
+
+  blank();
+  console.log(`  ${sym.ok} Build triggered. Studio will be updated at:`);
+  console.log(`     ${amplifyUrl}`);
+}
+
+async function remove(_args) {
+  if (!process.stdin.isTTY) {
+    console.error('Error: boa studio remove must be run interactively from a terminal.');
+    console.error('This is a destructive operation that requires human confirmation.');
+    process.exit(1);
+  }
+
+  const cfg = config.requireConfig();
+  const { stackName, region } = cfg;
+
+  if (!cfg.studio) {
+    console.error("Error: BOA Studio is not deployed for this project. Nothing to remove.");
+    process.exit(1);
+  }
+
+  const { stackName: studioStackName, authMode, amplifyUrl } = cfg.studio;
+
+  console.log('');
+  console.log('This will permanently delete:');
+  console.log(`  • Amplify app and all builds`);
+  console.log(`  • IAM service role`);
+  if (authMode === 'cognito') {
+    console.log(`  • Cognito user pool (studio admin accounts)`);
+  }
+  console.log(`  • CloudFormation stack: ${studioStackName}`);
+  console.log('');
+  console.log('Your BOA backend (database, auth, API) is NOT affected.');
+  console.log('');
+
+  const answer = await prompt(`Type the stack name to confirm [${studioStackName}]: `);
+
+  if (answer !== studioStackName) {
+    console.log(`Remove cancelled. You typed '${answer}' but expected '${studioStackName}'.`);
+    process.exit(0);
+  }
+
+  console.log('');
+  console.log(`Deleting CloudFormation stack '${studioStackName}'...`);
+
+  aws.exec(
+    `aws cloudformation delete-stack` +
+    ` --stack-name ${aws.shellEscape(studioStackName)}` +
+    ` --region ${aws.shellEscape(region)}`
+  );
+
+  // Poll until stack is gone or deletion fails
+  let deleted = false;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 10000));
+    try {
+      const out = aws.exec(
+        `aws cloudformation describe-stacks` +
+        ` --stack-name ${aws.shellEscape(studioStackName)}` +
+        ` --region ${aws.shellEscape(region)}` +
+        ` --query 'Stacks[0].StackStatus' --output text`
+      );
+      const status = out.trim();
+      if (status === 'DELETE_FAILED') {
+        fail(`Stack deletion failed (status: DELETE_FAILED).`);
+        console.error(`  Check the CloudFormation console for details.`);
+        process.exit(1);
+      }
+      process.stdout.write('.');
+    } catch {
+      // describe-stacks throws when the stack no longer exists
+      deleted = true;
+      break;
+    }
+  }
+
+  if (!deleted) {
+    fail('Stack deletion timed out. Check the CloudFormation console.');
+    process.exit(1);
+  }
+
+  ok(`Stack '${studioStackName}' deleted`);
+
+  // Remove studio key from config
+  delete cfg.studio;
+  config.write(cfg);
+  ok('Studio configuration removed from .boa/config.json');
+
+  console.log('');
+  console.log(`BOA Studio removed. Your backend at ${cfg.apiUrl} is unaffected.`);
+}
+
 export default async function studio(args) {
   const [sub, ...rest] = args;
 
@@ -166,10 +303,8 @@ Options for deploy:
 
   switch (sub) {
     case 'deploy': return deploy(rest);
-    case 'update':
-    case 'remove':
-      console.error(`Error: 'boa studio ${sub}' is not yet implemented.`);
-      process.exit(1);
+    case 'update': return update(rest);
+    case 'remove': return remove(rest);
     default:
       console.error(`Unknown subcommand: ${sub}`);
       console.error("Run 'boa studio --help' for usage.");
