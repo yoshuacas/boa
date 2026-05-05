@@ -210,6 +210,8 @@ Resources:
       # Unlike amplify.yml env.secrets (build-only), branch-level env vars are
       # injected into the WEB_COMPUTE Lambda execution environment.
       EnvironmentVariables:
+        - Name: STUDIO_REGION
+          Value: !Ref 'AWS::Region'
         - Name: STUDIO_SESSION_SECRET
           Value: !Ref SessionSecret
         - Name: STUDIO_SSM_CONFIG_PATH

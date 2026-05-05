@@ -15,7 +15,7 @@ frontend:
         # service role and embed it so the Lambda doesn't need SSM at runtime.
         # Single-quote the value so dotenv preserves the JSON double-quotes as-is.
         - |
-          BOA_CFG=$(aws ssm get-parameter --name "$STUDIO_SSM_CONFIG_PATH" --region "${STUDIO_COGNITO_REGION:-us-east-1}" --query Parameter.Value --output text | tr -d '\n')
+          BOA_CFG=$(aws ssm get-parameter --name "$STUDIO_SSM_CONFIG_PATH" --region "${STUDIO_REGION:-us-east-1}" --query Parameter.Value --output text | tr -d '\n')
           printf "STUDIO_BOA_CONFIG='%s'\n" "$BOA_CFG" >> .env.production
         - npm run build
   artifacts:
