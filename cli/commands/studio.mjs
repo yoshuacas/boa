@@ -37,6 +37,12 @@ async function deploy(args) {
     process.exit(1);
   }
 
+  if (cfg.studio?.amplifyAppId) {
+    console.error("Error: BOA Studio is already deployed for this project.");
+    console.error("  Run 'boa studio remove' first if you want to redeploy.");
+    process.exit(1);
+  }
+
   const branch = opts.branch || 'main';
   const authMode = opts.authMode || 'token';
   const sessionSecret = opts.sessionSecret || randomBytes(32).toString('hex');
@@ -64,15 +70,13 @@ async function deploy(args) {
       },
     },
     {
-      title: 'Deploy Studio infrastructure',
+      title: 'Deploy Studio infrastructure (IAM, Cognito)',
       run: () => {
         const paramOverrides = [
           `BoaStackName=${stackName}`,
           `AuthMode=${authMode}`,
           `SessionSecret=${sessionSecret}`,
           `AccessToken=${accessToken}`,
-          `GitHubRepo=${opts.repo}`,
-          `GitBranch=${branch}`,
         ].map((p) => aws.shellEscape(p)).join(' ');
 
         aws.run(
@@ -89,13 +93,27 @@ async function deploy(args) {
       title: 'Read stack outputs',
       run: () => {
         state.outputs = aws.cfnDescribeStacks(studioStackName, region);
-        state.appId = getOutputValue(state.outputs, 'AmplifyAppId');
         state.roleArn = getOutputValue(state.outputs, 'AmplifyRoleArn');
-        state.studioUrl = getOutputValue(state.outputs, 'AmplifyDefaultDomain');
       },
     },
     {
-      title: 'Configure Amplify app root',
+      title: 'Create Amplify app',
+      run: () => {
+        const result = aws.exec(
+          `aws amplify create-app` +
+          ` --name ${aws.shellEscape(studioStackName)}` +
+          ` --repository ${aws.shellEscape(opts.repo)}` +
+          ` --platform WEB_COMPUTE` +
+          ` --iam-service-role-arn ${aws.shellEscape(state.roleArn)}` +
+          ` --region ${aws.shellEscape(region)}`
+        );
+        const app = JSON.parse(result).app;
+        state.appId = app.appId;
+        state.defaultDomain = app.defaultDomain;
+      },
+    },
+    {
+      title: 'Configure Amplify app root and compute role',
       run: () => {
         aws.exec(
           `aws amplify update-app --app-id ${aws.shellEscape(state.appId)}` +
@@ -106,14 +124,30 @@ async function deploy(args) {
       },
     },
     {
-      title: 'Trigger initial build',
+      title: 'Create branch',
       run: () => {
+        const envVars = {
+          STUDIO_REGION: region,
+          STUDIO_SESSION_SECRET: sessionSecret,
+          STUDIO_SSM_CONFIG_PATH: `/${stackName}/studio-config`,
+          STUDIO_ACCESS_TOKEN: accessToken,
+          NEXT_PUBLIC_STUDIO_MODE: 'cloud',
+          NEXT_PUBLIC_STUDIO_AUTH: authMode,
+        };
+        if (authMode === 'cognito') {
+          envVars.STUDIO_COGNITO_USER_POOL_ID = getOutputValue(state.outputs, 'CognitoUserPoolId');
+          envVars.STUDIO_COGNITO_CLIENT_ID = getOutputValue(state.outputs, 'CognitoClientId');
+          envVars.STUDIO_COGNITO_REGION = region;
+        }
         aws.exec(
-          `aws amplify start-job --app-id ${aws.shellEscape(state.appId)}` +
+          `aws amplify create-branch` +
+          ` --app-id ${aws.shellEscape(state.appId)}` +
           ` --branch-name ${aws.shellEscape(branch)}` +
-          ` --job-type RELEASE` +
+          ` --no-enable-auto-build` +
+          ` --environment-variables ${aws.shellEscape(JSON.stringify(envVars))}` +
           ` --region ${aws.shellEscape(region)}`
         );
+        state.studioUrl = `https://${branch}.${state.defaultDomain}`;
       },
     },
     {
@@ -203,7 +237,7 @@ async function remove(_args) {
     process.exit(1);
   }
 
-  const { stackName: studioStackName, authMode, amplifyUrl } = cfg.studio;
+  const { stackName: studioStackName, authMode, amplifyUrl, amplifyAppId } = cfg.studio;
 
   console.log('');
   console.log('This will permanently delete:');
@@ -225,6 +259,17 @@ async function remove(_args) {
   }
 
   console.log('');
+
+  // Delete Amplify app first (not tracked by CloudFormation)
+  if (amplifyAppId) {
+    console.log(`Deleting Amplify app '${studioStackName}'...`);
+    aws.exec(
+      `aws amplify delete-app --app-id ${aws.shellEscape(amplifyAppId)}` +
+      ` --region ${aws.shellEscape(region)}`
+    );
+    ok(`Amplify app deleted`);
+  }
+
   console.log(`Deleting CloudFormation stack '${studioStackName}'...`);
 
   aws.exec(
