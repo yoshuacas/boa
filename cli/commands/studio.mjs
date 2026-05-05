@@ -57,44 +57,34 @@ async function deploy(args) {
   heading(`Deploying BOA Studio for ${color.bold(stackName)}`);
   blank();
 
-  // ── Phase 1: IAM + Cognito + S3 ─────────────────────────────
-  await runTasks([
-    {
-      title: 'Write backend config to SSM',
-      run: () => {
-        aws.ssmPutParameter(`/${stackName}/studio-config`, JSON.stringify(cfg), region);
-      },
-    },
-    {
-      title: 'Deploy Phase 1 stack (IAM, Cognito, S3)',
-      run: () => {
-        const params = [
-          `BoaStackName=${stackName}`,
-          `AuthMode=${authMode}`,
-        ].map((p) => aws.shellEscape(p)).join(' ');
+  // Write SSM config
+  aws.ssmPutParameter(`/${stackName}/studio-config`, JSON.stringify(cfg), region);
+  ok('Backend config written to SSM');
 
-        aws.run(
-          `aws cloudformation deploy` +
-          ` --stack-name ${aws.shellEscape(phase1Stack)}` +
-          ` --template-file ${aws.shellEscape(PHASE1_TEMPLATE)}` +
-          ` --parameter-overrides ${params}` +
-          ` --capabilities CAPABILITY_NAMED_IAM` +
-          ` --region ${aws.shellEscape(region)}`
-        );
-      },
-    },
-    {
-      title: 'Read Phase 1 outputs',
-      run: () => {
-        const outputs         = aws.cfnDescribeStacks(phase1Stack, region);
-        state.lambdaRoleArn   = getOutputValue(outputs, 'LambdaRoleArn');
-        state.artifactsBucket = getOutputValue(outputs, 'ArtifactsBucketName');
-        state.staticBucket    = getOutputValue(outputs, 'StaticBucketName');
-        state.cognitoPoolId   = getOutputValue(outputs, 'CognitoUserPoolId') || '';
-        state.cognitoClientId = getOutputValue(outputs, 'CognitoClientId') || '';
-      },
-    },
-  ]);
+  // ── Phase 1: IAM + Cognito + S3 ─────────────────────────────
+  // Run CFN outside of listr2 — it has its own progress output.
+  console.log(`\n  ${sym.arrow} Deploying Phase 1 stack (IAM, Cognito, S3)...`);
+  const p1Params = [
+    `BoaStackName=${stackName}`,
+    `AuthMode=${authMode}`,
+  ].map((p) => aws.shellEscape(p)).join(' ');
+
+  aws.run(
+    `aws cloudformation deploy` +
+    ` --stack-name ${aws.shellEscape(phase1Stack)}` +
+    ` --template-file ${aws.shellEscape(PHASE1_TEMPLATE)}` +
+    ` --parameter-overrides ${p1Params}` +
+    ` --capabilities CAPABILITY_NAMED_IAM` +
+    ` --region ${aws.shellEscape(region)}`
+  );
+
+  // Read Phase 1 outputs
+  const p1Outputs       = aws.cfnDescribeStacks(phase1Stack, region);
+  state.lambdaRoleArn   = getOutputValue(p1Outputs, 'LambdaRoleArn');
+  state.artifactsBucket = getOutputValue(p1Outputs, 'ArtifactsBucketName');
+  state.staticBucket    = getOutputValue(p1Outputs, 'StaticBucketName');
+  state.cognitoPoolId   = getOutputValue(p1Outputs, 'CognitoUserPoolId') || '';
+  state.cognitoClientId = getOutputValue(p1Outputs, 'CognitoClientId') || '';
 
   // ── Build ────────────────────────────────────────────────────
   blank();
@@ -134,58 +124,51 @@ async function deploy(args) {
         );
       },
     },
-    {
-      title: 'Deploy Phase 2 stack (Lambda, CloudFront)',
-      run: () => {
-        const params = [
-          `BoaStackName=${stackName}`,
-          `LambdaRoleArn=${state.lambdaRoleArn}`,
-          `ArtifactsBucket=${state.artifactsBucket}`,
-          `LambdaS3Key=${state.lambdaS3Key}`,
-          `StaticBucket=${state.staticBucket}`,
-          `AuthMode=${authMode}`,
-          `SessionSecret=${sessionSecret}`,
-          `AccessToken=${accessToken}`,
-          ...(state.cognitoPoolId   ? [`CognitoUserPoolId=${state.cognitoPoolId}`]   : []),
-          ...(state.cognitoClientId ? [`CognitoClientId=${state.cognitoClientId}`] : []),
-        ].map((p) => aws.shellEscape(p)).join(' ');
-
-        aws.run(
-          `aws cloudformation deploy` +
-          ` --stack-name ${aws.shellEscape(phase2Stack)}` +
-          ` --template-file ${aws.shellEscape(PHASE2_TEMPLATE)}` +
-          ` --parameter-overrides ${params}` +
-          ` --region ${aws.shellEscape(region)}`
-        );
-      },
-    },
-    {
-      title: 'Read Phase 2 outputs',
-      run: () => {
-        const outputs            = aws.cfnDescribeStacks(phase2Stack, region);
-        state.studioUrl          = getOutputValue(outputs, 'StudioUrl');
-        state.distributionId     = getOutputValue(outputs, 'DistributionId');
-        state.lambdaFunctionName = getOutputValue(outputs, 'LambdaFunctionName');
-      },
-    },
-    {
-      title: 'Save Studio configuration',
-      run: () => {
-        cfg.studio = {
-          phase1Stack,
-          phase2Stack,
-          studioUrl:           state.studioUrl,
-          distributionId:      state.distributionId,
-          lambdaFunctionName:  state.lambdaFunctionName,
-          artifactsBucket:     state.artifactsBucket,
-          staticBucket:        state.staticBucket,
-          authMode,
-          branch,
-        };
-        config.write(cfg);
-      },
-    },
   ]);
+
+  // ── Phase 2: Lambda + CloudFront ─────────────────────────────
+  // Run CFN outside of listr2 — it has its own progress output.
+  console.log(`\n  ${sym.arrow} Deploying Phase 2 stack (Lambda, CloudFront)...`);
+  const p2Params = [
+    `BoaStackName=${stackName}`,
+    `LambdaRoleArn=${state.lambdaRoleArn}`,
+    `ArtifactsBucket=${state.artifactsBucket}`,
+    `LambdaS3Key=${state.lambdaS3Key}`,
+    `StaticBucket=${state.staticBucket}`,
+    `AuthMode=${authMode}`,
+    `SessionSecret=${sessionSecret}`,
+    `AccessToken=${accessToken}`,
+    ...(state.cognitoPoolId   ? [`CognitoUserPoolId=${state.cognitoPoolId}`]   : []),
+    ...(state.cognitoClientId ? [`CognitoClientId=${state.cognitoClientId}`]   : []),
+  ].map((p) => aws.shellEscape(p)).join(' ');
+
+  aws.run(
+    `aws cloudformation deploy` +
+    ` --stack-name ${aws.shellEscape(phase2Stack)}` +
+    ` --template-file ${aws.shellEscape(PHASE2_TEMPLATE)}` +
+    ` --parameter-overrides ${p2Params}` +
+    ` --region ${aws.shellEscape(region)}`
+  );
+
+  // Read Phase 2 outputs and save config
+  const p2Outputs          = aws.cfnDescribeStacks(phase2Stack, region);
+  state.studioUrl          = getOutputValue(p2Outputs, 'StudioUrl');
+  state.distributionId     = getOutputValue(p2Outputs, 'DistributionId');
+  state.lambdaFunctionName = getOutputValue(p2Outputs, 'LambdaFunctionName');
+
+  cfg.studio = {
+    phase1Stack,
+    phase2Stack,
+    studioUrl:           state.studioUrl,
+    distributionId:      state.distributionId,
+    lambdaFunctionName:  state.lambdaFunctionName,
+    artifactsBucket:     state.artifactsBucket,
+    staticBucket:        state.staticBucket,
+    authMode,
+    branch,
+  };
+  config.write(cfg);
+  ok('Studio configuration saved');
 
   build.cleanup();
 
