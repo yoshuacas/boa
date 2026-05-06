@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["esnext"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".lambda"
+  },
+  "include": [
+    "lambda/**/*.ts",
+    "lib/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "src"]
+}

@@ -115,10 +115,10 @@ async function deploy(args) {
       },
     },
     {
-      title: 'Sync static assets to S3',
+      title: 'Sync SPA to S3',
       run: () => {
         aws.exec(
-          `aws s3 sync ${aws.shellEscape(build.assetsDir)}` +
+          `aws s3 sync ${aws.shellEscape(build.spaDir)}` +
           ` s3://${aws.shellEscape(state.staticBucket)}` +
           ` --delete --region ${aws.shellEscape(region)}`
         );
@@ -126,7 +126,7 @@ async function deploy(args) {
     },
   ]);
 
-  // ── Phase 2: Lambda + CloudFront ─────────────────────────────
+  // ── Phase 2: Lambda + API Gateway + CloudFront ───────────────
   // Run CFN outside of listr2 — it has its own progress output.
   console.log(`\n  ${sym.arrow} Deploying Phase 2 stack (Lambda, CloudFront)...`);
   const p2Params = [
@@ -155,6 +155,7 @@ async function deploy(args) {
   state.studioUrl          = getOutputValue(p2Outputs, 'StudioUrl');
   state.distributionId     = getOutputValue(p2Outputs, 'DistributionId');
   state.lambdaFunctionName = getOutputValue(p2Outputs, 'LambdaFunctionName');
+  state.apiId              = getOutputValue(p2Outputs, 'ApiId');
 
   cfg.studio = {
     phase1Stack,
@@ -162,6 +163,7 @@ async function deploy(args) {
     studioUrl:           state.studioUrl,
     distributionId:      state.distributionId,
     lambdaFunctionName:  state.lambdaFunctionName,
+    apiId:               state.apiId,
     artifactsBucket:     state.artifactsBucket,
     staticBucket:        state.staticBucket,
     authMode,
@@ -178,7 +180,27 @@ async function deploy(args) {
     ['Stack',      phase2Stack],
   ]);
 
-  if (authMode === 'token') {
+  if (authMode === 'cognito') {
+    blank();
+    console.log(`  ${sym.info} No admin users exist yet. Create the first one:`);
+    blank();
+    const email = await prompt('  Admin email address: ');
+    if (email) {
+      const tempPassword = randomBytes(12).toString('hex').slice(0, 16) + 'Aa1!';
+      aws.exec(
+        `aws cognito-idp admin-create-user` +
+        ` --user-pool-id ${aws.shellEscape(state.cognitoPoolId)}` +
+        ` --username ${aws.shellEscape(email)}` +
+        ` --temporary-password ${aws.shellEscape(tempPassword)}` +
+        ` --user-attributes Name=email,Value=${aws.shellEscape(email)} Name=email_verified,Value=true` +
+        ` --region ${aws.shellEscape(region)}`
+      );
+      ok(`Admin user created: ${email}`);
+      blank();
+      console.log(`  Temporary password: ${color.bold(tempPassword)}`);
+      console.log(`  You will be prompted to change it on first login.`);
+    }
+  } else {
     blank();
     console.log(`  ${sym.info} Access token stored in SSM at /${stackName}/studio-config`);
   }
@@ -257,10 +279,10 @@ async function update(_args) {
       },
     },
     {
-      title: 'Sync static assets to S3',
+      title: 'Sync SPA to S3',
       run: () => {
         aws.exec(
-          `aws s3 sync ${aws.shellEscape(build.assetsDir)}` +
+          `aws s3 sync ${aws.shellEscape(build.spaDir)}` +
           ` s3://${aws.shellEscape(staticBucket)}` +
           ` --delete --region ${aws.shellEscape(region)}`
         );

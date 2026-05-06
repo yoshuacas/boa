@@ -1,17 +1,19 @@
 /**
  * Studio mode helpers.
  *
- * NEXT_PUBLIC_STUDIO_MODE=local (default) — runs on the developer's machine,
+ * STUDIO_MODE=local (default) — runs on the developer's machine,
  *   reads config from disk, no auth required, policies saved locally.
  *
- * NEXT_PUBLIC_STUDIO_MODE=cloud — deployed to Amplify/cloud, reads config from
- *   SSM, auth middleware active, policies deployed directly to Lambda.
+ * STUDIO_MODE=cloud — deployed to AWS, reads config from SSM,
+ *   auth active, policies deployed directly to Lambda.
+ *
+ * Env var accepts both STUDIO_MODE and the legacy NEXT_PUBLIC_STUDIO_MODE.
  */
 
 export type StudioMode = 'local' | 'cloud';
 
 export function getStudioMode(): StudioMode {
-  const raw = process.env.NEXT_PUBLIC_STUDIO_MODE;
+  const raw = process.env.STUDIO_MODE ?? process.env.NEXT_PUBLIC_STUDIO_MODE;
   return raw === 'cloud' ? 'cloud' : 'local';
 }
 

@@ -1,10 +1,7 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Database, Users, HardDrive, Zap, LayoutDashboard, ShieldCheck, Settings, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isCloud } from '@/lib/studio-mode';
+import { useAuth } from '@/src/context/AuthContext';
 
 const navItems = [
   { id: 'overview',  label: 'Overview',    icon: LayoutDashboard, href: '/',          alwaysShow: true },
@@ -17,15 +14,16 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const cloud = isCloud();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { studioMode, authMode } = useAuth();
+  const cloud = studioMode === 'cloud';
+  const cognitoMode = authMode === 'cognito';
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    navigate('/login');
   }
-  const cognitoMode = process.env.NEXT_PUBLIC_STUDIO_AUTH === 'cognito';
 
   return (
     <aside className="group/sidebar flex flex-col min-h-screen bg-[#0f1117] border-r border-[#1c1c21] shrink-0 w-12 hover:w-56 transition-[width] duration-200 overflow-hidden">
@@ -59,7 +57,7 @@ export function Sidebar() {
           return (
             <Link
               key={item.id}
-              href={item.href}
+              to={item.href}
               title={item.label}
               className={cn(
                 'flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors whitespace-nowrap',
@@ -86,7 +84,7 @@ export function Sidebar() {
             return (
               <Link
                 key={item.id}
-                href={item.href}
+                to={item.href}
                 title={item.label}
                 className={cn(
                   'flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors whitespace-nowrap',

@@ -1,14 +1,14 @@
-'use client';
-
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/src/context/AuthContext';
 
 interface Props {
   mode: 'token' | 'cognito';
 }
 
 export function LoginForm({ mode }: Props) {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -34,19 +34,18 @@ export function LoginForm({ mode }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string; challenge?: string; session?: string };
 
       if (!res.ok) throw new Error(data.error || 'Login failed');
 
       if (data.challenge === 'NEW_PASSWORD_REQUIRED') {
-        setChallengeSession(data.session);
+        setChallengeSession(data.session ?? null);
         setLoading(false);
         return;
       }
 
-      // Stay in loading state until navigation completes.
-      router.push('/');
-      router.refresh();
+      await refresh();
+      navigate('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setLoading(false);

@@ -2,17 +2,15 @@
  * studio-build.mjs
  *
  * Downloads the BOA repo archive from GitHub (public, no token required),
- * extracts the studio/ subdirectory, runs npm ci + open-next build, and
- * zips the resulting Lambda server function.
- *
- * Returns { assetsDir, lambdaZip, cleanup } where:
- *   assetsDir  — path to .open-next/assets/ (upload to S3 static bucket)
- *   lambdaZip  — path to the Lambda zip file (upload to S3 artifacts bucket)
+ * extracts the studio/ subdirectory, runs npm ci + vite build + lambda build,
+ * and returns paths to:
+ *   spaDir     — path to dist/ (SPA static files → upload to S3)
+ *   lambdaZip  — path to lambda.zip (API handler → upload to S3 artifacts)
  *   cleanup    — call when done to remove the temp directory
  */
 
 import { execSync } from 'node:child_process';
-import { mkdtempSync, rmSync, createWriteStream } from 'node:fs';
+import { mkdtempSync, rmSync, createWriteStream, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pipeline } from 'node:stream/promises';
@@ -26,8 +24,8 @@ const DEFAULT_REPO = 'yoshuacas/boa';
  * @param {string} [opts.ref]                  Git branch or tag (default: 'main')
  * @param {string} [opts.authMode]             'token' | 'cognito'
  * @param {string} [opts.cognitoRegion]        AWS region of Cognito pool
- * @param {string} [opts.cognitoUserPoolId]    Cognito User Pool ID (baked at build time)
- * @param {string} [opts.cognitoClientId]      Cognito App Client ID (baked at build time)
+ * @param {string} [opts.cognitoUserPoolId]    Cognito User Pool ID
+ * @param {string} [opts.cognitoClientId]      Cognito App Client ID
  */
 export async function buildStudio({
   repo = DEFAULT_REPO,
@@ -50,7 +48,6 @@ export async function buildStudio({
     execSync(`unzip -q ${shellEscape(archivePath)} -d ${shellEscape(tmpDir)}`);
 
     // GitHub replaces '/' with '-' in branch names for the extracted directory name.
-    // Find the studio/ subdirectory dynamically rather than guessing the name.
     const repoName = repo.split('/').pop();
     const { readdirSync } = await import('node:fs');
     const extractedRoot = readdirSync(tmpDir)
@@ -62,34 +59,25 @@ export async function buildStudio({
     process.stdout.write('  Running npm ci ...\n');
     execSync('npm ci', { cwd: extractedStudio, stdio: 'inherit' });
 
-    // 4. Build environment — NEXT_PUBLIC_* vars are baked at build time
-    const buildEnv = {
-      ...process.env,
-      NEXT_PUBLIC_STUDIO_MODE: 'cloud',
-      NEXT_PUBLIC_STUDIO_AUTH: authMode,
-      NEXT_PUBLIC_STUDIO_COGNITO_REGION: cognitoRegion || process.env.AWS_REGION || 'us-east-1',
-      NEXT_PUBLIC_STUDIO_COGNITO_USER_POOL_ID: cognitoUserPoolId || '',
-    };
-    // Also set the non-public vars so next.config.ts env mapping picks them up
-    if (cognitoRegion)     buildEnv.STUDIO_COGNITO_REGION     = cognitoRegion;
-    if (cognitoUserPoolId) buildEnv.STUDIO_COGNITO_USER_POOL_ID = cognitoUserPoolId;
-    if (cognitoClientId)   buildEnv.STUDIO_COGNITO_CLIENT_ID    = cognitoClientId;
+    // 4. Build SPA (Vite)
+    process.stdout.write('  Running vite build (SPA) ...\n');
+    execSync('npm run build', { cwd: extractedStudio, stdio: 'inherit' });
 
-    // 5. open-next build
-    process.stdout.write('  Running open-next build ...\n');
-    execSync('npx open-next build', { cwd: extractedStudio, stdio: 'inherit', env: buildEnv });
+    // 5. Build Lambda (esbuild)
+    process.stdout.write('  Building Lambda handler ...\n');
+    mkdirSync(join(extractedStudio, '.lambda'), { recursive: true });
+    execSync('npm run build:lambda', { cwd: extractedStudio, stdio: 'inherit' });
 
-    const openNextDir    = join(extractedStudio, '.open-next');
-    const assetsDir      = join(openNextDir, 'assets');
-    const serverFnDir    = join(openNextDir, 'server-functions', 'default');
-
-    // 6. Zip server function contents (not the directory itself)
+    // 6. Zip Lambda output
+    const lambdaDir = join(extractedStudio, '.lambda');
     const lambdaZip = join(tmpDir, 'lambda.zip');
-    process.stdout.write('  Zipping server function ...\n');
-    execSync(`cd ${shellEscape(serverFnDir)} && zip -r ${shellEscape(lambdaZip)} .`);
+    process.stdout.write('  Zipping Lambda handler ...\n');
+    execSync(`cd ${shellEscape(lambdaDir)} && zip -r ${shellEscape(lambdaZip)} .`);
+
+    const spaDir = join(extractedStudio, 'dist');
 
     return {
-      assetsDir,
+      spaDir,
       lambdaZip,
       cleanup: () => rmSync(tmpDir, { recursive: true, force: true }),
     };

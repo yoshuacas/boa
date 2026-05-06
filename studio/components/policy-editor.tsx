@@ -1,13 +1,10 @@
-'use client';
-
-import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+import { useState, useRef, useCallback, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { editor } from 'monaco-editor';
 import { parseCedar, type PolicyRule } from '@/lib/cedar-policies-client';
-import { isCloud } from '@/lib/studio-mode';
+import { useAuth } from '@/src/context/AuthContext';
 
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+const MonacoEditor = lazy(() => import('@monaco-editor/react'));
 
 const ACTION_COLORS: Record<string, string> = {
   select: 'text-blue-400 bg-blue-900/20 border-blue-700/30',
@@ -24,7 +21,9 @@ interface Props {
 }
 
 export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const { studioMode } = useAuth();
+  const cloudMode = studioMode === 'cloud';
   const [filename, setFilename] = useState(initialFilename);
   const [content, setContent] = useState(initialContent);
   const [saving, setSaving] = useState(false);
@@ -36,7 +35,6 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
   const [deployedContent, setDeployedContent] = useState<{ filename: string; content: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const cloudMode = isCloud();
 
   const summary = parseCedar(content);
 
@@ -69,11 +67,11 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(isNew ? { filename: finalName, content: body } : { content: body }),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string };
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setStatus({ message: 'Saved — run boa deploy to apply', variant: 'saved' });
       setTimeout(() => setStatus(null), 4000);
-      if (isNew) router.push(`/policies/${encodeURIComponent(finalName)}`);
+      if (isNew) navigate(`/policies/${encodeURIComponent(finalName)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -95,13 +93,12 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: finalName, content: body }),
       });
-      const data = await res.json();
+      const data = await res.json() as { error?: string; functionName?: string };
       if (!res.ok) throw new Error(data.error || 'Deploy failed');
       setStatus({ message: `Deployed to ${data.functionName}`, variant: 'deployed' });
       setTimeout(() => setStatus(null), 5000);
-      // In cloud mode show the ephemeral warning with copyable content
       if (cloudMode) setDeployedContent({ filename: finalName, content: body });
-      if (isNew) router.push(`/policies/${encodeURIComponent(finalName)}`);
+      if (isNew) navigate(`/policies/${encodeURIComponent(finalName)}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -115,9 +112,9 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
     setError(null);
     try {
       const res = await fetch(`/api/policies?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' });
-      const data = await res.json();
+      const data = await res.json() as { error?: string };
       if (!res.ok) throw new Error(data.error || 'Delete failed');
-      router.push('/policies');
+      navigate('/policies');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
       setDeleting(false);
@@ -182,7 +179,7 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
               ) : (
                 <>
                   <span className="text-green-400">⬆</span>
-                  {cloudMode ? 'Deploy' : 'Deploy'}
+                  Deploy
                 </>
               )}
             </button>
@@ -239,68 +236,69 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
         {/* Monaco editor */}
         <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden" style={{ height: 480 }}>
-          <MonacoEditor
-            height="100%"
-            language="cedar-policy"
-            theme="vs-dark"
-            value={content}
-            onChange={v => setContent(v ?? '')}
-            onMount={(ed, monaco) => {
-              handleMount(ed);
-              // Register Cedar as a language with basic syntax highlighting
-              if (!monaco.languages.getLanguages().find((l: { id: string }) => l.id === 'cedar-policy')) {
-                monaco.languages.register({ id: 'cedar-policy' });
-                monaco.languages.setMonarchTokensProvider('cedar-policy', {
-                  keywords: ['permit', 'forbid', 'when', 'unless', 'in', 'is', 'has', 'like', 'if', 'then', 'else', 'true', 'false'],
-                  tokenizer: {
-                    root: [
-                      [/\/\/.*$/, 'comment'],
-                      [/"[^"]*"/, 'string'],
-                      [/\b(permit|forbid)\b/, 'keyword.control'],
-                      [/\b(when|unless|if|then|else)\b/, 'keyword'],
-                      [/\b(principal|action|resource|context)\b/, 'variable'],
-                      [/\b(is|in|has|like)\b/, 'keyword'],
-                      [/\bPgrestLambda::\w+/, 'type'],
-                      [/[{}()\[\];,]/, 'delimiter'],
-                      [/[=!<>]+/, 'operator'],
-                      [/&&|\|\|/, 'operator'],
-                      [/\b\d+\b/, 'number'],
-                      [/\w+/, 'identifier'],
+          <Suspense fallback={<div className="h-full flex items-center justify-center text-gray-600 text-sm">Loading editor...</div>}>
+            <MonacoEditor
+              height="100%"
+              language="cedar-policy"
+              theme="vs-dark"
+              value={content}
+              onChange={v => setContent(v ?? '')}
+              onMount={(ed, monaco) => {
+                handleMount(ed);
+                if (!monaco.languages.getLanguages().find((l: { id: string }) => l.id === 'cedar-policy')) {
+                  monaco.languages.register({ id: 'cedar-policy' });
+                  monaco.languages.setMonarchTokensProvider('cedar-policy', {
+                    keywords: ['permit', 'forbid', 'when', 'unless', 'in', 'is', 'has', 'like', 'if', 'then', 'else', 'true', 'false'],
+                    tokenizer: {
+                      root: [
+                        [/\/\/.*$/, 'comment'],
+                        [/"[^"]*"/, 'string'],
+                        [/\b(permit|forbid)\b/, 'keyword.control'],
+                        [/\b(when|unless|if|then|else)\b/, 'keyword'],
+                        [/\b(principal|action|resource|context)\b/, 'variable'],
+                        [/\b(is|in|has|like)\b/, 'keyword'],
+                        [/\bPgrestLambda::\w+/, 'type'],
+                        [/[{}()\[\];,]/, 'delimiter'],
+                        [/[=!<>]+/, 'operator'],
+                        [/&&|\|\|/, 'operator'],
+                        [/\b\d+\b/, 'number'],
+                        [/\w+/, 'identifier'],
+                      ],
+                    },
+                  });
+                  monaco.editor.defineTheme('cedar-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                      { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
+                      { token: 'keyword.control', foreground: 'f472b6', fontStyle: 'bold' },
+                      { token: 'keyword', foreground: 'c084fc' },
+                      { token: 'variable', foreground: '60a5fa' },
+                      { token: 'type', foreground: 'fb923c' },
+                      { token: 'string', foreground: '4ade80' },
+                      { token: 'operator', foreground: 'e2e8f0' },
+                      { token: 'number', foreground: 'f59e0b' },
                     ],
-                  },
-                });
-                monaco.editor.defineTheme('cedar-dark', {
-                  base: 'vs-dark',
-                  inherit: true,
-                  rules: [
-                    { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
-                    { token: 'keyword.control', foreground: 'f472b6', fontStyle: 'bold' },
-                    { token: 'keyword', foreground: 'c084fc' },
-                    { token: 'variable', foreground: '60a5fa' },
-                    { token: 'type', foreground: 'fb923c' },
-                    { token: 'string', foreground: '4ade80' },
-                    { token: 'operator', foreground: 'e2e8f0' },
-                    { token: 'number', foreground: 'f59e0b' },
-                  ],
-                  colors: {
-                    'editor.background': '#1c1c21',
-                    'editor.lineHighlightBackground': '#2a2a2f',
-                  },
-                });
-                monaco.editor.setTheme('cedar-dark');
-              }
-              ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, save);
-            }}
-            options={{
-              fontSize: 13,
-              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              lineNumbers: 'on',
-              wordWrap: 'on',
-              padding: { top: 12, bottom: 12 },
-            }}
-          />
+                    colors: {
+                      'editor.background': '#1c1c21',
+                      'editor.lineHighlightBackground': '#2a2a2f',
+                    },
+                  });
+                  monaco.editor.setTheme('cedar-dark');
+                }
+                ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, save);
+              }}
+              options={{
+                fontSize: 13,
+                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                lineNumbers: 'on',
+                wordWrap: 'on',
+                padding: { top: 12, bottom: 12 },
+              }}
+            />
+          </Suspense>
         </div>
 
         {/* Live summary panel */}
@@ -364,7 +362,7 @@ function DeployConfirmModal({
           <div className="bg-[#0f1117] border border-[#2a2a2f] rounded-lg p-3 space-y-1.5 text-xs text-gray-500">
             <p><span className="text-gray-400">What happens:</span> The current Lambda deployment package is downloaded, the policy file is updated inside it, and the package is re-uploaded.</p>
             <p><span className="text-gray-400">Takes:</span> ~5–15 seconds while the Lambda update propagates.</p>
-            <p><span className="text-gray-400">Effect:</span> New requests to your API will use the updated policy within seconds. In-flight requests are not affected.</p>
+            <p><span className="text-gray-400">Effect:</span> New requests to your API will use the updated policy within seconds.</p>
           </div>
 
           <div className="flex gap-2 justify-end pt-1">
@@ -425,7 +423,6 @@ const MATRIX_ACTIONS = ['select', 'insert', 'update', 'delete'];
 const MATRIX_PRINCIPALS = ['Any', 'User', 'ServiceRole', 'AnonRole'];
 
 function AccessMatrix({ rules }: { rules: PolicyRule[] }) {
-  // Build permit set: principal+action combos
   const permits = new Set<string>();
   const forbids = new Set<string>();
 
