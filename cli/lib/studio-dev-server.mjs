@@ -5,11 +5,11 @@
  * Translates Node.js HTTP requests → API Gateway HTTP API v2 event format,
  * calls the handler, and translates the response back to HTTP.
  *
- * Usage: node studio-dev-server.mjs <path-to-.lambda/index.js> <port>
+ * Usage: node studio-dev-server.mjs <path-to-.lambda/index.mjs> <port>
  */
 
 import http from 'node:http';
-import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const lambdaPath = process.argv[2];
 const port = parseInt(process.argv[3] || '3099', 10);
@@ -19,10 +19,8 @@ if (!lambdaPath) {
   process.exit(1);
 }
 
-// CJS lambda bundle — use createRequire so it resolves node_modules
-// relative to its own location (studio/.lambda/), which finds studio/node_modules
-const require = createRequire(import.meta.url);
-const { handler } = require(lambdaPath);
+// ESM dynamic import — works for both .mjs and .cjs Lambda bundles
+const { handler } = await import(pathToFileURL(lambdaPath).href);
 
 const server = http.createServer(async (req, res) => {
   // Read body

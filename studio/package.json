@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json --noEmit && vite build",
-    "build:lambda": "esbuild lambda/index.ts --bundle --platform=node --target=node22 --outfile=.lambda/index.js --packages=external --tsconfig=tsconfig.lambda.json",
+    "build:lambda": "esbuild lambda/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=.lambda/index.mjs --packages=external --tsconfig=tsconfig.lambda.json",
     "start": "vite preview",
     "lint": "eslint"
   },

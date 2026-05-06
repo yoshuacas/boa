@@ -56,7 +56,7 @@ async function dev(args) {
 
   // Studio source is adjacent to cli/ in the repo
   const studioDir = fileURLToPath(new URL('../../studio', import.meta.url));
-  const lambdaOut = join(studioDir, '.lambda', 'index.js');
+  const lambdaOut = join(studioDir, '.lambda', 'index.mjs');
   const devServerScript = fileURLToPath(new URL('../lib/studio-dev-server.mjs', import.meta.url));
   const apiPort = 3099;
 
