@@ -4,6 +4,45 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── BOA design tokens ──────────────────────────────────────────────────────
+   Use these throughout the Studio instead of hardcoded hex values.
+   Toggle by adding/removing the `dark` class on <html>.
+   ───────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Light mode */
+  --bg-base:    #ffffff;
+  --bg-surface: #f7f7f7;
+  --bg-raised:  #ededed;
+  --bg-subtle:  #f2f2f2;
+  --bd:         #e5e5e5;
+  --bd-subtle:  #efefef;
+  --tx-1:       #111111;
+  --tx-2:       #555555;
+  --tx-3:       #999999;
+  --orange:     #f97316;
+  --orange-fg:  #ffffff;
+  --orange-dim: #fff7ed;
+  --orange-bd:  #fed7aa;
+}
+
+.dark {
+  /* Dark mode — matches the BOA website aesthetic */
+  --bg-base:    #111111;
+  --bg-surface: #1a1a1a;
+  --bg-raised:  #252525;
+  --bg-subtle:  #171717;
+  --bd:         #2d2d2d;
+  --bd-subtle:  #222222;
+  --tx-1:       #ffffff;
+  --tx-2:       #a3a3a3;
+  --tx-3:       #555555;
+  --orange:     #f97316;
+  --orange-fg:  #ffffff;
+  --orange-dim: #1c0f05;
+  --orange-bd:  #7c3400;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

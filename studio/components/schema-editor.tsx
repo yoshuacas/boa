@@ -54,7 +54,7 @@ async function reloadSchema(tableName: string): Promise<TableSchema> {
 
 function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'default' | 'blue' | 'green' | 'yellow' }) {
   const styles = {
-    default: 'bg-[#2a2a2f] text-gray-400',
+    default: 'bg-[var(--bg-raised)] text-[var(--tx-2)]',
     blue:    'bg-blue-900/30 text-blue-400 border border-blue-700/30',
     green:   'bg-green-900/30 text-green-400 border border-green-700/30',
     yellow:  'bg-yellow-900/30 text-yellow-400 border border-yellow-700/30',
@@ -112,27 +112,27 @@ function AddColumnModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-        <h2 className="text-base font-semibold text-white">Add Column</h2>
+      <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+        <h2 className="text-base font-semibold text-[var(--tx-1)]">Add Column</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Column Name</label>
+            <label className="text-xs text-[var(--tx-3)]">Column Name</label>
             <input
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. email"
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-500"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[var(--orange)]"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Type</label>
+            <label className="text-xs text-[var(--tx-3)]">Type</label>
             <select
               value={type}
               onChange={e => setType(e.target.value)}
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm focus:outline-none focus:border-gray-500"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm focus:outline-none focus:border-[var(--orange)]"
             >
               {Object.entries(grouped).map(([cat, types]) => (
                 <optgroup key={cat} label={cat}>
@@ -145,12 +145,12 @@ function AddColumnModal({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Default Value <span className="text-gray-700">(optional — raw SQL expression)</span></label>
+            <label className="text-xs text-[var(--tx-3)]">Default Value <span className="text-gray-700">(optional — raw SQL expression)</span></label>
             <input
               value={defaultValue}
               onChange={e => setDefaultValue(e.target.value)}
               placeholder="e.g. NOW() or 'active' or gen_random_uuid()::text"
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-500"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[var(--orange)]"
             />
           </div>
 
@@ -161,18 +161,18 @@ function AddColumnModal({
               onChange={e => setNullable(e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm text-gray-300">Nullable</span>
+            <span className="text-sm text-[var(--tx-2)]">Nullable</span>
           </label>
 
           {error && <ErrorBar message={error} onDismiss={() => setError(null)} />}
 
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={onClose}
-              className="text-sm text-gray-400 hover:text-white px-3 py-1.5 transition-colors">
+              className="text-sm text-[var(--tx-2)] hover:text-[var(--tx-1)] px-3 py-1.5 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-4 py-1.5 transition-colors">
+              className="text-sm bg-[var(--orange)] hover:opacity-90 disabled:opacity-50 text-[var(--orange-fg)] rounded px-4 py-1.5 transition-opacity">
               {saving ? 'Adding…' : 'Add Column'}
             </button>
           </div>
@@ -226,13 +226,13 @@ function AddIndexModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
-        <h2 className="text-base font-semibold text-white">Add Index</h2>
-        <p className="text-xs text-gray-500">Indexes are created with <code className="text-gray-400">ASYNC</code> as required by DSQL.</p>
+      <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+        <h2 className="text-base font-semibold text-[var(--tx-1)]">Add Index</h2>
+        <p className="text-xs text-[var(--tx-3)]">Indexes are created with <code className="text-[var(--tx-2)]">ASYNC</code> as required by DSQL.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Columns <span className="text-gray-700">(select one or more)</span></label>
+            <label className="text-xs text-[var(--tx-3)]">Columns <span className="text-gray-700">(select one or more)</span></label>
             <div className="space-y-1 max-h-40 overflow-auto">
               {columns.map(col => (
                 <label key={col} className="flex items-center gap-2 cursor-pointer">
@@ -241,28 +241,28 @@ function AddIndexModal({
                     checked={selectedCols.includes(col)}
                     onChange={() => toggleCol(col)}
                   />
-                  <span className="text-sm font-mono text-gray-300">{col}</span>
+                  <span className="text-sm font-mono text-[var(--tx-2)]">{col}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Index Name <span className="text-gray-700">(optional — auto-generated if blank)</span></label>
+            <label className="text-xs text-[var(--tx-3)]">Index Name <span className="text-gray-700">(optional — auto-generated if blank)</span></label>
             <input
               value={indexName}
               onChange={e => setIndexName(e.target.value)}
               placeholder={`idx_${tableName}_…`}
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-500"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[var(--orange)]"
             />
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={unique} onChange={e => setUnique(e.target.checked)} className="rounded" />
-            <span className="text-sm text-gray-300">Unique index</span>
+            <span className="text-sm text-[var(--tx-2)]">Unique index</span>
           </label>
 
-          <div className="bg-[#0f1117] rounded p-3 font-mono text-xs text-gray-400 break-all">
+          <div className="bg-[var(--bg-base)] rounded p-3 font-mono text-xs text-[var(--tx-2)] break-all">
             {preview}
           </div>
 
@@ -270,11 +270,11 @@ function AddIndexModal({
 
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={onClose}
-              className="text-sm text-gray-400 hover:text-white px-3 py-1.5 transition-colors">
+              className="text-sm text-[var(--tx-2)] hover:text-[var(--tx-1)] px-3 py-1.5 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-4 py-1.5 transition-colors">
+              className="text-sm bg-[var(--orange)] hover:opacity-90 disabled:opacity-50 text-[var(--orange-fg)] rounded px-4 py-1.5 transition-opacity">
               {saving ? 'Creating…' : 'Create Index'}
             </button>
           </div>
@@ -333,10 +333,10 @@ function EditColumnModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+      <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
         <div>
-          <h2 className="text-base font-semibold text-white">Edit Column</h2>
-          <p className="text-xs text-gray-500 font-mono mt-0.5">{column.name} · {typeLabel(column)}</p>
+          <h2 className="text-base font-semibold text-[var(--tx-1)]">Edit Column</h2>
+          <p className="text-xs text-[var(--tx-3)] font-mono mt-0.5">{column.name} · {typeLabel(column)}</p>
         </div>
 
         <div className="bg-yellow-900/20 border border-yellow-700/30 rounded p-2 text-xs text-yellow-400 flex gap-2">
@@ -346,25 +346,25 @@ function EditColumnModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Column Name</label>
+            <label className="text-xs text-[var(--tx-3)]">Column Name</label>
             <input
               value={newName}
               onChange={e => setNewName(e.target.value)}
               disabled={column.isPrimaryKey}
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-500 disabled:opacity-40"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[var(--orange)] disabled:opacity-40"
             />
             {column.isPrimaryKey && (
-              <p className="text-xs text-gray-600">Primary key columns cannot be renamed.</p>
+              <p className="text-xs text-[var(--tx-3)]">Primary key columns cannot be renamed.</p>
             )}
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-500">Default Value <span className="text-gray-700">(raw SQL expression)</span></label>
+            <label className="text-xs text-[var(--tx-3)]">Default Value <span className="text-gray-700">(raw SQL expression)</span></label>
             <input
               value={defaultValue}
               onChange={e => setDefaultValue(e.target.value)}
               placeholder="e.g. NOW() or 'active'"
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-gray-500"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] rounded px-3 py-2 text-sm font-mono focus:outline-none focus:border-[var(--orange)]"
             />
           </div>
 
@@ -376,18 +376,18 @@ function EditColumnModal({
               disabled={column.isPrimaryKey}
               className="rounded"
             />
-            <span className={`text-sm ${column.isPrimaryKey ? 'text-gray-600' : 'text-gray-300'}`}>Nullable</span>
+            <span className={`text-sm ${column.isPrimaryKey ? 'text-[var(--tx-3)]' : 'text-[var(--tx-2)]'}`}>Nullable</span>
           </label>
 
           {error && <ErrorBar message={error} onDismiss={() => setError(null)} />}
 
           <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={onClose}
-              className="text-sm text-gray-400 hover:text-white px-3 py-1.5 transition-colors">
+              className="text-sm text-[var(--tx-2)] hover:text-[var(--tx-1)] px-3 py-1.5 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-4 py-1.5 transition-colors">
+              className="text-sm bg-[var(--orange)] hover:opacity-90 disabled:opacity-50 text-[var(--orange-fg)] rounded px-4 py-1.5 transition-opacity">
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
@@ -450,10 +450,10 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
       {error && <ErrorBar message={error} onDismiss={() => setError(null)} />}
 
       {isReadOnly && (
-        <div className="flex items-center gap-2 bg-[#1c1c21] border border-[#2a2a2f] rounded-lg px-4 py-2.5 text-xs text-gray-500">
-          <AlertTriangle size={12} className="shrink-0 text-gray-600" />
+        <div className="flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg px-4 py-2.5 text-xs text-[var(--tx-3)]">
+          <AlertTriangle size={12} className="shrink-0 text-[var(--tx-3)]" />
           <span>
-            <span className="font-mono text-gray-400">{schemaName}</span> is a system schema — viewing only. Edit these tables directly in the SQL editor.
+            <span className="font-mono text-[var(--tx-2)]">{schemaName}</span> is a system schema — viewing only. Edit these tables directly in the SQL editor.
           </span>
         </div>
       )}
@@ -461,13 +461,13 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
       {/* Columns */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest">
+          <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest">
             Columns ({schema.columns.length})
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={refresh}
-              className="text-gray-600 hover:text-gray-400 transition-colors"
+              className="text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
               title="Refresh schema"
             >
               <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
@@ -475,7 +475,7 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
             {!isReadOnly && (
               <button
                 onClick={() => setModal({ type: 'add-column' })}
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-[#1c1c21] border border-[#2a2a2f] rounded px-2 py-1 hover:border-gray-500 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-[var(--tx-2)] hover:text-[var(--tx-1)] bg-[var(--bg-surface)] border border-[var(--bd)] rounded px-2 py-1 hover:border-gray-500 transition-colors"
               >
                 <Plus size={12} />
                 Add Column
@@ -484,12 +484,12 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
           </div>
         </div>
 
-        <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+        <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2a2a2f]">
+              <tr className="border-b border-[var(--bd)]">
                 {['Column', 'Type', 'Nullable', 'Default', ''].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider first:pl-4">
+                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider first:pl-4">
                     {h}
                   </th>
                 ))}
@@ -497,25 +497,25 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
             </thead>
             <tbody>
               {schema.columns.map((col, i) => (
-                <tr key={col.name} className={i < schema.columns.length - 1 ? 'border-b border-[#2a2a2f]' : ''}>
+                <tr key={col.name} className={i < schema.columns.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-white text-xs">{col.name}</span>
+                      <span className="font-mono text-[var(--tx-1)] text-xs">{col.name}</span>
                       <div className="flex gap-1">
                         {col.isPrimaryKey && <Badge variant="blue">PK</Badge>}
                         {col.isUnique && !col.isPrimaryKey && <Badge variant="green">UQ</Badge>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-gray-300">
+                  <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-2)]">
                     {typeLabel(col)}
                   </td>
                   <td className="px-4 py-2.5 text-xs">
-                    <span className={col.isNullable ? 'text-gray-500' : 'text-gray-400'}>
+                    <span className={col.isNullable ? 'text-[var(--tx-3)]' : 'text-[var(--tx-2)]'}>
                       {col.isNullable ? 'YES' : 'NO'}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 font-mono text-xs text-gray-600 max-w-[180px] truncate">
+                  <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-3)] max-w-[180px] truncate">
                     {defaultLabel(col.columnDefault)}
                   </td>
                   {!isReadOnly && (
@@ -523,7 +523,7 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setModal({ type: 'edit-column', column: col })}
-                          className="text-xs text-gray-600 hover:text-gray-300 transition-colors"
+                          className="text-xs text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
                         >
                           Edit
                         </button>
@@ -549,13 +549,13 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
       {/* Indexes */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest">
+          <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest">
             Indexes ({schema.indexes.length})
           </p>
           {!isReadOnly && (
             <button
               onClick={() => setModal({ type: 'add-index' })}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-[#1c1c21] border border-[#2a2a2f] rounded px-2 py-1 hover:border-gray-500 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-[var(--tx-2)] hover:text-[var(--tx-1)] bg-[var(--bg-surface)] border border-[var(--bd)] rounded px-2 py-1 hover:border-gray-500 transition-colors"
             >
               <Plus size={12} />
               Add Index
@@ -564,16 +564,16 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
         </div>
 
         {schema.indexes.length === 0 ? (
-          <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg p-4 text-sm text-gray-600 text-center">
+          <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-4 text-sm text-[var(--tx-3)] text-center">
             No indexes. Add one to speed up queries.
           </div>
         ) : (
-          <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+          <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2a2a2f]">
+                <tr className="border-b border-[var(--bd)]">
                   {['Name', 'Definition', ''].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -581,9 +581,9 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
               </thead>
               <tbody>
                 {schema.indexes.map((idx, i) => (
-                  <tr key={idx.name} className={i < schema.indexes.length - 1 ? 'border-b border-[#2a2a2f]' : ''}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-white whitespace-nowrap">{idx.name}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500 max-w-md truncate">{idx.definition}</td>
+                  <tr key={idx.name} className={i < schema.indexes.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-1)] whitespace-nowrap">{idx.name}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-3)] max-w-md truncate">{idx.definition}</td>
                     {!isReadOnly && (
                       <td className="px-4 py-2.5 text-right">
                         <button
@@ -606,15 +606,15 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
       {/* Constraints */}
       {schema.constraints.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-3">
+          <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest mb-3">
             Constraints ({schema.constraints.length})
           </p>
-          <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+          <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2a2a2f]">
+                <tr className="border-b border-[var(--bd)]">
                   {['Name', 'Type', 'Columns / Clause'].map(h => (
-                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
@@ -622,12 +622,12 @@ export function SchemaEditor({ initialSchema }: { initialSchema: TableSchema }) 
               </thead>
               <tbody>
                 {schema.constraints.map((c, i) => (
-                  <tr key={c.name} className={i < schema.constraints.length - 1 ? 'border-b border-[#2a2a2f]' : ''}>
-                    <td className="px-4 py-2.5 font-mono text-xs text-white">{c.name}</td>
+                  <tr key={c.name} className={i < schema.constraints.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
+                    <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-1)]">{c.name}</td>
                     <td className="px-4 py-2.5">
                       <Badge variant={c.type === 'UNIQUE' ? 'green' : 'yellow'}>{c.type}</Badge>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-gray-500">
+                    <td className="px-4 py-2.5 font-mono text-xs text-[var(--tx-3)]">
                       {c.checkClause || c.columns.join(', ')}
                     </td>
                   </tr>

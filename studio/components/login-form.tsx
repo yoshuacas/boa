@@ -53,11 +53,11 @@ export function LoginForm({ mode }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+    <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center">
       <div className="w-full max-w-sm mx-4">
         <div className="mb-8 text-center">
-          <h1 className="text-xl font-bold text-white tracking-tight">BOA Studio</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-xl font-bold text-[var(--tx-1)] tracking-tight">BOA Studio</h1>
+          <p className="text-sm text-[var(--tx-3)] mt-1">
             {isNewPasswordStep
               ? 'Set a new password to continue'
               : mode === 'cognito'
@@ -75,7 +75,7 @@ export function LoginForm({ mode }: Props) {
               placeholder="Email"
               autoFocus
               required
-              className="w-full bg-[#1c1c21] border border-[#2a2a2f] text-white text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-gray-500 placeholder:text-gray-600"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-1)] text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-[var(--orange)] placeholder:text-[var(--tx-3)]"
             />
           )}
 
@@ -87,7 +87,7 @@ export function LoginForm({ mode }: Props) {
               placeholder={mode === 'cognito' ? 'Password' : 'Access token'}
               autoFocus={mode === 'token'}
               required
-              className="w-full bg-[#1c1c21] border border-[#2a2a2f] text-white text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-gray-500 placeholder:text-gray-600"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-1)] text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-[var(--orange)] placeholder:text-[var(--tx-3)]"
             />
           )}
 
@@ -99,7 +99,7 @@ export function LoginForm({ mode }: Props) {
               placeholder="New password"
               autoFocus
               required
-              className="w-full bg-[#1c1c21] border border-[#2a2a2f] text-white text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-gray-500 placeholder:text-gray-600"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-1)] text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-[var(--orange)] placeholder:text-[var(--tx-3)]"
             />
           )}
 
@@ -115,7 +115,7 @@ export function LoginForm({ mode }: Props) {
                 !password || (mode === 'cognito' && !email)
               ))
             }
-            className="w-full bg-white text-black text-sm font-medium rounded-lg px-4 py-2.5 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-[var(--orange)] text-[var(--orange-fg)] text-sm font-medium rounded-lg px-4 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading
               ? 'Signing in…'

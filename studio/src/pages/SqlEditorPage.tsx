@@ -163,8 +163,8 @@ export default function SqlEditorPage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="mb-3 shrink-0">
-        <h1 className="text-xl font-semibold text-white">Database</h1>
-        {endpoint && <p className="text-xs text-gray-600 font-mono mt-0.5">{endpoint}</p>}
+        <h1 className="text-xl font-semibold text-[var(--tx-1)]">Database</h1>
+        {endpoint && <p className="text-xs text-[var(--tx-3)] font-mono mt-0.5">{endpoint}</p>}
       </div>
       <DatabaseTabs />
       <div className="flex flex-col h-[calc(100vh-13rem)]">
@@ -177,15 +177,15 @@ export default function SqlEditorPage() {
                 onClick={() => switchTab(tab.id)}
                 className={`group flex items-center gap-1.5 px-3 py-2 text-xs border-t border-x rounded-t transition-colors whitespace-nowrap ${
                   tab.id === activeId
-                    ? 'bg-[#1c1c21] border-[#2a2a2f] text-white'
-                    : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+                    ? 'bg-[var(--bg-surface)] border-[var(--bd)] text-[var(--tx-1)]'
+                    : 'bg-transparent border-transparent text-[var(--tx-3)] hover:text-[var(--tx-2)]'
                 }`}
               >
                 <span>{tab.name}</span>
                 {tabs.length > 1 && (
                   <span
                     onClick={(e) => closeTab(tab.id, e)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-gray-300 leading-none transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-[var(--tx-3)] hover:text-[var(--tx-2)] leading-none transition-opacity"
                   >
                     ×
                   </span>
@@ -194,7 +194,7 @@ export default function SqlEditorPage() {
             ))}
             <button
               onClick={addTab}
-              className="px-2.5 py-2 text-gray-600 hover:text-gray-300 text-sm transition-colors"
+              className="px-2.5 py-2 text-[var(--tx-3)] hover:text-[var(--tx-2)] text-sm transition-colors"
               title="New tab"
             >
               +
@@ -203,15 +203,15 @@ export default function SqlEditorPage() {
           <button
             onClick={runQuery}
             disabled={loading}
-            className="text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-3 py-1.5 transition-colors shrink-0 ml-3"
+            className="text-sm bg-[var(--orange)] hover:opacity-90 disabled:opacity-50 text-[var(--orange-fg)] rounded px-3 py-1.5 transition-opacity shrink-0 ml-3"
           >
             {loading ? 'Running...' : 'Run ⌘↵'}
           </button>
         </div>
 
         {/* Editor */}
-        <div className="flex-1 min-h-0 rounded-b-lg rounded-tr-lg overflow-hidden border border-[#2a2a2f]">
-          <Suspense fallback={<div className="h-full bg-[#1c1c21] flex items-center justify-center text-gray-600 text-sm">Loading editor...</div>}>
+        <div className="flex-1 min-h-0 rounded-b-lg rounded-tr-lg overflow-hidden border border-[var(--bd)]">
+          <Suspense fallback={<div className="h-full bg-[var(--bg-surface)] flex items-center justify-center text-[var(--tx-3)] text-sm">Loading editor...</div>}>
             <MonacoEditor
               height="100%"
               language="sql"
@@ -234,13 +234,13 @@ export default function SqlEditorPage() {
 
         {/* Results */}
         {result && (
-          <div className="shrink-0 max-h-64 overflow-auto rounded-lg border border-[#2a2a2f] bg-[#1c1c21] mt-3">
+          <div className="shrink-0 max-h-64 overflow-auto rounded-lg border border-[var(--bd)] bg-[var(--bg-surface)] mt-3">
             {result.error ? (
               <div className="p-4 text-sm text-red-400 font-mono">{result.error}</div>
             ) : (
               <>
-                <div className="px-4 py-2 border-b border-[#2a2a2f]">
-                  <span className="text-xs text-gray-500">
+                <div className="px-4 py-2 border-b border-[var(--bd)]">
+                  <span className="text-xs text-[var(--tx-3)]">
                     {result.rowCount} row{result.rowCount !== 1 ? 's' : ''}
                     {result.durationMs != null && ` · ${result.durationMs}ms`}
                   </span>
@@ -248,15 +248,15 @@ export default function SqlEditorPage() {
                 <div className="overflow-auto">
                   <table className="w-full text-xs font-mono">
                     <thead>
-                      <tr className="border-b border-[#2a2a2f]">
+                      <tr className="border-b border-[var(--bd)]">
                         {result.fields.map(f => (
-                          <th key={f.name} className="text-left px-3 py-1.5 text-gray-500 whitespace-nowrap">{f.name}</th>
+                          <th key={f.name} className="text-left px-3 py-1.5 text-[var(--tx-3)] whitespace-nowrap">{f.name}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {result.rows.map((row, i) => (
-                        <tr key={i} className={i % 2 === 0 ? '' : 'bg-[#0f1117]'}>
+                        <tr key={i} className={i % 2 === 0 ? '' : 'bg-[var(--bg-base)]'}>
                           {result.fields.map(f => {
                             const raw = row[f.name];
                             const display = raw == null ? null : String(raw);
@@ -264,11 +264,11 @@ export default function SqlEditorPage() {
                             return (
                               <td
                                 key={f.name}
-                                className={`px-3 py-1.5 whitespace-nowrap max-w-48 truncate ${truncated ? 'text-gray-300 cursor-pointer hover:text-white hover:bg-[#2a2a2f]' : 'text-gray-300'}`}
+                                className={`px-3 py-1.5 whitespace-nowrap max-w-48 truncate ${truncated ? 'text-[var(--tx-2)] cursor-pointer hover:text-[var(--tx-1)] hover:bg-[var(--bg-raised)]' : 'text-[var(--tx-2)]'}`}
                                 onClick={truncated ? () => setExpandedCell({ column: f.name, value: display! }) : undefined}
                                 title={truncated ? 'Click to expand' : undefined}
                               >
-                                {display == null ? <span className="text-gray-600">NULL</span> : display}
+                                {display == null ? <span className="text-[var(--tx-3)]">NULL</span> : display}
                               </td>
                             );
                           })}
@@ -309,18 +309,18 @@ function CellModal({ column, value, onClose }: { column: string; value: string; 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2f]">
-          <span className="text-xs font-mono text-gray-400">{column}</span>
+      <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--bd)]">
+          <span className="text-xs font-mono text-[var(--tx-2)]">{column}</span>
           <div className="flex items-center gap-2">
             {isJson && <span className="text-[10px] text-blue-400 bg-blue-900/20 border border-blue-700/30 px-1.5 py-0.5 rounded">JSON</span>}
-            <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="text-xs text-gray-500 hover:text-white transition-colors">
+            <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="text-xs text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors">
               {copied ? 'Copied ✓' : 'Copy'}
             </button>
-            <button onClick={onClose} className="text-gray-600 hover:text-white transition-colors text-lg leading-none">×</button>
+            <button onClick={onClose} className="text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors text-lg leading-none">×</button>
           </div>
         </div>
-        <pre className="px-4 py-3 text-xs font-mono text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-auto">{formatted}</pre>
+        <pre className="px-4 py-3 text-xs font-mono text-[var(--tx-2)] whitespace-pre-wrap break-all max-h-96 overflow-auto">{formatted}</pre>
       </div>
     </div>
   );

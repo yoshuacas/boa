@@ -7,9 +7,9 @@ export default function AdminPage() {
   if (authMode !== 'cognito') {
     return (
       <div className="space-y-2">
-        <h1 className="text-xl font-semibold text-white">Admin</h1>
-        <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg p-6 text-sm text-gray-500">
-          User management requires <code className="font-mono text-gray-400">STUDIO_AUTH=cognito</code>.
+        <h1 className="text-xl font-semibold text-[var(--tx-1)]">Admin</h1>
+        <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-6 text-sm text-[var(--tx-3)]">
+          User management requires <code className="font-mono text-[var(--tx-2)]">STUDIO_AUTH=cognito</code>.
           In token mode there are no individual user accounts to manage.
         </div>
       </div>
@@ -18,7 +18,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-white">Admin</h1>
+      <h1 className="text-xl font-semibold text-[var(--tx-1)]">Admin</h1>
       <AdminUsers />
     </div>
   );

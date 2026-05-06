@@ -11,7 +11,7 @@ const ACTION_COLORS: Record<string, string> = {
   insert: 'text-green-400 bg-green-900/20 border-green-700/30',
   update: 'text-yellow-400 bg-yellow-900/20 border-yellow-700/30',
   delete: 'text-red-400 bg-red-900/20 border-red-700/30',
-  '*':    'text-gray-400 bg-gray-800/40 border-gray-700/30',
+  '*':    'text-[var(--tx-2)] bg-gray-800/40 border-gray-700/30',
 };
 
 interface Props {
@@ -131,15 +131,15 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
               value={filename}
               onChange={e => setFilename(e.target.value)}
               placeholder="filename.cedar"
-              className="bg-[#1c1c21] border border-[#2a2a2f] text-white text-sm font-mono rounded px-3 py-1.5 w-56 focus:outline-none focus:border-gray-500"
+              className="bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-1)] text-sm font-mono rounded px-3 py-1.5 w-56 focus:outline-none focus:border-[var(--orange)]"
             />
           </div>
         ) : (
-          <h1 className="text-base font-semibold text-white font-mono">{filename}</h1>
+          <h1 className="text-base font-semibold text-[var(--tx-1)] font-mono">{filename}</h1>
         )}
         <div className="flex items-center gap-3">
           {status && (
-            <span className={`text-xs ${status.variant === 'deployed' ? 'text-green-400' : 'text-gray-500'}`}>
+            <span className={`text-xs ${status.variant === 'deployed' ? 'text-green-400' : 'text-[var(--tx-3)]'}`}>
               {status.variant === 'deployed' ? '⬆ ' : ''}
               {status.message}
             </span>
@@ -153,14 +153,14 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
           )}
-          <div className="w-px h-4 bg-[#2a2a2f]" />
+          <div className="w-px h-4 bg-[var(--bg-raised)]" />
           <div className="flex items-center gap-1">
             {!cloudMode && (
               <button
                 onClick={save}
                 disabled={saving || deploying}
                 title="Save to disk only — requires boa deploy to go live"
-                className="text-sm bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 font-medium rounded-l px-3 py-1.5 hover:bg-[#2a2a2f] hover:text-white transition-colors disabled:opacity-50 border-r-0"
+                className="text-sm bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] font-medium rounded-l px-3 py-1.5 hover:bg-[var(--bg-raised)] hover:text-[var(--tx-1)] transition-colors disabled:opacity-50 border-r-0"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>
@@ -169,16 +169,16 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
               onClick={() => setConfirmDeploy(true)}
               disabled={saving || deploying}
               title={cloudMode ? 'Push to the live Lambda immediately' : 'Save and push to the live Lambda immediately'}
-              className={`text-sm bg-green-800 border border-green-700 text-green-100 font-medium px-3 py-1.5 hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 ${cloudMode ? 'rounded' : 'rounded-r'}`}
+              className={`text-sm bg-[var(--orange)] border border-[var(--orange)] text-[var(--orange-fg)] font-medium px-3 py-1.5 hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-1.5 ${cloudMode ? 'rounded' : 'rounded-r'}`}
             >
               {deploying ? (
                 <>
-                  <span className="inline-block w-3 h-3 border-2 border-green-300/30 border-t-green-200 rounded-full animate-spin" />
+                  <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Deploying…
                 </>
               ) : (
                 <>
-                  <span className="text-green-400">⬆</span>
+                  <span>⬆</span>
                   Deploy
                 </>
               )}
@@ -209,21 +209,21 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
               ×
             </button>
           </div>
-          <div className="bg-[#0f1117] border border-[#2a2a2f] rounded p-3 relative">
+          <div className="bg-[var(--bg-base)] border border-[var(--bd)] rounded p-3 relative">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono text-gray-500">policies/{deployedContent.filename}</span>
+              <span className="text-[10px] font-mono text-[var(--tx-3)]">policies/{deployedContent.filename}</span>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(deployedContent.content);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 1500);
                 }}
-                className="text-xs text-gray-500 hover:text-white transition-colors"
+                className="text-xs text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors"
               >
                 {copied ? 'Copied ✓' : 'Copy'}
               </button>
             </div>
-            <pre className="text-xs font-mono text-gray-400 whitespace-pre-wrap max-h-40 overflow-auto">
+            <pre className="text-xs font-mono text-[var(--tx-2)] whitespace-pre-wrap max-h-40 overflow-auto">
               {deployedContent.content}
             </pre>
           </div>
@@ -235,8 +235,8 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
         {/* Monaco editor */}
-        <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden" style={{ height: 480 }}>
-          <Suspense fallback={<div className="h-full flex items-center justify-center text-gray-600 text-sm">Loading editor...</div>}>
+        <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden" style={{ height: 480 }}>
+          <Suspense fallback={<div className="h-full flex items-center justify-center text-[var(--tx-3)] text-sm">Loading editor...</div>}>
             <MonacoEditor
               height="100%"
               language="cedar-policy"
@@ -303,12 +303,12 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
 
         {/* Live summary panel */}
         <div className="space-y-3">
-          <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg p-4">
-            <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider mb-3">
+          <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-4">
+            <p className="text-[11px] font-semibold text-[var(--tx-3)] uppercase tracking-wider mb-3">
               Rules ({summary.rules.length})
             </p>
             {summary.rules.length === 0 ? (
-              <p className="text-xs text-gray-600">No rules parsed yet.</p>
+              <p className="text-xs text-[var(--tx-3)]">No rules parsed yet.</p>
             ) : (
               <div className="space-y-3">
                 {summary.rules.map((rule, i) => (
@@ -318,8 +318,8 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
             )}
           </div>
 
-          <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg p-4">
-            <p className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider mb-2">
+          <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-4">
+            <p className="text-[11px] font-semibold text-[var(--tx-3)] uppercase tracking-wider mb-2">
               Access matrix
             </p>
             <AccessMatrix rules={summary.rules} />
@@ -350,13 +350,13 @@ function DeployConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
       <div
-        className="bg-[#1c1c21] border border-[#2a2a2f] rounded-xl w-full max-w-md mx-4 shadow-2xl"
+        className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-xl w-full max-w-md mx-4 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 space-y-4">
           <div className="space-y-1">
-            <h2 className="text-base font-semibold text-white">Deploy policy?</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="text-base font-semibold text-[var(--tx-1)]">Deploy policy?</h2>
+            <p className="text-sm text-[var(--tx-2)]">
               This will immediately patch the live Lambda with <span className="font-mono text-gray-200">{filename}</span>.
             </p>
           </div>
@@ -370,24 +370,24 @@ function DeployConfirmModal({
             </div>
           )}
 
-          <div className="bg-[#0f1117] border border-[#2a2a2f] rounded-lg p-3 space-y-1.5 text-xs text-gray-500">
-            <p><span className="text-gray-400">What happens:</span> The current Lambda deployment package is downloaded, the policy file is updated inside it, and the package is re-uploaded.</p>
-            <p><span className="text-gray-400">Takes:</span> ~5–15 seconds while the Lambda update propagates.</p>
-            <p><span className="text-gray-400">Effect:</span> New requests to your API will use the updated policy within seconds.</p>
+          <div className="bg-[var(--bg-base)] border border-[var(--bd)] rounded-lg p-3 space-y-1.5 text-xs text-[var(--tx-3)]">
+            <p><span className="text-[var(--tx-2)]">What happens:</span> The current Lambda deployment package is downloaded, the policy file is updated inside it, and the package is re-uploaded.</p>
+            <p><span className="text-[var(--tx-2)]">Takes:</span> ~5–15 seconds while the Lambda update propagates.</p>
+            <p><span className="text-[var(--tx-2)]">Effect:</span> New requests to your API will use the updated policy within seconds.</p>
           </div>
 
           <div className="flex gap-2 justify-end pt-1">
             <button
               onClick={onCancel}
-              className="text-sm text-gray-400 hover:text-white px-3 py-1.5 transition-colors"
+              className="text-sm text-[var(--tx-2)] hover:text-[var(--tx-1)] px-3 py-1.5 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="text-sm bg-green-800 hover:bg-green-700 border border-green-700 text-green-100 font-medium rounded px-4 py-1.5 transition-colors flex items-center gap-1.5"
+              className="text-sm bg-[var(--orange)] hover:opacity-90 border border-[var(--orange)] text-[var(--orange-fg)] font-medium rounded px-4 py-1.5 transition-opacity flex items-center gap-1.5"
             >
-              <span className="text-green-400">⬆</span>
+              <span>⬆</span>
               Deploy now
             </button>
           </div>
@@ -408,9 +408,9 @@ function RuleSummaryCard({ rule }: { rule: PolicyRule }) {
         <span className={rule.effect === 'permit' ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
           {rule.effect}
         </span>
-        <span className="text-gray-500">{rule.resource}</span>
+        <span className="text-[var(--tx-3)]">{rule.resource}</span>
       </div>
-      <div className="text-gray-400">
+      <div className="text-[var(--tx-2)]">
         <span className="text-purple-300">{rule.principal}</span>
         {' → '}
         <span className="inline-flex gap-1 flex-wrap">
@@ -422,7 +422,7 @@ function RuleSummaryCard({ rule }: { rule: PolicyRule }) {
         </span>
       </div>
       {rule.condition && (
-        <p className="text-gray-600 font-mono text-[10px] break-all">
+        <p className="text-[var(--tx-3)] font-mono text-[10px] break-all">
           when {'{' + rule.condition + '}'}
         </p>
       )}
@@ -459,7 +459,7 @@ function AccessMatrix({ rules }: { rules: PolicyRule[] }) {
   );
 
   if (activePrincipals.length === 0) {
-    return <p className="text-xs text-gray-600">No rules to display.</p>;
+    return <p className="text-xs text-[var(--tx-3)]">No rules to display.</p>;
   }
 
   return (
@@ -467,16 +467,16 @@ function AccessMatrix({ rules }: { rules: PolicyRule[] }) {
       <table className="text-[10px] w-full">
         <thead>
           <tr>
-            <th className="text-left text-gray-600 pb-1.5 pr-2"></th>
+            <th className="text-left text-[var(--tx-3)] pb-1.5 pr-2"></th>
             {MATRIX_ACTIONS.map(a => (
-              <th key={a} className="text-gray-500 pb-1.5 px-2 text-center font-mono">{a}</th>
+              <th key={a} className="text-[var(--tx-3)] pb-1.5 px-2 text-center font-mono">{a}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {activePrincipals.map(p => (
             <tr key={p}>
-              <td className="text-gray-400 pr-2 py-0.5 font-mono">{p}</td>
+              <td className="text-[var(--tx-2)] pr-2 py-0.5 font-mono">{p}</td>
               {MATRIX_ACTIONS.map(a => {
                 const key = `${p}:${a}`;
                 const permitted = permits.has(key);

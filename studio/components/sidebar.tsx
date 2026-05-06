@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Database, Users, HardDrive, Zap, LayoutDashboard, ShieldCheck, Settings, LogOut } from 'lucide-react';
+import { Database, Users, HardDrive, Zap, LayoutDashboard, ShieldCheck, Settings, LogOut, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/src/context/AuthContext';
+import { useTheme } from '@/src/context/ThemeContext';
 
 const navItems = [
   { id: 'overview',  label: 'Overview',    icon: LayoutDashboard, href: '/',          alwaysShow: true },
@@ -17,6 +18,7 @@ export function Sidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { studioMode, authMode } = useAuth();
+  const { theme, toggle } = useTheme();
   const cloud = studioMode === 'cloud';
   const cognitoMode = authMode === 'cognito';
 
@@ -25,19 +27,46 @@ export function Sidebar() {
     navigate('/login');
   }
 
+  function NavLink({ item }: { item: typeof navItems[number] }) {
+    const active =
+      item.href === '/'
+        ? pathname === '/'
+        : pathname.startsWith(item.href);
+    return (
+      <Link
+        to={item.href}
+        title={item.label}
+        className={cn(
+          'relative flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors whitespace-nowrap',
+          active
+            ? 'text-[var(--orange)]'
+            : 'text-[var(--tx-2)] hover:text-[var(--tx-1)]'
+        )}
+      >
+        {active && (
+          <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-[var(--orange)] rounded-r" />
+        )}
+        <item.icon size={15} className="shrink-0" />
+        <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150">
+          {item.label}
+        </span>
+      </Link>
+    );
+  }
+
   return (
-    <aside className="group/sidebar flex flex-col min-h-screen bg-[#0f1117] border-r border-[#1c1c21] shrink-0 w-12 hover:w-56 transition-[width] duration-200 overflow-hidden">
+    <aside className="group/sidebar flex flex-col min-h-screen bg-[var(--bg-base)] border-r border-[var(--bd)] shrink-0 w-12 hover:w-52 transition-[width] duration-200 overflow-hidden">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-3 py-4 border-b border-[#1c1c21] min-w-56">
+      <div className="flex items-center gap-2.5 px-3 py-4 border-b border-[var(--bd)] min-w-52">
         <div className="shrink-0 w-6 h-6 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">B</span>
+          <span className="text-[var(--orange)] font-bold text-sm">B</span>
         </div>
         <div className="flex items-center gap-2 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap">
-          <span className="text-white font-bold text-base tracking-tight">BOA Studio</span>
-          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+          <span className="text-[var(--tx-1)] font-semibold text-sm tracking-tight">BOA Studio</span>
+          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm ${
             cloud
-              ? 'bg-blue-900/40 text-blue-400 border border-blue-700/40'
-              : 'bg-[#1c1c21] text-gray-400'
+              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+              : 'bg-[var(--bg-surface)] text-[var(--tx-3)] border border-[var(--bd)]'
           }`}>
             {cloud ? 'Cloud' : 'Local'}
           </span>
@@ -45,81 +74,47 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-1.5 py-3 space-y-0.5 min-w-56">
-        <p className="px-2 py-1 text-[10px] font-semibold text-gray-600 uppercase tracking-widest opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap overflow-hidden">
+      <nav className="flex-1 py-3 min-w-52">
+        <p className="px-3 py-1 mb-1 text-[10px] font-semibold text-[var(--tx-3)] uppercase tracking-widest opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap overflow-hidden">
           Services
         </p>
-        {navItems.filter(i => i.alwaysShow).map(item => {
-          const active =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.id}
-              to={item.href}
-              title={item.label}
-              className={cn(
-                'flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors whitespace-nowrap',
-                active
-                  ? 'bg-[#1c1c21] text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-[#1c1c21]'
-              )}
-            >
-              <item.icon size={15} className="shrink-0" />
-              <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150">
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
+        {navItems.filter(i => i.alwaysShow).map(item => (
+          <NavLink key={item.id} item={item} />
+        ))}
       </nav>
 
       {/* Admin section — only in cloud + cognito */}
       {cloud && cognitoMode && (
-        <div className="px-1.5 pb-3 min-w-56">
-          <div className="border-t border-[#1c1c21] mb-2" />
-          {navItems.filter(i => !i.alwaysShow).map(item => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.id}
-                to={item.href}
-                title={item.label}
-                className={cn(
-                  'flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors whitespace-nowrap',
-                  active
-                    ? 'bg-[#1c1c21] text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-[#1c1c21]'
-                )}
-              >
-                <item.icon size={15} className="shrink-0" />
-                <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150">
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
+        <div className="pb-2 min-w-52">
+          <div className="border-t border-[var(--bd)] mb-2" />
+          {navItems.filter(i => !i.alwaysShow).map(item => (
+            <NavLink key={item.id} item={item} />
+          ))}
         </div>
       )}
 
       {/* Footer */}
-      <div className="px-1.5 py-3 border-t border-[#1c1c21] min-w-56">
+      <div className="px-2 py-3 border-t border-[var(--bd)] min-w-52 flex items-center gap-1">
+        <button
+          onClick={toggle}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="flex items-center justify-center w-8 h-8 rounded text-[var(--tx-3)] hover:text-[var(--tx-1)] hover:bg-[var(--bg-surface)] transition-colors shrink-0"
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
         {cloud && (
           <button
             onClick={handleLogout}
             title="Sign out"
-            className="flex items-center gap-2.5 px-2 py-1.5 w-full rounded text-sm text-gray-400 hover:text-white hover:bg-[#1c1c21] transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 px-2 py-1.5 flex-1 rounded text-sm text-[var(--tx-3)] hover:text-[var(--tx-1)] hover:bg-[var(--bg-surface)] transition-colors whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100"
           >
-            <LogOut size={15} className="shrink-0" />
-            <span className="opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150">
-              Sign out
-            </span>
+            <LogOut size={14} className="shrink-0" />
+            <span>Sign out</span>
           </button>
         )}
         {!cloud && (
-          <p className="px-2 text-[11px] text-gray-600 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap">
-            BOA Studio v0.1.0
+          <p className="px-1 text-[11px] text-[var(--tx-3)] opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-150 whitespace-nowrap">
+            v0.1.0
           </p>
         )}
       </div>

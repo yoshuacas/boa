@@ -80,14 +80,14 @@ export function AdminUsers() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-[var(--tx-3)]">
           {loading ? 'Loading…' : `${users.length} ${users.length === 1 ? 'user' : 'users'}`}
         </p>
         <div className="flex items-center gap-2">
           <button
             onClick={loadUsers}
             disabled={loading}
-            className="p-1.5 text-gray-500 hover:text-white transition-colors disabled:opacity-40"
+            className="p-1.5 text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors disabled:opacity-40"
             title="Refresh"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -110,34 +110,34 @@ export function AdminUsers() {
 
       {/* User table */}
       {!loading && users.length === 0 && !error ? (
-        <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg p-8 text-center text-sm text-gray-600">
+        <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-8 text-center text-sm text-[var(--tx-3)]">
           No users yet. Add the first user with the button above.
         </div>
       ) : (
-        <div className="rounded-lg border border-[#2a2a2f] overflow-hidden">
+        <div className="rounded-lg border border-[var(--bd)] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2a2a2f] bg-[#0f1117]">
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500">Status</th>
-                <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 hidden sm:table-cell">Added</th>
+              <tr className="border-b border-[var(--bd)] bg-[var(--bg-base)]">
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--tx-3)]">Email</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--tx-3)]">Status</th>
+                <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--tx-3)] hidden sm:table-cell">Added</th>
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {users.map((user, i) => {
                 const isBusy = busy[user.username];
-                const statusMeta = STATUS_LABELS[user.status] ?? { label: user.status, className: 'text-gray-400 bg-gray-800/40 border-gray-700/30' };
+                const statusMeta = STATUS_LABELS[user.status] ?? { label: user.status, className: 'text-[var(--tx-2)] bg-gray-800/40 border-gray-700/30' };
                 return (
                   <tr
                     key={user.username}
-                    className={`border-b border-[#1a1a1f] last:border-0 ${i % 2 === 0 ? 'bg-[#1c1c21]' : 'bg-[#161619]'} ${isBusy ? 'opacity-50' : ''}`}
+                    className={`border-b border-[var(--bd-subtle)] last:border-0 ${i % 2 === 0 ? 'bg-[var(--bg-surface)]' : 'bg-[var(--bg-subtle)]'} ${isBusy ? 'opacity-50' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-white">{user.email || user.username}</span>
+                        <span className="font-mono text-[var(--tx-1)]">{user.email || user.username}</span>
                         {!user.enabled && (
-                          <span className="text-[10px] text-gray-600 bg-gray-800/60 border border-gray-700/30 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-[var(--tx-3)] bg-gray-800/60 border border-gray-700/30 px-1.5 py-0.5 rounded">
                             disabled
                           </span>
                         )}
@@ -148,7 +148,7 @@ export function AdminUsers() {
                         {statusMeta.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-600 hidden sm:table-cell">
+                    <td className="px-4 py-3 text-xs text-[var(--tx-3)] hidden sm:table-cell">
                       {user.createdAt
                         ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                         : '—'}
@@ -205,7 +205,7 @@ export function AdminUsers() {
 }
 
 function ActionButton({
-  icon, label, onClick, disabled, className = 'text-gray-500 hover:text-white',
+  icon, label, onClick, disabled, className = 'text-[var(--tx-3)] hover:text-[var(--tx-1)]',
 }: {
   icon: React.ReactNode;
   label: string;
@@ -259,13 +259,13 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div
-        className="bg-[#1c1c21] border border-[#2a2a2f] rounded-xl w-full max-w-sm mx-4 shadow-2xl"
+        className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-xl w-full max-w-sm mx-4 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-6 space-y-4">
           <div>
-            <h2 className="text-base font-semibold text-white">Add user</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <h2 className="text-base font-semibold text-[var(--tx-1)]">Add user</h2>
+            <p className="text-xs text-[var(--tx-3)] mt-0.5">
               Cognito will send an invitation email with a temporary password.
             </p>
           </div>
@@ -278,7 +278,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
               placeholder="user@example.com"
               autoFocus
               required
-              className="w-full bg-[#0f1117] border border-[#2a2a2f] text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-gray-500 placeholder:text-gray-600"
+              className="w-full bg-[var(--bg-base)] border border-[var(--bd)] text-[var(--tx-1)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-[var(--orange)] placeholder:text-[var(--tx-3)]"
             />
 
             {error && <p className="text-xs text-red-400">{error}</p>}
@@ -287,7 +287,7 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
               <button
                 type="button"
                 onClick={onClose}
-                className="text-sm text-gray-400 hover:text-white px-3 py-1.5 transition-colors"
+                className="text-sm text-[var(--tx-2)] hover:text-[var(--tx-1)] px-3 py-1.5 transition-colors"
               >
                 Cancel
               </button>

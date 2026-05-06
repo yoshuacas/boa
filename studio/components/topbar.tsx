@@ -21,26 +21,26 @@ export function Topbar({ title, configPath, onConfigPathChange }: TopbarProps) {
   }
 
   return (
-    <header className="flex items-center justify-between h-12 px-4 border-b border-[#1c1c21] bg-[#0f1117] shrink-0">
-      <span className="text-sm font-medium text-white">{title}</span>
+    <header className="flex items-center justify-between h-12 px-4 border-b border-[var(--bd-subtle)] bg-[var(--bg-base)] shrink-0">
+      <span className="text-sm font-medium text-[var(--tx-1)]">{title}</span>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-600">Config:</span>
+        <span className="text-xs text-[var(--tx-3)]">Config:</span>
         <input
           type="text"
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleLoad()}
-          className="text-xs bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 rounded px-2 py-1 w-72 font-mono focus:outline-none focus:border-gray-500"
+          className="text-xs bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded px-2 py-1 w-72 font-mono focus:outline-none focus:border-[var(--orange)]"
           placeholder=".boa/config.json"
         />
         <button
           onClick={handleLoad}
-          className="text-xs bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 rounded px-2 py-1 hover:bg-[#2a2a2f] transition-colors"
+          className="text-xs bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded px-2 py-1 hover:bg-[var(--bg-raised)] transition-colors"
         >
           Load
         </button>
         {identity && (
-          <span className="text-xs text-gray-600 font-mono hidden lg:block truncate max-w-48">
+          <span className="text-xs text-[var(--tx-3)] font-mono hidden lg:block truncate max-w-48">
             {identity}
           </span>
         )}

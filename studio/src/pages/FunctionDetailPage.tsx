@@ -46,19 +46,19 @@ export default function FunctionDetailPage() {
   return (
     <div className="space-y-6">
       {loading ? (
-        <div className="text-gray-600 text-sm">Loading...</div>
+        <div className="text-[var(--tx-3)] text-sm">Loading...</div>
       ) : (
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-            <Link to="/functions" className="hover:text-gray-300 transition-colors">Functions</Link>
+          <div className="flex items-center gap-2 text-sm text-[var(--tx-3)] mb-1">
+            <Link to="/functions" className="hover:text-[var(--tx-2)] transition-colors">Functions</Link>
             <span>/</span>
-            <span className="text-white">{label}</span>
+            <span className="text-[var(--tx-1)]">{label}</span>
           </div>
-          <h1 className="text-xl font-semibold text-white">{label}</h1>
+          <h1 className="text-xl font-semibold text-[var(--tx-1)]">{label}</h1>
           <div className="flex items-center gap-3 mt-0.5">
-            <p className="text-sm text-gray-500 font-mono">{physicalId}</p>
+            <p className="text-sm text-[var(--tx-3)] font-mono">{physicalId}</p>
             {sourceDir && (
-              <span className="text-xs text-gray-600 font-mono bg-[#1c1c21] px-1.5 py-0.5 rounded">
+              <span className="text-xs text-[var(--tx-3)] font-mono bg-[var(--bg-surface)] px-1.5 py-0.5 rounded">
                 {sourceDir}/
               </span>
             )}

@@ -17,13 +17,13 @@ export default function StoragePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-gray-600 text-sm">Loading...</div>;
+  if (loading) return <div className="text-[var(--tx-3)] text-sm">Loading...</div>;
   if (noConfig) return <NoConfig />;
 
   if (!bucket) {
     return (
       <div className="space-y-4">
-        <h1 className="text-xl font-semibold text-white">Storage</h1>
+        <h1 className="text-xl font-semibold text-[var(--tx-1)]">Storage</h1>
         <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-lg p-4 text-sm text-yellow-300">
           No S3 bucket found in <code className="font-mono">.boa/config.json</code>.
           Make sure your stack has been deployed with storage enabled.
@@ -35,8 +35,8 @@ export default function StoragePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-white">Storage</h1>
-        <p className="text-sm text-gray-500 font-mono mt-0.5">{bucket}</p>
+        <h1 className="text-xl font-semibold text-[var(--tx-1)]">Storage</h1>
+        <p className="text-sm text-[var(--tx-3)] font-mono mt-0.5">{bucket}</p>
       </div>
       <FileBrowser bucket={bucket} />
     </div>

@@ -35,26 +35,26 @@ export default function DatabaseTablePage() {
       .finally(() => setLoading(false));
   }, [tableRef]);
 
-  if (loading) return <div className="text-gray-600 text-sm">Loading...</div>;
+  if (loading) return <div className="text-[var(--tx-3)] text-sm">Loading...</div>;
   if (noConfig) return <NoConfig />;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link to="/database" className="hover:text-gray-300 transition-colors">← Tables</Link>
+        <div className="flex items-center gap-2 text-sm text-[var(--tx-3)]">
+          <Link to="/database" className="hover:text-[var(--tx-2)] transition-colors">← Tables</Link>
           <span className="text-gray-700">/</span>
           {schemaName !== 'public' && (
             <>
-              <span className="font-mono text-gray-500">{schemaName}</span>
+              <span className="font-mono text-[var(--tx-3)]">{schemaName}</span>
               <span className="text-gray-700">.</span>
             </>
           )}
-          <span className="text-white font-mono">{tableName}</span>
+          <span className="text-[var(--tx-1)] font-mono">{tableName}</span>
         </div>
         <Link
           to={`/database/sql?query=${encodeURIComponent(`SELECT * FROM "${schemaName}"."${tableName}" LIMIT 100;`)}`}
-          className="text-sm bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 rounded px-3 py-1.5 hover:bg-[#2a2a2f] transition-colors"
+          className="text-sm bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded px-3 py-1.5 hover:bg-[var(--bg-raised)] transition-colors"
         >
           Browse data →
         </Link>

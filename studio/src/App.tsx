@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Sidebar } from '@/components/sidebar';
 
 import LoginPage from './pages/LoginPage';
@@ -17,7 +18,7 @@ import AdminPage from './pages/AdminPage';
 
 function Layout() {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0f1117]">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-base)]">
       <Sidebar />
       <main className="flex-1 overflow-auto p-6">
         <Outlet />
@@ -31,21 +32,21 @@ function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
-        <div className="text-gray-600 text-sm">Loading...</div>
+      <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center">
+        <div className="text-[var(--tx-3)] text-sm">Loading...</div>
       </div>
     );
   }
 
   if (apiError) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-base)] flex items-center justify-center">
         <div className="text-center space-y-3">
           <p className="text-red-400 text-sm font-medium">Cannot connect to BOA Studio API</p>
-          <p className="text-gray-500 text-xs">Check that the API is reachable and try again.</p>
+          <p className="text-[var(--tx-3)] text-xs">Check that the API is reachable and try again.</p>
           <button
             onClick={refresh}
-            className="mt-2 px-4 py-1.5 text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 transition-colors"
+            className="mt-2 px-4 py-1.5 text-xs bg-gray-800 text-[var(--tx-2)] rounded hover:bg-gray-700 transition-colors"
           >
             Retry
           </button>
@@ -63,6 +64,7 @@ function ProtectedRoute() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
@@ -86,5 +88,6 @@ export default function App() {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

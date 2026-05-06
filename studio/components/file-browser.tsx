@@ -102,12 +102,12 @@ export function FileBrowser({ bucket }: { bucket: string }) {
       <div className="flex items-center gap-1 text-sm">
         {breadcrumbs.map((b, i) => (
           <span key={b.prefix} className="flex items-center gap-1">
-            {i > 0 && <ChevronRight size={12} className="text-gray-600" />}
+            {i > 0 && <ChevronRight size={12} className="text-[var(--tx-3)]" />}
             <button
               onClick={() => setPrefix(b.prefix)}
               className={i === breadcrumbs.length - 1
-                ? 'text-white font-medium'
-                : 'text-gray-500 hover:text-white transition-colors'}
+                ? 'text-[var(--tx-1)] font-medium'
+                : 'text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors'}
             >
               {b.label}
             </button>
@@ -115,7 +115,7 @@ export function FileBrowser({ bucket }: { bucket: string }) {
         ))}
         <button
           onClick={() => load(prefix)}
-          className="ml-2 text-gray-600 hover:text-gray-400 transition-colors"
+          className="ml-2 text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
           title="Refresh"
         >
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
@@ -131,13 +131,13 @@ export function FileBrowser({ bucket }: { bucket: string }) {
 
       {/* Contents */}
       {!result?.error && (
-        <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+        <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
           {loading && !result && (
-            <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
+            <div className="p-8 text-center text-sm text-[var(--tx-3)]">Loading...</div>
           )}
 
           {result && result.folders.length === 0 && result.files.length === 0 && (
-            <div className="p-8 text-center text-sm text-gray-500">
+            <div className="p-8 text-center text-sm text-[var(--tx-3)]">
               {prefix ? 'Empty folder' : 'Bucket is empty'}
             </div>
           )}
@@ -145,10 +145,10 @@ export function FileBrowser({ bucket }: { bucket: string }) {
           {(result?.folders.length ?? 0) + (result?.files.length ?? 0) > 0 && (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2a2a2f]">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Size</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Modified</th>
+                <tr className="border-b border-[var(--bd)]">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider">Name</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider">Size</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-[var(--tx-3)] uppercase tracking-wider">Modified</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -156,7 +156,7 @@ export function FileBrowser({ bucket }: { bucket: string }) {
                 {result?.folders.map((folder, i) => {
                   const name = folder.replace(prefix, '').replace('/', '');
                   return (
-                    <tr key={folder} className="border-b border-[#2a2a2f]">
+                    <tr key={folder} className="border-b border-[var(--bd)]">
                       <td className="px-4 py-2.5">
                         <button
                           onClick={() => setPrefix(folder)}
@@ -166,8 +166,8 @@ export function FileBrowser({ bucket }: { bucket: string }) {
                           {name}/
                         </button>
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-600">—</td>
-                      <td className="px-4 py-2.5 text-right text-gray-600">—</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--tx-3)]">—</td>
+                      <td className="px-4 py-2.5 text-right text-[var(--tx-3)]">—</td>
                       <td className="px-4 py-2.5" />
                     </tr>
                   );
@@ -177,17 +177,17 @@ export function FileBrowser({ bucket }: { bucket: string }) {
                     ? i === (result?.files.length ?? 0) - 1
                     : false;
                   return (
-                    <tr key={file.key} className={!isLast ? 'border-b border-[#2a2a2f]' : ''}>
+                    <tr key={file.key} className={!isLast ? 'border-b border-[var(--bd)]' : ''}>
                       <td className="px-4 py-2.5">
-                        <span className="flex items-center gap-2 text-gray-300 font-mono text-xs">
-                          <File size={14} className="text-gray-500 shrink-0" />
+                        <span className="flex items-center gap-2 text-[var(--tx-2)] font-mono text-xs">
+                          <File size={14} className="text-[var(--tx-3)] shrink-0" />
                           {fileName(file.key)}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-500 text-xs">
+                      <td className="px-4 py-2.5 text-right text-[var(--tx-3)] text-xs">
                         {formatBytes(file.size)}
                       </td>
-                      <td className="px-4 py-2.5 text-right text-gray-600 text-xs">
+                      <td className="px-4 py-2.5 text-right text-[var(--tx-3)] text-xs">
                         {formatDate(file.lastModified)}
                       </td>
                       <td className="px-4 py-2.5">
@@ -195,7 +195,7 @@ export function FileBrowser({ bucket }: { bucket: string }) {
                           <button
                             onClick={() => handlePresign(file.key)}
                             title="Copy presigned URL"
-                            className="text-gray-600 hover:text-gray-300 transition-colors"
+                            className="text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
                           >
                             <Download size={13} />
                           </button>
@@ -203,7 +203,7 @@ export function FileBrowser({ bucket }: { bucket: string }) {
                             onClick={() => handleDelete(file.key)}
                             disabled={deleting === file.key}
                             title="Delete"
-                            className="text-gray-600 hover:text-red-400 transition-colors"
+                            className="text-[var(--tx-3)] hover:text-red-400 transition-colors"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -219,7 +219,7 @@ export function FileBrowser({ bucket }: { bucket: string }) {
       )}
 
       {result?.isTruncated && (
-        <p className="text-xs text-gray-600">Results truncated — bucket has more objects.</p>
+        <p className="text-xs text-[var(--tx-3)]">Results truncated — bucket has more objects.</p>
       )}
     </div>
   );

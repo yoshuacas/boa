@@ -101,14 +101,14 @@ export default function DatabasePage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="mb-3 shrink-0">
-        <h1 className="text-xl font-semibold text-white">Database</h1>
-        {endpoint && <p className="text-xs text-gray-600 font-mono mt-0.5">{endpoint}</p>}
+        <h1 className="text-xl font-semibold text-[var(--tx-1)]">Database</h1>
+        {endpoint && <p className="text-xs text-[var(--tx-3)] font-mono mt-0.5">{endpoint}</p>}
       </div>
       <DatabaseTabs />
       <div className="flex h-[calc(100vh-13rem)] min-h-0">
         {/* Left: Schema list */}
-        <div className="w-40 shrink-0 border-r border-[#2a2a2f] flex flex-col overflow-hidden">
-          <div className="px-3 py-2 text-[10px] font-semibold text-gray-600 uppercase tracking-widest shrink-0">
+        <div className="w-40 shrink-0 border-r border-[var(--bd)] flex flex-col overflow-hidden">
+          <div className="px-3 py-2 text-[10px] font-semibold text-[var(--tx-3)] uppercase tracking-widest shrink-0">
             Schemas
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -118,8 +118,8 @@ export default function DatabasePage() {
                 onClick={() => setSelectedSchema(schema)}
                 className={`w-full text-left px-3 py-2 text-xs font-mono truncate transition-colors ${
                   schema === selectedSchema
-                    ? 'bg-[#2a2a2f] text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-[#1a1a1f]'
+                    ? 'bg-[var(--bg-raised)] text-[var(--tx-1)]'
+                    : 'text-[var(--tx-2)] hover:text-[var(--tx-1)] hover:bg-[var(--bg-surface)]'
                 }`}
               >
                 {schema}
@@ -129,8 +129,8 @@ export default function DatabasePage() {
         </div>
 
         {/* Middle: Table list */}
-        <div className="w-52 shrink-0 border-r border-[#2a2a2f] flex flex-col overflow-hidden">
-          <div className="px-3 py-2 text-[10px] font-semibold text-gray-600 uppercase tracking-widest shrink-0">
+        <div className="w-52 shrink-0 border-r border-[var(--bd)] flex flex-col overflow-hidden">
+          <div className="px-3 py-2 text-[10px] font-semibold text-[var(--tx-3)] uppercase tracking-widest shrink-0">
             Tables
             {!loadingTables && (
               <span className="ml-1.5 normal-case tracking-normal font-normal text-gray-700">
@@ -140,7 +140,7 @@ export default function DatabasePage() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loadingTables ? (
-              <div className="px-3 py-2 text-xs text-gray-600">Loading...</div>
+              <div className="px-3 py-2 text-xs text-[var(--tx-3)]">Loading...</div>
             ) : schemaTables.length === 0 ? (
               <div className="px-3 py-4 text-xs text-gray-700 text-center">No tables</div>
             ) : (
@@ -153,13 +153,13 @@ export default function DatabasePage() {
                     onClick={() => openTable(t.schema, t.name)}
                     className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${
                       isActive
-                        ? 'bg-[#2a2a2f] text-white'
+                        ? 'bg-[var(--bg-raised)] text-[var(--tx-1)]'
                         : isOpen
-                          ? 'text-blue-400 hover:bg-[#1a1a1f]'
-                          : 'text-gray-300 hover:text-white hover:bg-[#1a1a1f]'
+                          ? 'text-blue-400 hover:bg-[var(--bg-surface)]'
+                          : 'text-[var(--tx-2)] hover:text-[var(--tx-1)] hover:bg-[var(--bg-surface)]'
                     }`}
                   >
-                    <TableIcon size={12} className="shrink-0 text-gray-600" />
+                    <TableIcon size={12} className="shrink-0 text-[var(--tx-3)]" />
                     <span className="font-mono text-xs truncate">{t.name}</span>
                   </button>
                 );
@@ -171,30 +171,30 @@ export default function DatabasePage() {
         {/* Right: Data viewer */}
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           {tabs.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-gray-600">
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm text-[var(--tx-3)]">
               <TableIcon size={24} className="text-gray-700" />
               <span>Select a table to browse data</span>
             </div>
           ) : (
             <>
               {/* Tab bar */}
-              <div className="flex items-center border-b border-[#2a2a2f] overflow-x-auto shrink-0 bg-[#0f1117]">
+              <div className="flex items-center border-b border-[var(--bd)] overflow-x-auto shrink-0 bg-[var(--bg-base)]">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTabId(tab.id)}
-                    className={`group flex items-center gap-1.5 px-4 py-2.5 text-xs border-r border-[#2a2a2f] whitespace-nowrap transition-colors ${
+                    className={`group flex items-center gap-1.5 px-4 py-2.5 text-xs border-r border-[var(--bd)] whitespace-nowrap transition-colors ${
                       tab.id === activeTabId
-                        ? 'bg-[#1c1c21] text-white'
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1f]'
+                        ? 'bg-[var(--bg-surface)] text-[var(--tx-1)]'
+                        : 'text-[var(--tx-3)] hover:text-[var(--tx-2)] hover:bg-[var(--bg-surface)]'
                     }`}
                   >
-                    <TableIcon size={11} className="text-gray-600 shrink-0" />
+                    <TableIcon size={11} className="text-[var(--tx-3)] shrink-0" />
                     <span className="font-mono">{tab.table}</span>
-                    {tab.loading && <span className="text-gray-600 text-[10px]">…</span>}
+                    {tab.loading && <span className="text-[var(--tx-3)] text-[10px]">…</span>}
                     <span
                       onClick={(e) => closeTab(tab.id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-gray-300 transition-opacity leading-none ml-0.5"
+                      className="opacity-0 group-hover:opacity-100 text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-opacity leading-none ml-0.5"
                     >
                       ×
                     </span>
@@ -205,8 +205,8 @@ export default function DatabasePage() {
               {/* Active tab content */}
               {activeTab && (
                 <div className="flex-1 min-h-0 flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-[#2a2a2f] shrink-0">
-                    <span className="text-xs font-mono text-gray-600">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--bd)] shrink-0">
+                    <span className="text-xs font-mono text-[var(--tx-3)]">
                       {activeTab.schema}.{activeTab.table}
                       <span className="text-gray-700 ml-2">· LIMIT 100</span>
                     </span>
@@ -214,7 +214,7 @@ export default function DatabasePage() {
                       {activeTab.schema === 'public' && (
                         <Link
                           to={`/database/${encodeURIComponent(`${activeTab.schema}.${activeTab.table}`)}`}
-                          className="text-xs text-gray-500 hover:text-white transition-colors"
+                          className="text-xs text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors"
                         >
                           Edit schema →
                         </Link>
@@ -222,7 +222,7 @@ export default function DatabasePage() {
                       <button
                         onClick={() => fetchTableData(activeTab.id, activeTab.schema, activeTab.table)}
                         disabled={activeTab.loading}
-                        className="text-gray-500 hover:text-white transition-colors disabled:opacity-40"
+                        className="text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors disabled:opacity-40"
                         title="Refresh"
                       >
                         <RefreshCw size={12} className={activeTab.loading ? 'animate-spin' : ''} />
@@ -232,15 +232,15 @@ export default function DatabasePage() {
 
                   <div className="flex-1 min-h-0 overflow-auto">
                     {activeTab.loading ? (
-                      <div className="p-6 text-xs text-gray-600">Loading...</div>
+                      <div className="p-6 text-xs text-[var(--tx-3)]">Loading...</div>
                     ) : activeTab.result?.error ? (
                       <div className="p-4 text-xs text-red-400 font-mono">{activeTab.result.error}</div>
                     ) : activeTab.result && activeTab.result.fields.length > 0 ? (
                       <table className="w-full text-xs font-mono border-collapse">
                         <thead>
-                          <tr className="sticky top-0 bg-[#0f1117] z-10">
+                          <tr className="sticky top-0 bg-[var(--bg-base)] z-10">
                             {activeTab.result.fields.map(f => (
-                              <th key={f.name} className="text-left px-3 py-2 text-gray-500 border-b border-[#2a2a2f] whitespace-nowrap font-medium">
+                              <th key={f.name} className="text-left px-3 py-2 text-[var(--tx-3)] border-b border-[var(--bd)] whitespace-nowrap font-medium">
                                 {f.name}
                               </th>
                             ))}
@@ -248,7 +248,7 @@ export default function DatabasePage() {
                         </thead>
                         <tbody>
                           {activeTab.result.rows.map((row, i) => (
-                            <tr key={i} className={`border-b border-[#1a1a1f] hover:bg-[#1a1a1f] transition-colors ${i % 2 !== 0 ? 'bg-[#0f1117]' : ''}`}>
+                            <tr key={i} className={`border-b border-[var(--bd-subtle)] hover:bg-[var(--bg-surface)] transition-colors ${i % 2 !== 0 ? 'bg-[var(--bg-base)]' : ''}`}>
                               {activeTab.result!.fields.map(f => {
                                 const raw = row[f.name];
                                 const display = raw == null ? null : String(raw);
@@ -256,7 +256,7 @@ export default function DatabasePage() {
                                 return (
                                   <td
                                     key={f.name}
-                                    className={`px-3 py-1.5 whitespace-nowrap max-w-xs truncate ${truncated ? 'text-gray-300 cursor-pointer hover:text-white hover:bg-[#2a2a2f]' : 'text-gray-300'}`}
+                                    className={`px-3 py-1.5 whitespace-nowrap max-w-xs truncate ${truncated ? 'text-[var(--tx-2)] cursor-pointer hover:text-[var(--tx-1)] hover:bg-[var(--bg-raised)]' : 'text-[var(--tx-2)]'}`}
                                     onClick={truncated ? () => setExpandedCell({ col: f.name, val: display! }) : undefined}
                                     title={truncated ? 'Click to expand' : undefined}
                                   >
@@ -269,12 +269,12 @@ export default function DatabasePage() {
                         </tbody>
                       </table>
                     ) : activeTab.result ? (
-                      <div className="p-6 text-xs text-gray-600 text-center">No rows</div>
+                      <div className="p-6 text-xs text-[var(--tx-3)] text-center">No rows</div>
                     ) : null}
                   </div>
 
                   {activeTab.result && !activeTab.result.error && (
-                    <div className="shrink-0 px-4 py-1.5 border-t border-[#2a2a2f] text-xs text-gray-600">
+                    <div className="shrink-0 px-4 py-1.5 border-t border-[var(--bd)] text-xs text-[var(--tx-3)]">
                       {(activeTab.result.rowCount ?? activeTab.result.rows.length).toLocaleString()} row
                       {(activeTab.result.rowCount ?? activeTab.result.rows.length) !== 1 ? 's' : ''}
                       {activeTab.result.durationMs != null && ` · ${activeTab.result.durationMs}ms`}
@@ -309,18 +309,18 @@ function CellModal({ column, value, onClose }: { column: string; value: string; 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2f]">
-          <span className="text-xs font-mono text-gray-400">{column}</span>
+      <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg w-full max-w-lg mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--bd)]">
+          <span className="text-xs font-mono text-[var(--tx-2)]">{column}</span>
           <div className="flex items-center gap-2">
             {isJson && <span className="text-[10px] text-blue-400 bg-blue-900/20 border border-blue-700/30 px-1.5 py-0.5 rounded">JSON</span>}
-            <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="text-xs text-gray-500 hover:text-white transition-colors">
+            <button onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="text-xs text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors">
               {copied ? 'Copied ✓' : 'Copy'}
             </button>
-            <button onClick={onClose} className="text-gray-600 hover:text-white transition-colors text-lg leading-none">×</button>
+            <button onClick={onClose} className="text-[var(--tx-3)] hover:text-[var(--tx-1)] transition-colors text-lg leading-none">×</button>
           </div>
         </div>
-        <pre className="px-4 py-3 text-xs font-mono text-gray-300 whitespace-pre-wrap break-all max-h-96 overflow-auto">{formatted}</pre>
+        <pre className="px-4 py-3 text-xs font-mono text-[var(--tx-2)] whitespace-pre-wrap break-all max-h-96 overflow-auto">{formatted}</pre>
       </div>
     </div>
   );

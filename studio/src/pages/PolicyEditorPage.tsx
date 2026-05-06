@@ -49,16 +49,16 @@ export default function PolicyEditorPage() {
       .finally(() => setLoading(false));
   }, [decoded, isNew]);
 
-  if (loading) return <div className="text-gray-600 text-sm">Loading...</div>;
+  if (loading) return <div className="text-[var(--tx-3)] text-sm">Loading...</div>;
   if (noConfig) return <NoConfig />;
 
   if (notFound) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-          <Link to="/policies" className="hover:text-gray-300 transition-colors">Policies</Link>
+        <div className="flex items-center gap-2 text-sm text-[var(--tx-3)] mb-1">
+          <Link to="/policies" className="hover:text-[var(--tx-2)] transition-colors">Policies</Link>
           <span>/</span>
-          <span className="text-white font-mono">{decoded}</span>
+          <span className="text-[var(--tx-1)] font-mono">{decoded}</span>
         </div>
         <div className="bg-red-900/20 border border-red-700/40 rounded-lg p-4 text-sm text-red-300">
           Policy file not found.
@@ -69,10 +69,10 @@ export default function PolicyEditorPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link to="/policies" className="hover:text-gray-300 transition-colors">Policies</Link>
+      <div className="flex items-center gap-2 text-sm text-[var(--tx-3)] mb-1">
+        <Link to="/policies" className="hover:text-[var(--tx-2)] transition-colors">Policies</Link>
         <span>/</span>
-        <span className="text-white font-mono">{isNew ? 'new' : decoded}</span>
+        <span className="text-[var(--tx-1)] font-mono">{isNew ? 'new' : decoded}</span>
       </div>
 
       <PolicyEditor

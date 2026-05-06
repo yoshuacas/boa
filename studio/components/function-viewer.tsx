@@ -34,7 +34,7 @@ function formatBytes(bytes: number) {
 function logColor(msg: string) {
   if (msg.includes('ERROR')) return 'text-red-400';
   if (msg.includes('WARN')) return 'text-yellow-400';
-  if (msg.includes('START') || msg.includes('END') || msg.includes('REPORT')) return 'text-gray-500';
+  if (msg.includes('START') || msg.includes('END') || msg.includes('REPORT')) return 'text-[var(--tx-3)]';
   return 'text-green-300';
 }
 
@@ -105,15 +105,15 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[#2a2a2f]">
+      <div className="flex gap-1 border-b border-[var(--bd)]">
         {(['logs', 'config', 'invoke'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 text-sm capitalize transition-colors border-b-2 -mb-px ${
               tab === t
-                ? 'border-white text-white'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
+                ? 'border-white text-[var(--tx-1)]'
+                : 'border-transparent text-[var(--tx-3)] hover:text-[var(--tx-2)]'
             }`}
           >
             {t}
@@ -126,11 +126,11 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">Last</span>
+              <span className="text-xs text-[var(--tx-3)]">Last</span>
               <select
                 value={sinceMinutes}
                 onChange={e => setSinceMinutes(Number(e.target.value))}
-                className="text-xs bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 rounded px-2 py-1 focus:outline-none"
+                className="text-xs bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded px-2 py-1 focus:outline-none"
               >
                 <option value={15}>15 min</option>
                 <option value={30}>30 min</option>
@@ -142,19 +142,19 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
             <button
               onClick={loadLogs}
               disabled={loadingLogs}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
             >
               <RefreshCw size={12} className={loadingLogs ? 'animate-spin' : ''} />
               Refresh
             </button>
           </div>
 
-          <div className="bg-[#0a0a0d] border border-[#2a2a2f] rounded-lg p-4 h-96 overflow-auto font-mono text-xs">
+          <div className="bg-[var(--bg-subtle)] border border-[var(--bd)] rounded-lg p-4 h-96 overflow-auto font-mono text-xs">
             {loadingLogs && logs.length === 0 && (
-              <div className="text-gray-600">Loading logs...</div>
+              <div className="text-[var(--tx-3)]">Loading logs...</div>
             )}
             {!loadingLogs && logs.length === 0 && (
-              <div className="text-gray-600">No log events in the selected time range.</div>
+              <div className="text-[var(--tx-3)]">No log events in the selected time range.</div>
             )}
             {logs.map((e, i) => (
               <div key={i} className="flex gap-3 leading-5">
@@ -167,7 +167,7 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
             <div ref={logsEndRef} />
           </div>
 
-          <p className="text-xs text-gray-600">{logs.length} events</p>
+          <p className="text-xs text-[var(--tx-3)]">{logs.length} events</p>
         </div>
       )}
 
@@ -175,10 +175,10 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
       {tab === 'config' && (
         <div>
           {loadingConfig ? (
-            <div className="text-sm text-gray-500">Loading...</div>
+            <div className="text-sm text-[var(--tx-3)]">Loading...</div>
           ) : fnConfig ? (
             <div className="space-y-4">
-              <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+              <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <tbody>
                     {[
@@ -190,9 +190,9 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
                       ['Last modified', fnConfig.lastModified],
                       ['Description', fnConfig.description || '—'],
                     ].map(([label, value], i, arr) => (
-                      <tr key={label} className={i < arr.length - 1 ? 'border-b border-[#2a2a2f]' : ''}>
-                        <td className="px-4 py-2.5 text-xs text-gray-500 w-36">{label}</td>
-                        <td className="px-4 py-2.5 text-gray-300 font-mono text-xs">{value}</td>
+                      <tr key={label} className={i < arr.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
+                        <td className="px-4 py-2.5 text-xs text-[var(--tx-3)] w-36">{label}</td>
+                        <td className="px-4 py-2.5 text-[var(--tx-2)] font-mono text-xs">{value}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -201,16 +201,16 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
 
               {Object.keys(fnConfig.environment).length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-2">
+                  <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest mb-2">
                     Environment Variables
                   </p>
-                  <div className="bg-[#1c1c21] border border-[#2a2a2f] rounded-lg overflow-hidden">
+                  <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
                     <table className="w-full text-xs font-mono">
                       <tbody>
                         {Object.entries(fnConfig.environment).map(([k, v], i, arr) => (
-                          <tr key={k} className={i < arr.length - 1 ? 'border-b border-[#2a2a2f]' : ''}>
-                            <td className="px-4 py-2 text-gray-400 w-64">{k}</td>
-                            <td className="px-4 py-2 text-gray-600 truncate max-w-xs">{v}</td>
+                          <tr key={k} className={i < arr.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
+                            <td className="px-4 py-2 text-[var(--tx-2)] w-64">{k}</td>
+                            <td className="px-4 py-2 text-[var(--tx-3)] truncate max-w-xs">{v}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -229,18 +229,18 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
       {tab === 'invoke' && (
         <div className="space-y-3">
           <div>
-            <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-2">Payload (JSON)</p>
+            <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest mb-2">Payload (JSON)</p>
             <textarea
               value={invokePayload}
               onChange={e => setInvokePayload(e.target.value)}
               rows={6}
-              className="w-full bg-[#1c1c21] border border-[#2a2a2f] text-gray-300 rounded-lg p-3 font-mono text-xs focus:outline-none focus:border-gray-500 resize-none"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded-lg p-3 font-mono text-xs focus:outline-none focus:border-[var(--orange)] resize-none"
             />
           </div>
           <button
             onClick={handleInvoke}
             disabled={invoking}
-            className="flex items-center gap-2 text-sm bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white rounded px-3 py-1.5 transition-colors"
+            className="flex items-center gap-2 text-sm bg-[var(--orange)] hover:opacity-90 disabled:opacity-50 text-[var(--orange-fg)] rounded px-3 py-1.5 transition-opacity"
           >
             <Play size={13} />
             {invoking ? 'Invoking...' : 'Invoke'}
@@ -249,13 +249,13 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
           {invokeResult && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Status:</span>
+                <span className="text-xs text-[var(--tx-3)]">Status:</span>
                 <span className={`text-xs font-mono ${invokeResult.functionError ? 'text-red-400' : 'text-green-400'}`}>
                   {invokeResult.statusCode}
                   {invokeResult.functionError && ` · ${invokeResult.functionError}`}
                 </span>
               </div>
-              <pre className="bg-[#0a0a0d] border border-[#2a2a2f] rounded-lg p-4 text-xs text-gray-300 font-mono overflow-auto max-h-64">
+              <pre className="bg-[var(--bg-subtle)] border border-[var(--bd)] rounded-lg p-4 text-xs text-[var(--tx-2)] font-mono overflow-auto max-h-64">
                 {JSON.stringify(invokeResult.payload, null, 2)}
               </pre>
             </div>
