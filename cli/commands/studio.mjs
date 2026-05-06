@@ -21,7 +21,7 @@ async function prompt(question) {
   });
 }
 
-function parseDeployArgs(args) {
+function parseArgs(args) {
   const opts = {};
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -123,7 +123,7 @@ async function dev(args) {
 }
 
 async function deploy(args) {
-  const opts = parseDeployArgs(args);
+  const opts = parseArgs(args);
   const cfg  = config.requireConfig();
   const { stackName, region } = cfg;
 
@@ -256,6 +256,7 @@ async function deploy(args) {
     staticBucket:        state.staticBucket,
     authMode,
     branch,
+    repo:                opts.repo || undefined,
   };
   config.write(cfg);
   ok('Studio configuration saved');
@@ -294,7 +295,8 @@ async function deploy(args) {
   }
 }
 
-async function update(_args) {
+async function update(args) {
+  const opts = parseArgs(args);
   const cfg = config.requireConfig();
   const { stackName, region } = cfg;
 
@@ -310,8 +312,12 @@ async function update(_args) {
     staticBucket,
     distributionId,
     authMode = 'token',
-    branch = 'main',
+    branch: savedBranch = 'main',
+    repo: savedRepo,
   } = cfg.studio;
+
+  const branch = opts.branch || savedBranch;
+  const repo   = opts.repo   || savedRepo;
 
   heading(`Updating BOA Studio for ${color.bold(stackName)}`);
   blank();
@@ -333,7 +339,8 @@ async function update(_args) {
   blank();
 
   const build = await buildStudio({
-    ref: branch,
+    repo,
+    ref:               branch,
     authMode,
     cognitoRegion:     authMode === 'cognito' ? region : undefined,
     cognitoUserPoolId: cognitoPoolId,
