@@ -7,6 +7,7 @@ interface AuthState {
   authMode: AuthMode;
   studioMode: 'local' | 'cloud';
   loading: boolean;
+  apiError: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthState>({
   authMode: 'none',
   studioMode: 'local',
   loading: true,
+  apiError: false,
   refresh: async () => {},
 });
 
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authMode, setAuthMode] = useState<AuthMode>('none');
   const [studioMode, setStudioMode] = useState<'local' | 'cloud'>('local');
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
 
   async function checkSession() {
     try {
@@ -36,11 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthenticated(data.authenticated);
         setAuthMode(data.authMode);
         setStudioMode(data.studioMode);
+        setApiError(false);
       } else {
         setAuthenticated(false);
+        setApiError(true);
       }
     } catch {
       setAuthenticated(false);
+      setApiError(true);
     } finally {
       setLoading(false);
     }
@@ -51,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ authenticated, authMode, studioMode, loading, refresh: checkSession }}>
+    <AuthContext.Provider value={{ authenticated, authMode, studioMode, loading, apiError, refresh: checkSession }}>
       {children}
     </AuthContext.Provider>
   );

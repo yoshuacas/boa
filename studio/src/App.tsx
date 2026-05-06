@@ -27,12 +27,29 @@ function Layout() {
 }
 
 function ProtectedRoute() {
-  const { authenticated, authMode, loading } = useAuth();
+  const { authenticated, authMode, loading, apiError, refresh } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
         <div className="text-gray-600 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  if (apiError) {
+    return (
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <p className="text-red-400 text-sm font-medium">Cannot connect to BOA Studio API</p>
+          <p className="text-gray-500 text-xs">Check that the API is reachable and try again.</p>
+          <button
+            onClick={refresh}
+            className="mt-2 px-4 py-1.5 text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
