@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
+import { existsSync } from 'node:fs';
+import { resolve as resolvePath, join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import * as aws from '../lib/aws.mjs';
 import * as config from '../lib/config.mjs';
 import { getOutputValue } from '../lib/constants.mjs';
@@ -32,6 +36,90 @@ function parseDeployArgs(args) {
 
 function lambdaS3Key() {
   return `studio-lambda-${Date.now()}.zip`;
+}
+
+async function dev(args) {
+  // Resolve project directory from --project flag or current working directory
+  let projectDir = process.cwd();
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--project' && i + 1 < args.length) {
+      projectDir = resolvePath(args[++i]);
+    }
+  }
+
+  const configPath = join(projectDir, '.boa', 'config.json');
+  if (!existsSync(configPath)) {
+    console.error(`Error: No .boa/config.json found at ${configPath}`);
+    console.error('  Run from inside a BOA project or pass --project <path>');
+    process.exit(1);
+  }
+
+  // Studio source is adjacent to cli/ in the repo
+  const studioDir = fileURLToPath(new URL('../../studio', import.meta.url));
+  const lambdaOut = join(studioDir, '.lambda', 'index.js');
+  const devServerScript = fileURLToPath(new URL('../lib/studio-dev-server.mjs', import.meta.url));
+  const apiPort = 3099;
+
+  heading('BOA Studio — local dev');
+  blank();
+  console.log(`  ${sym.arrow} Project: ${configPath}`);
+  blank();
+
+  // Build the Lambda handler
+  console.log(`  ${sym.arrow} Building Lambda handler ...`);
+  execSync('npm run build:lambda', { cwd: studioDir, stdio: 'inherit' });
+  blank();
+
+  // Start the local API server
+  const serverProc = spawn('node', [devServerScript, lambdaOut, String(apiPort)], {
+    env: {
+      ...process.env,
+      STUDIO_MODE: 'local',
+      NODE_ENV: 'development',
+      BOA_CONFIG_PATH: configPath,
+    },
+    stdio: 'inherit',
+  });
+
+  // Give the API server a moment to bind, then start Vite
+  await new Promise((r) => setTimeout(r, 300));
+
+  console.log(`  ${sym.arrow} Starting Vite dev server ...`);
+  blank();
+
+  const viteProc = spawn('npm', ['run', 'dev'], {
+    cwd: studioDir,
+    env: {
+      ...process.env,
+      BOA_API_PORT: String(apiPort),
+    },
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+
+  // Forward SIGINT (Ctrl+C) to both child processes
+  process.on('SIGINT', () => {
+    serverProc.kill('SIGINT');
+    viteProc.kill('SIGINT');
+    process.exit(0);
+  });
+
+  // Exit if either child dies unexpectedly
+  serverProc.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      console.error(`\n[studio api] exited with code ${code}`);
+      viteProc.kill();
+      process.exit(code);
+    }
+  });
+
+  viteProc.on('exit', (code) => {
+    if (code !== 0 && code !== null) {
+      console.error(`\n[studio vite] exited with code ${code}`);
+      serverProc.kill();
+      process.exit(code);
+    }
+  });
 }
 
 async function deploy(args) {
@@ -411,9 +499,13 @@ export default async function studio(args) {
     console.log(`Usage: boa studio <subcommand> [options]
 
 Subcommands:
+  dev       Run Studio locally against a project's .boa/config.json
   deploy    Deploy BOA Studio for this project
   update    Rebuild and redeploy Studio
   remove    Remove Studio from this project
+
+Options for dev:
+  --project <path>       Path to BOA project directory (default: current dir)
 
 Options for deploy:
   --branch <branch>      Branch to build from (default: main)
@@ -425,6 +517,7 @@ Options for deploy:
   }
 
   switch (sub) {
+    case 'dev':    return dev(rest);
     case 'deploy': return deploy(rest);
     case 'update': return update(rest);
     case 'remove': return remove(rest);

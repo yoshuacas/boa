@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
+const apiPort = process.env.BOA_API_PORT;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -10,6 +12,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, '.'),
     },
   },
+  server: apiPort ? {
+    proxy: {
+      '/api': {
+        target: `http://localhost:${apiPort}`,
+        changeOrigin: true,
+        cookieDomainRewrite: 'localhost',
+      },
+    },
+  } : undefined,
   build: {
     outDir: 'dist',
     rollupOptions: {
