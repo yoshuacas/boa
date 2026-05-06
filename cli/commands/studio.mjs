@@ -137,8 +137,8 @@ async function deploy(args) {
   const authMode      = opts.authMode      || 'token';
   const sessionSecret = opts.sessionSecret || randomBytes(32).toString('hex');
   const accessToken   = opts.accessToken   || (authMode === 'token' ? randomBytes(24).toString('hex') : '');
-  const phase1Stack   = `boa-studio-${stackName}`;
-  const phase2Stack   = `boa-studio-app-${stackName}`;
+  const authStack   = `boa-studio-auth-${stackName}`;
+  const appStack    = `boa-studio-${stackName}`;
 
   const state = {};
 
@@ -149,9 +149,9 @@ async function deploy(args) {
   aws.ssmPutParameter(`/${stackName}/studio-config`, JSON.stringify(cfg), region);
   ok('Backend config written to SSM');
 
-  // ── Phase 1: IAM + Cognito + S3 ─────────────────────────────
+  // ── Auth stack: IAM + Cognito + S3 ──────────────────────────
   // Run CFN outside of listr2 — it has its own progress output.
-  console.log(`\n  ${sym.arrow} Deploying Phase 1 stack (IAM, Cognito, S3)...`);
+  console.log(`\n  ${sym.arrow} Deploying auth stack (IAM, Cognito, S3)...`);
   const p1Params = [
     `BoaStackName=${stackName}`,
     `AuthMode=${authMode}`,
@@ -159,15 +159,15 @@ async function deploy(args) {
 
   aws.run(
     `aws cloudformation deploy` +
-    ` --stack-name ${aws.shellEscape(phase1Stack)}` +
+    ` --stack-name ${aws.shellEscape(authStack)}` +
     ` --template-file ${aws.shellEscape(PHASE1_TEMPLATE)}` +
     ` --parameter-overrides ${p1Params}` +
     ` --capabilities CAPABILITY_NAMED_IAM` +
     ` --region ${aws.shellEscape(region)}`
   );
 
-  // Read Phase 1 outputs
-  const p1Outputs       = aws.cfnDescribeStacks(phase1Stack, region);
+  // Read auth stack outputs
+  const p1Outputs       = aws.cfnDescribeStacks(authStack, region);
   state.lambdaRoleArn   = getOutputValue(p1Outputs, 'LambdaRoleArn');
   state.artifactsBucket = getOutputValue(p1Outputs, 'ArtifactsBucketName');
   state.staticBucket    = getOutputValue(p1Outputs, 'StaticBucketName');
@@ -214,9 +214,9 @@ async function deploy(args) {
     },
   ]);
 
-  // ── Phase 2: Lambda + API Gateway + CloudFront ───────────────
+  // ── App stack: Lambda + API Gateway + CloudFront ─────────────
   // Run CFN outside of listr2 — it has its own progress output.
-  console.log(`\n  ${sym.arrow} Deploying Phase 2 stack (Lambda, CloudFront)...`);
+  console.log(`\n  ${sym.arrow} Deploying app stack (Lambda, CloudFront)...`);
   const p2Params = [
     `BoaStackName=${stackName}`,
     `LambdaRoleArn=${state.lambdaRoleArn}`,
@@ -232,22 +232,22 @@ async function deploy(args) {
 
   aws.run(
     `aws cloudformation deploy` +
-    ` --stack-name ${aws.shellEscape(phase2Stack)}` +
+    ` --stack-name ${aws.shellEscape(appStack)}` +
     ` --template-file ${aws.shellEscape(PHASE2_TEMPLATE)}` +
     ` --parameter-overrides ${p2Params}` +
     ` --region ${aws.shellEscape(region)}`
   );
 
-  // Read Phase 2 outputs and save config
-  const p2Outputs          = aws.cfnDescribeStacks(phase2Stack, region);
+  // Read app stack outputs and save config
+  const p2Outputs          = aws.cfnDescribeStacks(appStack, region);
   state.studioUrl          = getOutputValue(p2Outputs, 'StudioUrl');
   state.distributionId     = getOutputValue(p2Outputs, 'DistributionId');
   state.lambdaFunctionName = getOutputValue(p2Outputs, 'LambdaFunctionName');
   state.apiId              = getOutputValue(p2Outputs, 'ApiId');
 
   cfg.studio = {
-    phase1Stack,
-    phase2Stack,
+    authStack,
+    appStack,
     studioUrl:           state.studioUrl,
     distributionId:      state.distributionId,
     lambdaFunctionName:  state.lambdaFunctionName,
@@ -266,7 +266,7 @@ async function deploy(args) {
   summary('BOA Studio deployed', [
     ['Studio URL', state.studioUrl],
     ['Auth mode',  authMode],
-    ['Stack',      phase2Stack],
+    ['Stack',      appStack],
   ]);
 
   if (authMode === 'cognito') {
@@ -306,7 +306,7 @@ async function update(args) {
   }
 
   const {
-    phase1Stack,
+    authStack,
     lambdaFunctionName,
     artifactsBucket,
     staticBucket,
@@ -329,7 +329,7 @@ async function update(args) {
   // Read Cognito IDs if needed
   let cognitoPoolId, cognitoClientId;
   if (authMode === 'cognito') {
-    const p1Outputs = aws.cfnDescribeStacks(phase1Stack, region);
+    const p1Outputs = aws.cfnDescribeStacks(authStack, region);
     cognitoPoolId   = getOutputValue(p1Outputs, 'CognitoUserPoolId') || '';
     cognitoClientId = getOutputValue(p1Outputs, 'CognitoClientId') || '';
   }
@@ -417,7 +417,7 @@ async function remove(_args) {
     process.exit(1);
   }
 
-  const { phase1Stack, phase2Stack, authMode, artifactsBucket, staticBucket } = cfg.studio;
+  const { authStack, appStack, authMode, artifactsBucket, staticBucket } = cfg.studio;
 
   console.log('');
   console.log('This will permanently delete:');
@@ -426,14 +426,14 @@ async function remove(_args) {
   if (authMode === 'cognito') {
     console.log(`  • Cognito user pool (studio admin accounts)`);
   }
-  console.log(`  • CloudFormation stacks: ${phase2Stack}, ${phase1Stack}`);
+  console.log(`  • CloudFormation stacks: ${appStack}, ${authStack}`);
   console.log('');
   console.log('Your BOA backend (database, auth, API) is NOT affected.');
   console.log('');
 
-  const answer = await prompt(`Type the stack name to confirm [${phase2Stack}]: `);
-  if (answer !== phase2Stack) {
-    console.log(`Remove cancelled. You typed '${answer}' but expected '${phase2Stack}'.`);
+  const answer = await prompt(`Type the stack name to confirm [${appStack}]: `);
+  if (answer !== appStack) {
+    console.log(`Remove cancelled. You typed '${answer}' but expected '${appStack}'.`);
     process.exit(0);
   }
 
@@ -447,25 +447,25 @@ async function remove(_args) {
     ok(`Bucket '${bucket}' emptied`);
   }
 
-  // Delete Phase 2 first (CloudFront, Lambda)
-  console.log(`Deleting stack '${phase2Stack}'...`);
+  // Delete app stack first (CloudFront, Lambda)
+  console.log(`Deleting stack '${appStack}'...`);
   aws.exec(
     `aws cloudformation delete-stack` +
-    ` --stack-name ${aws.shellEscape(phase2Stack)}` +
+    ` --stack-name ${aws.shellEscape(appStack)}` +
     ` --region ${aws.shellEscape(region)}`
   );
-  await pollStackDeletion(phase2Stack, region);
-  ok(`Stack '${phase2Stack}' deleted`);
+  await pollStackDeletion(appStack, region);
+  ok(`Stack '${appStack}' deleted`);
 
-  // Delete Phase 1 (IAM, Cognito, S3)
-  console.log(`Deleting stack '${phase1Stack}'...`);
+  // Delete auth stack (IAM, Cognito, S3)
+  console.log(`Deleting stack '${authStack}'...`);
   aws.exec(
     `aws cloudformation delete-stack` +
-    ` --stack-name ${aws.shellEscape(phase1Stack)}` +
+    ` --stack-name ${aws.shellEscape(authStack)}` +
     ` --region ${aws.shellEscape(region)}`
   );
-  await pollStackDeletion(phase1Stack, region);
-  ok(`Stack '${phase1Stack}' deleted`);
+  await pollStackDeletion(authStack, region);
+  ok(`Stack '${authStack}' deleted`);
 
   delete cfg.studio;
   config.write(cfg);
