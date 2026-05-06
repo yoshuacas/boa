@@ -330,6 +330,7 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
       {confirmDeploy && (
         <DeployConfirmModal
           filename={getFinalName()}
+          cloudMode={cloudMode}
           onConfirm={() => { setConfirmDeploy(false); saveAndDeploy(); }}
           onCancel={() => setConfirmDeploy(false)}
         />
@@ -339,9 +340,10 @@ export function PolicyEditor({ initialFilename, initialContent, isNew }: Props) 
 }
 
 function DeployConfirmModal({
-  filename, onConfirm, onCancel,
+  filename, cloudMode, onConfirm, onCancel,
 }: {
   filename: string;
+  cloudMode: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -355,9 +357,18 @@ function DeployConfirmModal({
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-white">Deploy policy?</h2>
             <p className="text-sm text-gray-400">
-              This will save <span className="font-mono text-gray-200">{filename}</span> and immediately patch the live Lambda function.
+              This will immediately patch the live Lambda with <span className="font-mono text-gray-200">{filename}</span>.
             </p>
           </div>
+
+          {cloudMode && (
+            <div className="bg-yellow-900/15 border border-yellow-700/40 rounded-lg p-3 space-y-1 text-xs">
+              <p className="text-yellow-300 font-medium">This change will not be saved to your repository.</p>
+              <p className="text-yellow-700">
+                The policy is written directly into the Lambda zip. It will be <span className="text-yellow-500">overwritten</span> the next time you run <code className="font-mono">boa deploy</code>. To make it permanent, commit the file to <code className="font-mono">policies/{filename}</code> in your project.
+              </p>
+            </div>
+          )}
 
           <div className="bg-[#0f1117] border border-[#2a2a2f] rounded-lg p-3 space-y-1.5 text-xs text-gray-500">
             <p><span className="text-gray-400">What happens:</span> The current Lambda deployment package is downloaded, the policy file is updated inside it, and the package is re-uploaded.</p>
