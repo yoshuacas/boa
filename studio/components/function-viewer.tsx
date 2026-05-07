@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Play } from 'lucide-react';
+import { RefreshCw, Play, Eye, EyeOff } from 'lucide-react';
+import { TimeRangePicker, toStartTime, toEndTime, type TimeRange } from './time-range-picker';
 
 type FnConfig = {
   functionName: string;
@@ -38,7 +39,7 @@ function logColor(msg: string) {
   return 'text-green-300';
 }
 
-export function FunctionViewer({ functionName }: { functionName: string }) {
+export function FunctionViewer({ functionName, initialTab = 'logs', tabs }: { functionName: string; initialTab?: 'logs' | 'config' | 'invoke'; tabs?: ('logs' | 'config' | 'invoke')[] }) {
   const [fnConfig, setFnConfig] = useState<FnConfig | null>(null);
   const [logs, setLogs] = useState<LogEvent[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
@@ -46,8 +47,11 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
   const [invokePayload, setInvokePayload] = useState('{"httpMethod":"GET","path":"/","headers":{}}');
   const [invokeResult, setInvokeResult] = useState<InvokeResult | null>(null);
   const [invoking, setInvoking] = useState(false);
-  const [tab, setTab] = useState<'logs' | 'config' | 'invoke'>('logs');
-  const [sinceMinutes, setSinceMinutes] = useState(30);
+  const [tab, setTab] = useState<'logs' | 'config' | 'invoke'>(initialTab);
+  const [revealedEnvVars, setRevealedEnvVars] = useState<Set<string>>(new Set());
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>({ type: 'relative', minutes: 30 });
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   async function loadConfig() {
@@ -67,11 +71,10 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
   async function loadLogs() {
     setLoadingLogs(true);
     try {
-      const startTime = Date.now() - sinceMinutes * 60 * 1000;
       const res = await fetch('/api/lambda', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'logs', functionName, startTime }),
+        body: JSON.stringify({ action: 'logs', functionName, startTime: toStartTime(timeRange), endTime: toEndTime(timeRange) }),
       });
       const data = await res.json();
       setLogs(data.events || []);
@@ -97,7 +100,15 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
   }
 
   useEffect(() => { loadConfig(); }, [functionName]);
-  useEffect(() => { if (tab === 'logs') loadLogs(); }, [tab, sinceMinutes, functionName]);
+  useEffect(() => { if (tab === 'logs') loadLogs(); }, [tab, timeRange, functionName]);
+
+  useEffect(() => {
+    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    if (autoRefresh && tab === 'logs') {
+      autoRefreshRef.current = setInterval(loadLogs, 30_000);
+    }
+    return () => { if (autoRefreshRef.current) clearInterval(autoRefreshRef.current); };
+  }, [autoRefresh, tab, timeRange, functionName]);
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
@@ -106,7 +117,7 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
     <div className="space-y-4">
       {/* Tabs */}
       <div className="flex gap-1 border-b border-[var(--bd)]">
-        {(['logs', 'config', 'invoke'] as const).map(t => (
+        {(tabs ?? (['logs', 'config', 'invoke'] as const)).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -125,28 +136,24 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
       {tab === 'logs' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[var(--tx-3)]">Last</span>
-              <select
-                value={sinceMinutes}
-                onChange={e => setSinceMinutes(Number(e.target.value))}
-                className="text-xs bg-[var(--bg-surface)] border border-[var(--bd)] text-[var(--tx-2)] rounded px-2 py-1 focus:outline-none"
+            <TimeRangePicker value={timeRange} onChange={setTimeRange} />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setAutoRefresh(v => !v)}
+                className={`flex items-center gap-1.5 text-xs transition-colors ${autoRefresh ? 'text-[var(--orange)]' : 'text-[var(--tx-3)] hover:text-[var(--tx-2)]'}`}
               >
-                <option value={15}>15 min</option>
-                <option value={30}>30 min</option>
-                <option value={60}>1 hour</option>
-                <option value={360}>6 hours</option>
-                <option value={1440}>24 hours</option>
-              </select>
+                <span className={`inline-block w-1.5 h-1.5 rounded-full ${autoRefresh ? 'bg-[var(--orange)] animate-pulse' : 'bg-[var(--tx-3)]'}`} />
+                {autoRefresh ? 'Live' : 'Auto-refresh'}
+              </button>
+              <button
+                onClick={loadLogs}
+                disabled={loadingLogs}
+                className="flex items-center gap-1.5 text-xs text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
+              >
+                <RefreshCw size={12} className={loadingLogs ? 'animate-spin' : ''} />
+                Refresh
+              </button>
             </div>
-            <button
-              onClick={loadLogs}
-              disabled={loadingLogs}
-              className="flex items-center gap-1.5 text-xs text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
-            >
-              <RefreshCw size={12} className={loadingLogs ? 'animate-spin' : ''} />
-              Refresh
-            </button>
           </div>
 
           <div className="bg-[var(--bg-subtle)] border border-[var(--bd)] rounded-lg p-4 h-96 overflow-auto font-mono text-xs">
@@ -207,12 +214,29 @@ export function FunctionViewer({ functionName }: { functionName: string }) {
                   <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg overflow-hidden">
                     <table className="w-full text-xs font-mono">
                       <tbody>
-                        {Object.entries(fnConfig.environment).map(([k, v], i, arr) => (
-                          <tr key={k} className={i < arr.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
-                            <td className="px-4 py-2 text-[var(--tx-2)] w-64">{k}</td>
-                            <td className="px-4 py-2 text-[var(--tx-3)] truncate max-w-xs">{v}</td>
-                          </tr>
-                        ))}
+                        {Object.entries(fnConfig.environment).map(([k, v], i, arr) => {
+                          const revealed = revealedEnvVars.has(k);
+                          return (
+                            <tr key={k} className={i < arr.length - 1 ? 'border-b border-[var(--bd)]' : ''}>
+                              <td className="px-4 py-2 text-[var(--tx-2)] w-64">{k}</td>
+                              <td className="px-4 py-2 text-[var(--tx-3)] max-w-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate">{revealed ? v : '••••••••'}</span>
+                                  <button
+                                    onClick={() => setRevealedEnvVars(prev => {
+                                      const next = new Set(prev);
+                                      revealed ? next.delete(k) : next.add(k);
+                                      return next;
+                                    })}
+                                    className="shrink-0 text-[var(--tx-3)] hover:text-[var(--tx-2)] transition-colors"
+                                  >
+                                    {revealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

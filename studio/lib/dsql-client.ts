@@ -57,6 +57,11 @@ async function getPool(cfg: BoaConfig): Promise<Pool> {
   return pool;
 }
 
+function isAuthError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return msg.includes('access denied') || msg.includes('password authentication failed') || msg.includes('pg_hba');
+}
+
 export async function runQuery(cfg: BoaConfig, sql: string, params?: unknown[]): Promise<QueryResult> {
   const endpoint = getDsqlEndpoint(cfg);
   if (!endpoint) {
@@ -64,26 +69,44 @@ export async function runQuery(cfg: BoaConfig, sql: string, params?: unknown[]):
   }
 
   const start = Date.now();
-  let pool: Pool;
-  try {
-    pool = await getPool(cfg);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { rows: [], rowCount: 0, fields: [], error: `Failed to get auth token: ${msg}` };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // On the second attempt, force-evict the cached pool so a fresh token is generated.
+    if (attempt === 1) {
+      const existing = pools.get(endpoint);
+      if (existing) {
+        await existing.pool.end().catch(() => {});
+        pools.delete(endpoint);
+      }
+    }
+
+    let pool: Pool;
+    try {
+      pool = await getPool(cfg);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { rows: [], rowCount: 0, fields: [], error: `Failed to get auth token: ${msg}` };
+    }
+
+    try {
+      const result = await pool.query(sql, params as unknown[]);
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount,
+        fields: result.fields.map(f => ({ name: f.name, dataTypeID: f.dataTypeID })),
+        durationMs: Date.now() - start,
+      };
+    } catch (err: unknown) {
+      if (attempt === 0 && isAuthError(err)) {
+        console.warn('[dsql] auth error, refreshing token and retrying');
+        continue;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      return { rows: [], rowCount: 0, fields: [], error: msg, durationMs: Date.now() - start };
+    }
   }
 
-  try {
-    const result = await pool.query(sql, params as unknown[]);
-    return {
-      rows: result.rows,
-      rowCount: result.rowCount,
-      fields: result.fields.map(f => ({ name: f.name, dataTypeID: f.dataTypeID })),
-      durationMs: Date.now() - start,
-    };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { rows: [], rowCount: 0, fields: [], error: msg, durationMs: Date.now() - start };
-  }
+  return { rows: [], rowCount: 0, fields: [], error: 'Query failed after token refresh' };
 }
 
 export async function getTables(cfg: BoaConfig): Promise<TableInfo[]> {

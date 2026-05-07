@@ -343,7 +343,7 @@ async function handleDb(body: Record<string, unknown>): Promise<LambdaResponse> 
 }
 
 async function handleLambda(body: Record<string, unknown>): Promise<LambdaResponse> {
-  const { action, functionName, payload, startTime } = body;
+  const { action, functionName, payload, startTime, endTime } = body;
 
   const cfg = await loadBoaConfig();
   if (!cfg) return json(404, { error: 'No .boa/config.json found' });
@@ -375,14 +375,29 @@ async function handleLambda(body: Record<string, unknown>): Promise<LambdaRespon
     if (action === 'logs') {
       const logGroupName = `/aws/lambda/${fnName}`;
       const since = Number(startTime ?? Date.now() - 30 * 60 * 1000);
-      const result = await logs.send(new FilterLogEventsCommand({ logGroupName, startTime: since, limit: 200 }));
-      return json(200, {
-        events: (result.events || []).map(e => ({
-          timestamp: e.timestamp,
-          message: e.message?.trim(),
-          logStreamName: e.logStreamName,
-        })),
-      });
+      const until = endTime ? Number(endTime) : undefined;
+      const allEvents: { timestamp: number; message: string; logStreamName: string }[] = [];
+      let nextToken: string | undefined;
+      // Paginate up to 10 pages (5 000 events) to ensure recent events aren't dropped.
+      for (let page = 0; page < 10; page++) {
+        const result = await logs.send(new FilterLogEventsCommand({
+          logGroupName,
+          startTime: since,
+          endTime: until,
+          limit: 500,
+          nextToken,
+        }));
+        for (const e of result.events ?? []) {
+          allEvents.push({
+            timestamp: e.timestamp!,
+            message: e.message?.trim() ?? '',
+            logStreamName: e.logStreamName ?? '',
+          });
+        }
+        if (!result.nextToken) break;
+        nextToken = result.nextToken;
+      }
+      return json(200, { events: allEvents });
     }
     if (action === 'invoke') {
       const result = await lambda.send(new InvokeCommand({

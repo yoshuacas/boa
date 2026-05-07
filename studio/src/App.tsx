@@ -12,6 +12,7 @@ import AuthPage from './pages/AuthPage';
 import StoragePage from './pages/StoragePage';
 import FunctionsPage from './pages/FunctionsPage';
 import FunctionDetailPage from './pages/FunctionDetailPage';
+import LogsPage from './pages/LogsPage';
 import PoliciesPage from './pages/PoliciesPage';
 import PolicyEditorPage from './pages/PolicyEditorPage';
 import AdminPage from './pages/AdminPage';
@@ -79,6 +80,7 @@ export default function App() {
               <Route path="/storage" element={<StoragePage />} />
               <Route path="/functions" element={<FunctionsPage />} />
               <Route path="/functions/:name" element={<FunctionDetailPage />} />
+              <Route path="/logs" element={<LogsPage />} />
               <Route path="/policies" element={<PoliciesPage />} />
               <Route path="/policies/:filename" element={<PolicyEditorPage />} />
               <Route path="/admin" element={<AdminPage />} />

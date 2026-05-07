@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Server } from 'lucide-react';
+import { Zap, Server, Clock } from 'lucide-react';
 import { NoConfig } from '@/components/no-config';
 
 interface StackFunction {
@@ -69,11 +69,17 @@ export default function FunctionsPage() {
 
           <div>
             <p className="text-xs font-semibold text-[var(--tx-3)] uppercase tracking-widest mb-3">
-              Custom Functions ({customFunctions.length})
+              Custom Functions {customFunctions.length > 0 && `(${customFunctions.length})`}
             </p>
             {customFunctions.length === 0 ? (
-              <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-6 text-sm text-[var(--tx-3)]">
-                No custom functions yet. Add a directory under <code className="font-mono text-[var(--tx-2)]">functions/</code> and run <code className="font-mono text-[var(--tx-2)]">boa deploy</code>.
+              <div className="bg-[var(--bg-surface)] border border-[var(--bd)] rounded-lg p-5 flex items-start gap-3">
+                <Clock size={15} className="text-[var(--tx-3)] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-[var(--tx-2)]">Custom function tracking coming soon</p>
+                  <p className="text-xs text-[var(--tx-3)] mt-1">
+                    BOA will detect Lambda functions you add to your stack and let you invoke and tail logs from here.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">

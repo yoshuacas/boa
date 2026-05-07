@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Database, Users, HardDrive, Zap, LayoutDashboard, ShieldCheck, Settings, LogOut, Sun, Moon } from 'lucide-react';
+import { Database, Users, HardDrive, Zap, LayoutDashboard, ShieldCheck, Settings, LogOut, Sun, Moon, ScrollText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/context/ThemeContext';
@@ -10,6 +10,7 @@ const navItems = [
   { id: 'auth',      label: 'Auth',        icon: Users,           href: '/auth',      alwaysShow: true },
   { id: 'storage',   label: 'Storage',     icon: HardDrive,       href: '/storage',   alwaysShow: true },
   { id: 'functions', label: 'Functions',   icon: Zap,             href: '/functions', alwaysShow: true },
+  { id: 'logs',      label: 'Logs',        icon: ScrollText,      href: '/logs',      alwaysShow: true },
   { id: 'policies',  label: 'Policies',    icon: ShieldCheck,     href: '/policies',  alwaysShow: true },
   { id: 'admin',     label: 'Admin',       icon: Settings,        href: '/admin',     alwaysShow: false },
 ];
@@ -57,7 +58,7 @@ export function Sidebar() {
   return (
     <aside className="group/sidebar flex flex-col min-h-screen bg-[var(--bg-base)] border-r border-[var(--bd)] shrink-0 w-12 hover:w-52 transition-[width] duration-200 overflow-hidden">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3 py-4 border-b border-[var(--bd)] min-w-52">
+      <Link to="/" className="flex items-center gap-2.5 px-3 py-4 border-b border-[var(--bd)] min-w-52 hover:bg-[var(--bg-surface)] transition-colors">
         <div className="shrink-0 w-6 h-6 flex items-center justify-center">
           <span className="text-[var(--orange)] font-bold text-sm">B</span>
         </div>
@@ -71,7 +72,7 @@ export function Sidebar() {
             {cloud ? 'Cloud' : 'Local'}
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 py-3 min-w-52">
