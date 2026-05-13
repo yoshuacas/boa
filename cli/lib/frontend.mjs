@@ -19,9 +19,20 @@ export function detectFramework(dir) {
 
 const BUILD_CONFIG = {
   vite: { cmd: 'npx vite build', outDir: 'dist' },
-  next: { cmd: 'npx next build && npx next export', outDir: 'out' },
   cra: { cmd: 'npx react-scripts build', outDir: 'build' },
 };
+
+function nextHasStaticExport(dir) {
+  const candidates = ['next.config.js', 'next.config.mjs', 'next.config.ts'];
+  for (const name of candidates) {
+    const p = join(dir, name);
+    if (existsSync(p)) {
+      const content = readFileSync(p, 'utf8');
+      if (/output\s*:\s*['"]export['"]/.test(content)) return true;
+    }
+  }
+  return false;
+}
 
 export const _internal = { exec: execSync };
 
@@ -29,13 +40,31 @@ export function buildFrontend(dir, framework) {
   const resolved = resolve(dir);
   if (framework === 'static') return resolved;
 
-  const config = BUILD_CONFIG[framework];
-  if (!config) throw new Error(`Unknown framework: ${framework}`);
+  if (framework === 'next') {
+    if (!nextHasStaticExport(resolved)) {
+      throw new Error(
+        "Next.js project does not have static export enabled. " +
+        "Add `output: 'export'` to your next.config.js so the " +
+        "build produces `out/` instead of `.next/`. Amplify " +
+        "Hosting only serves static files."
+      );
+    }
+    try {
+      _internal.exec('npx next build', { cwd: resolved, stdio: 'pipe' });
+    } catch (err) {
+      const stderr = err.stderr ? err.stderr.toString() : err.message;
+      throw new Error(`Build failed: ${stderr}`);
+    }
+    return join(resolved, 'out');
+  }
 
-  const outDir = join(resolved, config.outDir);
+  const cfg = BUILD_CONFIG[framework];
+  if (!cfg) throw new Error(`Unknown framework: ${framework}`);
+
+  const outDir = join(resolved, cfg.outDir);
 
   try {
-    _internal.exec(config.cmd, { cwd: resolved, stdio: 'pipe' });
+    _internal.exec(cfg.cmd, { cwd: resolved, stdio: 'pipe' });
   } catch (err) {
     const stderr = err.stderr ? err.stderr.toString() : err.message;
     throw new Error(`Build failed: ${stderr}`);

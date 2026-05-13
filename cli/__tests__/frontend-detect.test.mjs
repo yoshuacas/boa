@@ -86,9 +86,10 @@ describe('buildFrontend', () => {
     assert.ok(result.endsWith('/dist'), 'expected vite build path to end in /dist');
   });
 
-  it('returns path ending in /out for next', () => {
+  it('returns path ending in /out for next with output export config', () => {
     const dir = makeTempDir();
-    writePackageJson(dir, { dependencies: { next: '^14.0' } });
+    writePackageJson(dir, { dependencies: { next: '^15.0.0' } });
+    writeFileSync(join(dir, 'next.config.js'), "module.exports = { output: 'export' }");
     const result = buildFrontend(dir, 'next');
     assert.ok(result.endsWith('/out'), 'expected next build path to end in /out');
   });
@@ -105,5 +106,48 @@ describe('buildFrontend', () => {
     writeFileSync(join(dir, 'index.html'), '<html></html>');
     const result = buildFrontend(dir, 'static');
     assert.equal(result, dir, 'expected static to return input path unchanged');
+  });
+
+  it('next build with output export calls next build but not next export', () => {
+    const dir = makeTempDir();
+    writePackageJson(dir, { dependencies: { next: '^15.0.0' } });
+    writeFileSync(join(dir, 'next.config.js'), "module.exports = { output: 'export' }");
+    const calls = [];
+    _internal.exec = (cmd, opts) => { calls.push(cmd); return ''; };
+    mkdirSync(join(dir, 'out'), { recursive: true });
+    const result = buildFrontend(dir, 'next');
+    assert.ok(result.endsWith('/out'), 'expected path to end in /out');
+    assert.ok(calls.some(c => c.includes('next build')), 'expected next build to be called');
+    assert.ok(!calls.some(c => c.includes('next export')), 'expected next export NOT to be called');
+  });
+
+  it('next build without output export throws a clear error', () => {
+    const dir = makeTempDir();
+    writePackageJson(dir, { dependencies: { next: '^15.0.0' } });
+    writeFileSync(join(dir, 'next.config.js'), "module.exports = { reactStrictMode: true }");
+    assert.throws(
+      () => buildFrontend(dir, 'next'),
+      (err) => {
+        assert.ok(err.message.includes("static export"), 'error should mention static export');
+        assert.ok(err.message.includes("output: 'export'"), 'error should mention the config fix');
+        return true;
+      }
+    );
+  });
+
+  it('detects output export in next.config.mjs', () => {
+    const dir = makeTempDir();
+    writePackageJson(dir, { dependencies: { next: '^15.0.0' } });
+    writeFileSync(join(dir, 'next.config.mjs'), 'export default { output: "export" }');
+    const result = buildFrontend(dir, 'next');
+    assert.ok(result.endsWith('/out'), 'expected .mjs config to be detected');
+  });
+
+  it('detects output export in next.config.ts', () => {
+    const dir = makeTempDir();
+    writePackageJson(dir, { dependencies: { next: '^15.0.0' } });
+    writeFileSync(join(dir, 'next.config.ts'), "const config = { output: 'export' };\nexport default config;");
+    const result = buildFrontend(dir, 'next');
+    assert.ok(result.endsWith('/out'), 'expected .ts config to be detected');
   });
 });

@@ -37,9 +37,18 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 21 | Service role key in frontend bundle — secret scan blocks deploy | CRITICAL | [SKILL.md](../SKILL.md) |
 | 22 | Source maps in production — exposes original source to attackers | HIGH | [SKILL.md](../SKILL.md) |
 | 23 | CSP `unsafe-inline` for scripts — weakens XSS protection | MEDIUM | [SKILL.md](../SKILL.md) |
+| 24 | Next.js requires `output: 'export'` — without it, `next build` produces `.next/` which Amplify cannot serve | HIGH | See below |
 | **Storage** | | | |
 | 19 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | 20 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
+
+## Next.js Requires `output: 'export'`
+
+BOA serves the frontend from Amplify Hosting (static), so Next.js
+projects must opt into static export. Add `output: 'export'` to
+`next.config.js`. Server-rendered pages, `getServerSideProps`, and API
+routes are not supported in this mode — use BOA Lambda functions
+instead.
 
 ## Failed to Fetch / Mixed Content on ALB
 
