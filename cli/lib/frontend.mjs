@@ -224,14 +224,14 @@ export function findSourceMaps(distDir) {
     .map((f) => relative(distDir, f));
 }
 
-export function validateHeaders(filePath, cfg) {
+export function validateHeaders(distDir, cfg) {
   if (cfg?.frontend?.suppressHeaderWarnings) return [];
 
   const warnings = [];
 
-  if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
-    if (!existsSync(filePath)) return [];
-    const content = readFileSync(filePath, 'utf8');
+  const yamlPath = join(distDir, 'amplify-headers.yaml');
+  if (existsSync(yamlPath)) {
+    const content = readFileSync(yamlPath, 'utf8');
     const cspMatch = content.match(/Content-Security-Policy[\s\S]*?value:\s*["']?(.*?)["']?\s*$/m);
     if (cspMatch) {
       const cspValue = cspMatch[1];
@@ -246,9 +246,11 @@ export function validateHeaders(filePath, cfg) {
         );
       }
     }
-  } else if (filePath.endsWith('.html') || existsSync(filePath)) {
-    if (!existsSync(filePath)) return [];
-    const html = readFileSync(filePath, 'utf8');
+  }
+
+  const htmlPath = join(distDir, 'index.html');
+  if (existsSync(htmlPath)) {
+    const html = readFileSync(htmlPath, 'utf8');
     const scriptRe = /<script\s[^>]*src=["']([^"']+)["'][^>]*>/gi;
     let match;
     while ((match = scriptRe.exec(html)) !== null) {

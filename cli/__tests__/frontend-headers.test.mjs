@@ -23,7 +23,7 @@ describe('validateHeaders', () => {
       const dir = makeTempDir();
       const html = '<html><head><script src="https://cdn.example.com/widget.js"></script></head><body></body></html>';
       writeFileSync(join(dir, 'index.html'), html);
-      const warnings = validateHeaders(join(dir, 'index.html'), {});
+      const warnings = validateHeaders(dir, {});
       assert.ok(
         warnings.some((w) => w.toLowerCase().includes('integrity')),
         'expected warning about subresource integrity'
@@ -34,7 +34,7 @@ describe('validateHeaders', () => {
       const dir = makeTempDir();
       const html = '<html><head><script src="https://cdn.example.com/widget.js" integrity="sha384-abc123" crossorigin="anonymous"></script></head><body></body></html>';
       writeFileSync(join(dir, 'index.html'), html);
-      const warnings = validateHeaders(join(dir, 'index.html'), {});
+      const warnings = validateHeaders(dir, {});
       const sriWarnings = warnings.filter((w) => w.toLowerCase().includes('integrity'));
       assert.equal(sriWarnings.length, 0, 'expected no SRI warning when integrity is present');
     });
@@ -43,7 +43,7 @@ describe('validateHeaders', () => {
       const dir = makeTempDir();
       const html = '<html><head><script>console.log("hi")</script></head><body></body></html>';
       writeFileSync(join(dir, 'index.html'), html);
-      const warnings = validateHeaders(join(dir, 'index.html'), {});
+      const warnings = validateHeaders(dir, {});
       const sriWarnings = warnings.filter((w) => w.toLowerCase().includes('integrity'));
       assert.equal(sriWarnings.length, 0, 'expected no SRI warning for inline scripts');
     });
@@ -54,7 +54,7 @@ describe('validateHeaders', () => {
       const dir = makeTempDir();
       const html = '<html><head><script src="https://cdn.example.com/widget.js"></script></head><body></body></html>';
       writeFileSync(join(dir, 'index.html'), html);
-      const warnings = validateHeaders(join(dir, 'index.html'), {
+      const warnings = validateHeaders(dir, {
         frontend: { suppressHeaderWarnings: true },
       });
       assert.deepEqual(warnings, [], 'expected warnings to be suppressed');
@@ -70,9 +70,8 @@ describe('validateHeaders', () => {
       - key: Content-Security-Policy
         value: "default-src 'self'; script-src 'self'"
 `;
-      const headersPath = join(dir, 'amplify-headers.yaml');
-      writeFileSync(headersPath, headersYaml);
-      const warnings = validateHeaders(headersPath, {
+      writeFileSync(join(dir, 'amplify-headers.yaml'), headersYaml);
+      const warnings = validateHeaders(dir, {
         checkCsp: true,
       });
       assert.ok(
@@ -89,9 +88,8 @@ describe('validateHeaders', () => {
       - key: Content-Security-Policy
         value: "default-src 'self'; script-src 'self' 'unsafe-inline'; frame-ancestors 'self'"
 `;
-      const headersPath = join(dir, 'amplify-headers.yaml');
-      writeFileSync(headersPath, headersYaml);
-      const warnings = validateHeaders(headersPath, {
+      writeFileSync(join(dir, 'amplify-headers.yaml'), headersYaml);
+      const warnings = validateHeaders(dir, {
         checkCsp: true,
       });
       assert.ok(
@@ -108,12 +106,84 @@ describe('validateHeaders', () => {
       - key: Content-Security-Policy
         value: "default-src 'self'; connect-src 'self' https://api.example.com; frame-ancestors 'self'"
 `;
-      const headersPath = join(dir, 'amplify-headers.yaml');
-      writeFileSync(headersPath, headersYaml);
-      const warnings = validateHeaders(headersPath, {
+      writeFileSync(join(dir, 'amplify-headers.yaml'), headersYaml);
+      const warnings = validateHeaders(dir, {
         checkCsp: true,
       });
       assert.deepEqual(warnings, [], 'expected no warnings when only connect-src is modified');
+    });
+  });
+
+  describe('both checks run when both files exist', () => {
+    it('returns warnings from both YAML and HTML branches', () => {
+      const dir = makeTempDir();
+      const headersYaml = `customHeaders:
+  - pattern: '/**'
+    headers:
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'"
+`;
+      writeFileSync(join(dir, 'amplify-headers.yaml'), headersYaml);
+      const html = '<html><head><script src="https://cdn.example.com/widget.js"></script></head><body></body></html>';
+      writeFileSync(join(dir, 'index.html'), html);
+      const warnings = validateHeaders(dir, {});
+      assert.ok(
+        warnings.some((w) => w.toLowerCase().includes('clickjacking')),
+        'expected clickjacking warning from YAML branch'
+      );
+      assert.ok(
+        warnings.some((w) => w.toLowerCase().includes('integrity')),
+        'expected SRI warning from HTML branch'
+      );
+    });
+  });
+
+  describe('inline and same-origin scripts do not warn', () => {
+    it('does not warn for inline scripts and relative-URL scripts', () => {
+      const dir = makeTempDir();
+      const html = '<html><head><script>console.log("inline")</script><script src="/local.js"></script></head><body></body></html>';
+      writeFileSync(join(dir, 'index.html'), html);
+      const warnings = validateHeaders(dir, {});
+      const sriWarnings = warnings.filter((w) => w.toLowerCase().includes('integrity'));
+      assert.equal(sriWarnings.length, 0, 'expected no SRI warnings for inline/relative scripts');
+    });
+  });
+
+  describe('scripts with integrity attribute do not warn', () => {
+    it('does not warn when integrity attribute is present', () => {
+      const dir = makeTempDir();
+      const html = '<html><head><script src="https://cdn.example.com/x.js" integrity="sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC" crossorigin="anonymous"></script></head><body></body></html>';
+      writeFileSync(join(dir, 'index.html'), html);
+      const warnings = validateHeaders(dir, {});
+      const sriWarnings = warnings.filter((w) => w.toLowerCase().includes('integrity'));
+      assert.equal(sriWarnings.length, 0, 'expected no SRI warnings when integrity is present');
+    });
+  });
+
+  describe('suppressHeaderWarnings suppresses both checks', () => {
+    it('returns empty array when both files have violations but suppression is on', () => {
+      const dir = makeTempDir();
+      const headersYaml = `customHeaders:
+  - pattern: '/**'
+    headers:
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'"
+`;
+      writeFileSync(join(dir, 'amplify-headers.yaml'), headersYaml);
+      const html = '<html><head><script src="https://cdn.example.com/widget.js"></script></head><body></body></html>';
+      writeFileSync(join(dir, 'index.html'), html);
+      const warnings = validateHeaders(dir, {
+        frontend: { suppressHeaderWarnings: true },
+      });
+      assert.deepEqual(warnings, [], 'expected empty warnings array when suppressed');
+    });
+  });
+
+  describe('missing files produce no warnings', () => {
+    it('returns empty array for an empty directory', () => {
+      const dir = makeTempDir();
+      const warnings = validateHeaders(dir, {});
+      assert.deepEqual(warnings, [], 'expected no warnings for empty directory');
     });
   });
 });

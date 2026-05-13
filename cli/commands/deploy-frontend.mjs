@@ -123,7 +123,7 @@ export default async function deployFrontend(args, opts = {}) {
   writeRuntimeConfig(distDir, cfg);
   const headersPath = writeAmplifyHeaders(distDir, cfg);
 
-  const headerWarnings = validateHeaders(headersPath, cfg);
+  const headerWarnings = validateHeaders(distDir, cfg);
   if (headerWarnings.length > 0) {
     for (const w of headerWarnings) {
       warn(w);
