@@ -1,9 +1,9 @@
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { detectFramework, buildFrontend } from '../lib/frontend.mjs';
+import { detectFramework, buildFrontend, _internal } from '../lib/frontend.mjs';
 
 let tempDir;
 
@@ -68,6 +68,17 @@ describe('detectFramework', () => {
 });
 
 describe('buildFrontend', () => {
+  let originalExec;
+
+  beforeEach(() => {
+    originalExec = _internal.exec;
+    _internal.exec = () => '';
+  });
+
+  afterEach(() => {
+    _internal.exec = originalExec;
+  });
+
   it('returns path ending in /dist for vite', () => {
     const dir = makeTempDir();
     writePackageJson(dir, { devDependencies: { vite: '^5.0' } });
