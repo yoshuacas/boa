@@ -110,6 +110,13 @@ export default async function deploy(_args, opts = {}) {
   const { stackName, region } = cfg;
 
   heading(`Deploying ${color.bold(stackName)} to ${region}`);
+  const targetEngine = getPinnedPgrestLambdaVersion();
+  const priorEngine = cfg.pgrestLambdaVersion;
+  if (priorEngine && priorEngine !== targetEngine) {
+    console.log(`  Engine: pgrest-lambda ${priorEngine} ${sym.arrow} ${color.bold(targetEngine)}`);
+  } else {
+    console.log(`  Engine: pgrest-lambda ${color.bold(targetEngine)}`);
+  }
   blank();
 
   const migration = needsMigrationWarning(cfg);
@@ -295,6 +302,7 @@ export default async function deploy(_args, opts = {}) {
     ['Stack', c.stackName],
     ['Region', c.region],
     ['Auth', c.authProvider],
+    ['Engine', `pgrest-lambda ${c.pgrestLambdaVersion}`],
     ['Storage', c.bucketName],
     ['Database', c.dsqlEndpoint],
   ]);

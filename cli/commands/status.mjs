@@ -24,6 +24,9 @@ export default async function status(_args) {
     ['Region', region],
     ['API URL', apiUrl],
     ['Traffic', trafficLayer],
+    ['Engine', cfg.pgrestLambdaVersion
+      ? `pgrest-lambda ${cfg.pgrestLambdaVersion}`
+      : color.dim('(unknown)')],
     ['Deployed', deployedAt],
     ['Extensions', extensions.length > 0 ? extensions.join(', ') : color.dim('(none)')],
   ]);
