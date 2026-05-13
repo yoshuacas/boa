@@ -3,6 +3,8 @@ import { join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import * as config from '../lib/config.mjs';
 import * as amplify from '../lib/amplify.mjs';
+import * as deployLib from '../lib/deploy.mjs';
+import { resolveTemplate } from '../lib/extensions.mjs';
 import {
   detectFramework,
   buildFrontend,
@@ -156,9 +158,53 @@ export default async function deployFrontend(args, opts = {}) {
   }
 
   const origin = `https://${defaultDomain}`;
-  if (isFirstDeploy || (expectedOrigin && expectedOrigin !== origin)) {
+  const originalOrigins = [...(cfg.allowedOrigins || [])];
+  const needsBackendUpdate = isFirstDeploy || (expectedOrigin && expectedOrigin !== origin);
+
+  if (needsBackendUpdate) {
     registerOrigin(origin);
     ok('Registering origin in backend allow-list... done');
+
+    const updatedCfg = config.read();
+    const templatePath = resolveTemplate(process.cwd());
+    try {
+      let lambdaKey = updatedCfg.lambdaS3Key;
+      let accountId = updatedCfg.accountId;
+
+      if (!lambdaKey || !accountId) {
+        const packaged = deployLib.packageArtifacts({
+          projectDir: process.cwd(),
+          templatePath,
+          region,
+          stackName,
+        });
+        lambdaKey = packaged.lambdaKey;
+        accountId = packaged.accountId;
+      }
+
+      const bucket = deployLib.artifactsBucketName(accountId, region);
+      const templateUrl = deployLib.uploadTemplate({
+        templatePath, bucket, region, stackName,
+      });
+      const parameters = {
+        ProjectName: stackName,
+        LambdaS3Bucket: bucket,
+        LambdaS3Key: lambdaKey,
+        AllowedOrigins: updatedCfg.allowedOrigins.join(','),
+      };
+      if (updatedCfg.certificateArn) {
+        parameters.CertificateArn = updatedCfg.certificateArn;
+      }
+      await deployLib.deployStack({
+        stackName, region, templateUrl, parameters,
+      });
+      ok('Updating backend CORS allow-list... done');
+    } catch (err) {
+      const reverted = config.read();
+      reverted.allowedOrigins = originalOrigins;
+      config.write(reverted);
+      throw err;
+    }
   }
 
   const deployStart = Date.now();

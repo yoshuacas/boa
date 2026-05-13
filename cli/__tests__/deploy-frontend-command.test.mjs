@@ -21,6 +21,8 @@ function setupProject(frontendConfig = {}) {
     anonKey: 'anon-key-123',
     serviceRoleKey: 'srv-key-456',
     authProvider: 'better-auth',
+    accountId: '123456789012',
+    lambdaS3Key: 'lambda/abc123.zip',
     ...frontendConfig,
   };
   writeFileSync(join(boaDir, 'config.json'), JSON.stringify(cfg, null, 2));
@@ -73,6 +75,36 @@ case "$@" in
   *delete-app*)
     echo '{"app":{"appId":"app-existing"}}'
     ;;
+  *sts*get-caller-identity*)
+    echo '{"Account":"123456789012"}'
+    ;;
+  *s3api*head-bucket*)
+    echo '{}'
+    ;;
+  *s3api*head-object*)
+    exit 1
+    ;;
+  *s3api*create-bucket*)
+    echo '{}'
+    ;;
+  *s3api*put-public-access-block*)
+    echo '{}'
+    ;;
+  *s3*cp*)
+    echo '{}'
+    ;;
+  *cloudformation*describe-stack-events*)
+    echo '{"StackEvents":[]}'
+    ;;
+  *cloudformation*describe-stacks*query*)
+    echo 'UPDATE_COMPLETE'
+    ;;
+  *cloudformation*describe-stacks*)
+    echo '{"Stacks":[{"StackStatus":"UPDATE_COMPLETE","Outputs":[]}]}'
+    ;;
+  *cloudformation*update-stack*|*cloudformation*create-stack*)
+    echo '{"StackId":"arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/fake"}'
+    ;;
   *)
     echo '{}'
     ;;
@@ -92,7 +124,11 @@ echo "npx $@" >> "${callLog}"
 
   const fakeZip = `#!/bin/sh
 echo "zip $@" >> "${callLog}"
-touch "$3"
+for arg in "$@"; do
+  case "$arg" in
+    *.zip) touch "$arg" ;;
+  esac
+done
 `;
   writeFileSync(join(tmp, 'bin', 'zip'), fakeZip, { mode: 0o755 });
 
@@ -183,5 +219,125 @@ describe('deploy-frontend command', () => {
 
     const cfg = readConfig();
     assert.ok(cfg.frontend.amplifyAppId, 'deploy should succeed with source maps');
+  });
+
+  it('updates backend stack when a new origin is registered', async () => {
+    setupProject({ allowedOrigins: [] });
+    setupFrontend();
+
+    const { default: deployFrontend } = await import('../commands/deploy-frontend.mjs');
+    await deployFrontend(['./web']);
+
+    const calls = readCalls();
+    const cfnCalls = calls.filter(
+      (c) => c.includes('cloudformation') && (c.includes('update-stack') || c.includes('create-stack'))
+    );
+    assert.ok(cfnCalls.length > 0, 'should invoke cloudformation update-stack or create-stack');
+
+    const paramsCalls = cfnCalls.filter((c) => c.includes('--parameters file://'));
+    assert.ok(paramsCalls.length > 0, 'should pass --parameters file://');
+    const paramsMatch = paramsCalls[0].match(/--parameters file:\/\/(\S+)/);
+    assert.ok(paramsMatch, 'should have a parameters file path');
+    const paramsContent = readFileSync(paramsMatch[1], 'utf8');
+    const paramsJson = JSON.parse(paramsContent);
+    const originsParam = paramsJson.find((p) => p.ParameterKey === 'AllowedOrigins');
+    assert.ok(originsParam, 'should include AllowedOrigins parameter');
+    assert.ok(
+      originsParam.ParameterValue.includes('amplifyapp.com'),
+      'AllowedOrigins should contain the Amplify domain'
+    );
+
+    const cfnIdx = calls.findIndex(
+      (c) => c.includes('cloudformation') && (c.includes('update-stack') || c.includes('create-stack'))
+    );
+    const deployIdx = calls.findIndex((c) => c.includes('start-deployment'));
+    assert.ok(cfnIdx < deployIdx, 'backend update should happen before start-deployment');
+  });
+
+  it('skips backend update when origin already registered', async () => {
+    setupProject({
+      frontend: {
+        amplifyAppId: 'app-existing',
+        amplifyDomain: 'main.app-existing.amplifyapp.com',
+      },
+      allowedOrigins: ['https://main.app-existing.amplifyapp.com'],
+    });
+    setupFrontend();
+
+    const { default: deployFrontend } = await import('../commands/deploy-frontend.mjs');
+    await deployFrontend(['./web']);
+
+    const calls = readCalls();
+    const cfnCalls = calls.filter(
+      (c) => c.includes('cloudformation') && (c.includes('update-stack') || c.includes('create-stack'))
+    );
+    assert.equal(cfnCalls.length, 0, 'should not invoke cloudformation update-stack');
+  });
+
+  it('rolls back config and aborts deploy on backend update failure', async () => {
+    setupProject({ allowedOrigins: [] });
+    setupFrontend();
+
+    const failAws = `#!/bin/sh
+echo "$@" >> "${callLog}"
+case "$@" in
+  *create-app*)
+    echo '{"app":{"appId":"app-new-001","defaultDomain":"main.app-new-001.amplifyapp.com"}}'
+    ;;
+  *create-branch*)
+    echo '{"branch":{"branchName":"main"}}'
+    ;;
+  *sts*get-caller-identity*)
+    echo '{"Account":"123456789012"}'
+    ;;
+  *s3api*head-bucket*)
+    echo '{}'
+    ;;
+  *s3api*head-object*)
+    exit 1
+    ;;
+  *s3api*create-bucket*|*s3api*put-public-access-block*)
+    echo '{}'
+    ;;
+  *s3*cp*)
+    echo '{}'
+    ;;
+  *cloudformation*describe-stacks*query*)
+    echo 'UPDATE_COMPLETE'
+    ;;
+  *cloudformation*describe-stacks*)
+    echo '{"Stacks":[{"StackStatus":"UPDATE_COMPLETE","Outputs":[]}]}'
+    ;;
+  *cloudformation*update-stack*|*cloudformation*create-stack*)
+    echo "ValidationError: Simulated failure" >&2
+    exit 1
+    ;;
+  *)
+    echo '{}'
+    ;;
+esac
+`;
+    writeFileSync(join(tmp, 'bin', 'aws'), failAws, { mode: 0o755 });
+
+    const { default: deployFrontend } = await import('../commands/deploy-frontend.mjs');
+    let exitCode = 0;
+    try {
+      await deployFrontend(['./web']);
+    } catch {
+      exitCode = 1;
+    }
+    assert.equal(exitCode, 1, 'should exit non-zero');
+
+    const calls = readCalls();
+    const deployCalls = calls.filter((c) => c.includes('start-deployment'));
+    assert.equal(deployCalls.length, 0, 'start-deployment should never be called');
+
+    const cfg = readConfig();
+    const origins = cfg.allowedOrigins || [];
+    assert.equal(
+      origins.filter((o) => o.includes('amplifyapp.com')).length,
+      0,
+      'config should be rolled back — no Amplify origin in allowedOrigins'
+    );
   });
 });
