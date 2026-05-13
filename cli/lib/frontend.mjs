@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve, relative } from 'node:path';
 import { execSync } from 'node:child_process';
+import * as config from './config.mjs';
 
 export function detectFramework(dir) {
   const pkgPath = join(dir, 'package.json');
@@ -300,6 +301,25 @@ export function writeAmplifyHeaders(distDir, cfg) {
   return outPath;
 }
 
-export function registerOrigin() {
-  throw new Error('not implemented');
+export function registerOrigin(origin, projectDir = process.cwd()) {
+  const cfg = config.read(projectDir) || {};
+  if (!Array.isArray(cfg.allowedOrigins)) {
+    cfg.allowedOrigins = [];
+  }
+
+  const normalized = origin.replace(/\/+$/, '');
+  const added = [];
+  const existing = [];
+
+  if (cfg.allowedOrigins.includes(normalized)) {
+    existing.push(normalized);
+  } else {
+    cfg.allowedOrigins.push(normalized);
+    added.push(normalized);
+  }
+
+  cfg.allowedOrigins = [...new Set(cfg.allowedOrigins)];
+  config.write(cfg, projectDir);
+
+  return { added, existing };
 }
