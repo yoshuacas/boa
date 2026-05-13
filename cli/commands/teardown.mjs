@@ -5,6 +5,7 @@ import * as aws from '../lib/aws.mjs';
 import { shellEscape } from '../lib/aws.mjs';
 import * as deployLib from '../lib/deploy.mjs';
 import * as config from '../lib/config.mjs';
+import * as amplify from '../lib/amplify.mjs';
 import { ok, fail } from '../lib/output.mjs';
 
 async function confirm(prompt) {
@@ -228,6 +229,25 @@ export default async function teardown(_args) {
     // Ignore errors (no parameters found)
   }
   ok('SSM parameters removed');
+
+  // 15b. Delete Amplify app if present
+  if (cfg.frontend?.amplifyAppId) {
+    const amplifyAppId = cfg.frontend.amplifyAppId;
+    console.log('');
+    const deleteAmplify = await confirm(
+      `Delete Amplify app ${amplifyAppId}? (y/N): `
+    );
+    if (deleteAmplify.toLowerCase() === 'y') {
+      try {
+        amplify.deleteApp({ appId: amplifyAppId, region });
+        ok(`Amplify app '${amplifyAppId}' deleted`);
+      } catch (e) {
+        fail(`Amplify app '${amplifyAppId}' delete failed: ${e.message}`);
+      }
+    } else {
+      ok(`Amplify app '${amplifyAppId}' kept`);
+    }
+  }
 
   // 16. Remove .boa/ directory
   console.log('');

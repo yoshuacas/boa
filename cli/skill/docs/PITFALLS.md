@@ -34,6 +34,9 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | 16 | CORS errors — origin not in the `ALLOWED_ORIGINS` allowlist | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
 | 17 | Opening HTML via `file://` — CORS blocks all API requests | HIGH | Use `http://localhost` (dev server) |
 | 18 | Async form submit handler reads `event.currentTarget` after `await` | MEDIUM | [SKILL.md](../SKILL.md) |
+| 21 | Service role key in frontend bundle — secret scan blocks deploy | CRITICAL | [SKILL.md](../SKILL.md) |
+| 22 | Source maps in production — exposes original source to attackers | HIGH | [SKILL.md](../SKILL.md) |
+| 23 | CSP `unsafe-inline` for scripts — weakens XSS protection | MEDIUM | [SKILL.md](../SKILL.md) |
 | **Storage** | | | |
 | 19 | Public S3 bucket — always use presigned URLs | CRITICAL | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |
 | 20 | Presigned URL expiration too short for large files | LOW | [STORAGE-PATTERNS.md](STORAGE-PATTERNS.md) |

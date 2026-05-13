@@ -19,7 +19,7 @@ export default async function status(_args) {
       : '(none)';
 
   const extensions = cfg.extensions || [];
-  summary(null, [
+  const pairs = [
     ['Stack', stackName],
     ['Region', region],
     ['API URL', apiUrl],
@@ -29,7 +29,11 @@ export default async function status(_args) {
       : color.dim('(unknown)')],
     ['Deployed', deployedAt],
     ['Extensions', extensions.length > 0 ? extensions.join(', ') : color.dim('(none)')],
-  ]);
+  ];
+  if (cfg.frontend?.amplifyDomain) {
+    pairs.push(['Frontend', `https://${cfg.frontend.amplifyDomain}`]);
+  }
+  summary(null, pairs);
 
   try {
     const token = aws.dsqlGenerateAuthToken(dsqlEndpoint, region);

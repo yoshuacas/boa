@@ -105,7 +105,7 @@ function conceptsForExtensions(extensions) {
   return base;
 }
 
-export default async function deploy(_args, opts = {}) {
+async function deployBackend(_args, opts = {}) {
   const cfg = config.requireConfig();
   const { stackName, region } = cfg;
 
@@ -308,4 +308,21 @@ export default async function deploy(_args, opts = {}) {
   ]);
   blank();
   console.log(`  ${sym.arrow} Next: add tables in ${color.cyan('migrations/')} and policies in ${color.cyan('policies/')}, then run ${color.bold('boa deploy')}.`);
+}
+
+export default async function deploy(args, opts = {}) {
+  const subcommand = args[0];
+  if (subcommand === 'frontend') {
+    const { default: deployFrontend } = await import('./deploy-frontend.mjs');
+    return deployFrontend(args.slice(1), opts);
+  }
+  if (subcommand === 'backend') {
+    return deployBackend(args.slice(1), opts);
+  }
+  if (subcommand === 'all') {
+    await deployBackend([], opts);
+    const { default: deployFrontend } = await import('./deploy-frontend.mjs');
+    return deployFrontend([], opts);
+  }
+  return deployBackend(args, opts);
 }

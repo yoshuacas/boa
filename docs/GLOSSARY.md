@@ -95,6 +95,14 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 | **stack** | CloudFormation stack | Ok in CLI output and technical docs, not developer-facing |
 | **infrastructure** | AWS resources | Ok internally, developer-facing: "your backend" |
 
+## Frontend Deploy
+
+| Term | Usage | Notes |
+|------|-------|-------|
+| **runtime config** | The `/config.json` file served by the frontend | Contains backend connection details (API URL, anon key). Served with `no-cache` so key rotations propagate without rebuilds. |
+| **bundle scan** | The pre-deploy check that blocks deploys containing leaked secrets | Runs automatically before every frontend deploy. Bypass with `--skip-secret-scan` (not recommended). |
+| **frontend deploy** | The `boa deploy frontend` command | Builds, scans, and ships a SPA to AWS Amplify. |
+
 ## Anti-patterns
 
 - Never say "user" when you mean the developer (ambiguous with end users)

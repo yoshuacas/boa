@@ -346,6 +346,29 @@ export const config = {
 };
 ```
 
+## Deploying a Frontend
+
+After `boa deploy` succeeds and the backend is live, ask the
+developer if there's a frontend to deploy. If yes:
+
+1. Confirm the frontend path (default `./web`).
+2. Run `boa deploy frontend [path]`.
+3. The CLI detects the framework, builds, scans for secrets,
+   checks for source maps, writes runtime config, and deploys
+   to AWS Amplify.
+4. If the secret scan fails, show the file and line number,
+   suggest a fix (remove the secret, use the anon key instead),
+   and do not retry without human confirmation.
+5. Never auto-add `--skip-secret-scan` or `--allow-source-maps`.
+   These flags bypass safety checks and require explicit
+   developer consent.
+
+| Command | What it does |
+|---------|-------------|
+| `boa deploy frontend` | Build, scan, and deploy frontend to Amplify |
+| `boa deploy frontend ./app` | Deploy from a specific directory |
+| `boa deploy all` | Deploy backend then frontend |
+
 ## Dashboard
 
 ```bash
