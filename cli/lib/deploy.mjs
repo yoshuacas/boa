@@ -1,7 +1,9 @@
 import {
   existsSync, mkdirSync, readFileSync, readdirSync, rmSync, cpSync,
+  writeFileSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exec, run, shellEscape } from './aws.mjs';
@@ -462,12 +464,15 @@ async function cleanupStalledStack(stackName, region) {
   }
 }
 
-function formatParams(params) {
-  const entries = Object.entries(params)
-    .filter(([, v]) => v != null && v !== '');
-  return entries.map(([k, v]) =>
-    `ParameterKey=${k},ParameterValue=${shellEscape(String(v))}`
-  ).join(' ');
+export function writeParamsFile(params) {
+  const entries = Object.entries(params).filter(([, v]) => v != null && v !== '');
+  const json = entries.map(([k, v]) => ({
+    ParameterKey: k,
+    ParameterValue: String(v),
+  }));
+  const path = join(tmpdir(), `boa-cfn-params-${Date.now()}-${process.pid}.json`);
+  writeFileSync(path, JSON.stringify(json));
+  return path;
 }
 
 // Create or update the CloudFormation stack, waiting for the operation
@@ -483,14 +488,14 @@ export async function deployStack({
   await cleanupStalledStack(stackName, region);
   const exists = stackExists(stackName, region);
   const verb = exists ? 'update-stack' : 'create-stack';
-  const paramStr = formatParams(parameters);
+  const paramsFile = writeParamsFile(parameters);
 
   try {
     exec(
       `aws cloudformation ${verb} --stack-name ${shellEscape(stackName)} ` +
       `--region ${shellEscape(region)} --template-url ${shellEscape(templateUrl)} ` +
       `--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM ` +
-      `--parameters ${paramStr}`
+      `--parameters file://${paramsFile}`
     );
   } catch (err) {
     // `update-stack` returns a ValidationError with "No updates are
