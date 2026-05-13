@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve, relative } from 'node:path';
 import { execSync } from 'node:child_process';
 
@@ -194,16 +194,110 @@ export function findSourceMaps(distDir) {
     .map((f) => relative(distDir, f));
 }
 
-export function validateHeaders() {
-  throw new Error('not implemented');
+export function validateHeaders(filePath, cfg) {
+  if (cfg?.frontend?.suppressHeaderWarnings) return [];
+
+  const warnings = [];
+
+  if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
+    if (!existsSync(filePath)) return [];
+    const content = readFileSync(filePath, 'utf8');
+    const cspMatch = content.match(/Content-Security-Policy[\s\S]*?value:\s*["']?(.*?)["']?\s*$/m);
+    if (cspMatch) {
+      const cspValue = cspMatch[1];
+      if (!cspValue.includes('frame-ancestors')) {
+        warnings.push(
+          "Your amplify-headers.yaml overrides Content-Security-Policy but removes 'frame-ancestors'. The default value blocks clickjacking."
+        );
+      }
+      if (/script-src[^;]*'unsafe-inline'/.test(cspValue)) {
+        warnings.push(
+          "CSP includes 'unsafe-inline' for script-src, which weakens XSS protection."
+        );
+      }
+    }
+  } else if (filePath.endsWith('.html') || existsSync(filePath)) {
+    if (!existsSync(filePath)) return [];
+    const html = readFileSync(filePath, 'utf8');
+    const scriptRe = /<script\s[^>]*src=["']([^"']+)["'][^>]*>/gi;
+    let match;
+    while ((match = scriptRe.exec(html)) !== null) {
+      const url = match[1];
+      if (!url.startsWith('http')) continue;
+      const tag = match[0];
+      if (!tag.includes('integrity')) {
+        warnings.push(
+          `index.html loads scripts without integrity hashes: ${url}. Without subresource integrity, a compromised CDN can serve modified code.`
+        );
+      }
+    }
+  }
+
+  return warnings;
 }
 
-export function writeRuntimeConfig() {
-  throw new Error('not implemented');
+export function writeRuntimeConfig(distDir, cfg) {
+  const config = {
+    apiUrl: cfg.apiUrl,
+    anonKey: cfg.anonKey,
+    ...(cfg.storageUrl && { storageUrl: cfg.storageUrl }),
+    ...(cfg.bucketName && !cfg.storageUrl && {
+      storageUrl: `https://${cfg.bucketName}.s3.${cfg.region}.amazonaws.com`,
+    }),
+    authProvider: cfg.authProvider || 'better-auth',
+  };
+
+  const filePath = join(distDir, 'config.json');
+  writeFileSync(filePath, JSON.stringify(config, null, 2));
+  return { path: filePath, cacheControl: 'no-cache, must-revalidate' };
 }
 
-export function writeAmplifyHeaders() {
-  throw new Error('not implemented');
+export function writeAmplifyHeaders(distDir, cfg) {
+  const apiUrl = cfg.apiUrl || '';
+  const storageUrl = cfg.storageUrl || '';
+  const cspConfig = cfg.frontend?.csp || {};
+
+  const connectSrc = ["'self'", apiUrl, ...(cspConfig.connectSrc || [])]
+    .filter(Boolean)
+    .join(' ');
+  const imgSrc = ["'self'", 'data:', storageUrl, ...(cspConfig.imgSrc || [])]
+    .filter(Boolean)
+    .join(' ');
+  const scriptSrc = ["'self'", ...(cspConfig.scriptSrc || [])]
+    .filter(Boolean)
+    .join(' ');
+
+  const csp = [
+    "default-src 'self'",
+    `connect-src ${connectSrc}`,
+    `img-src ${imgSrc}`,
+    "style-src 'self' 'unsafe-inline'",
+    `script-src ${scriptSrc}`,
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+
+  const yaml = `customHeaders:
+  - pattern: '**/*'
+    headers:
+      - key: 'Strict-Transport-Security'
+        value: 'max-age=31536000; includeSubDomains'
+      - key: 'X-Content-Type-Options'
+        value: 'nosniff'
+      - key: 'X-Frame-Options'
+        value: 'DENY'
+      - key: 'Referrer-Policy'
+        value: 'strict-origin-when-cross-origin'
+      - key: 'Permissions-Policy'
+        value: 'camera=(), microphone=(), geolocation=()'
+      - key: 'Content-Security-Policy'
+        value: '${csp}'
+`;
+
+  const outPath = join(distDir, 'amplify-headers.yaml');
+  writeFileSync(outPath, yaml);
+  return outPath;
 }
 
 export function registerOrigin() {
