@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import * as config from '../lib/config.mjs';
 import * as amplify from '../lib/amplify.mjs';
 import * as deployLib from '../lib/deploy.mjs';
+import { shellEscape } from '../lib/aws.mjs';
 import { resolveTemplate } from '../lib/extensions.mjs';
 import {
   detectFramework,
@@ -47,7 +48,7 @@ function parseOpts(args) {
 
 function zipDir(dir) {
   const zipPath = join(dir, '..', 'boa-deploy.zip');
-  execSync(`zip -r -q ${zipPath} .`, { cwd: dir });
+  execSync(`zip -r -q ${shellEscape(zipPath)} .`, { cwd: dir });
   return zipPath;
 }
 

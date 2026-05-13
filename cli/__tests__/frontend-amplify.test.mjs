@@ -36,7 +36,7 @@ case "$@" in
     echo '{"jobId":"job-42","zipUploadUrl":"https://s3.example.com/upload"}'
     ;;
   *start-deployment*)
-    echo '{"jobSummary":{"status":"PENDING"}}'
+    echo '{"jobSummary":{"jobId":"job-99","status":"PENDING","jobType":"RELEASE","startTime":"2026-01-01T00:00:00Z"}}'
     ;;
   *get-job*timeout*)
     echo '{"job":{"summary":{"status":"RUNNING"}}}'

@@ -64,7 +64,7 @@ case "$@" in
     echo '{"jobId":"job-99","zipUploadUrl":"https://s3.example.com/upload"}'
     ;;
   *start-deployment*)
-    echo '{"jobSummary":{"status":"PENDING"}}'
+    echo '{"jobSummary":{"jobId":"job-99","status":"PENDING","jobType":"RELEASE","startTime":"2026-01-01T00:00:00Z"}}'
     ;;
   *get-job*)
     echo '{"job":{"summary":{"status":"SUCCEED","endTime":"2026-01-01T00:00:00Z"}}}'
@@ -339,5 +339,125 @@ esac
       0,
       'config should be rolled back — no Amplify origin in allowedOrigins'
     );
+  });
+
+  it('handles dist path with spaces correctly', async () => {
+    const spaceDir = mkdtempSync(join(tmpdir(), 'boa fe '));
+    try {
+      const boaDir = join(spaceDir, '.boa');
+      mkdirSync(boaDir, { recursive: true });
+      writeFileSync(join(boaDir, 'config.json'), JSON.stringify({
+        stackName: 'test-stack',
+        region: 'us-east-1',
+        apiUrl: 'https://api.example.com',
+        anonKey: 'anon-key-123',
+        serviceRoleKey: 'srv-key-456',
+        authProvider: 'better-auth',
+        accountId: '123456789012',
+        lambdaS3Key: 'lambda/abc123.zip',
+      }, null, 2));
+
+      const webDir = join(spaceDir, 'web');
+      mkdirSync(webDir, { recursive: true });
+      writeFileSync(join(webDir, 'package.json'), JSON.stringify({
+        name: 'test-app',
+        dependencies: { vite: '^5.0.0' },
+      }));
+      const distDir = join(webDir, 'dist');
+      mkdirSync(distDir, { recursive: true });
+      writeFileSync(join(distDir, 'index.html'), '<html></html>');
+
+      const spaceCallLog = join(spaceDir, 'calls.log');
+      mkdirSync(join(spaceDir, 'bin'), { recursive: true });
+
+      const fakeAws = `#!/bin/sh
+echo "$@" >> "${spaceCallLog}"
+case "$@" in
+  *create-app*)
+    echo '{"app":{"appId":"app-new-001","defaultDomain":"main.app-new-001.amplifyapp.com"}}'
+    ;;
+  *create-branch*)
+    echo '{"branch":{"branchName":"main"}}'
+    ;;
+  *create-deployment*)
+    echo '{"jobId":"job-99","zipUploadUrl":"https://s3.example.com/upload"}'
+    ;;
+  *start-deployment*)
+    echo '{"jobSummary":{"jobId":"job-99","status":"PENDING","jobType":"RELEASE","startTime":"2026-01-01T00:00:00Z"}}'
+    ;;
+  *get-job*)
+    echo '{"job":{"summary":{"status":"SUCCEED","endTime":"2026-01-01T00:00:00Z"}}}'
+    ;;
+  *sts*get-caller-identity*)
+    echo '{"Account":"123456789012"}'
+    ;;
+  *s3api*head-bucket*)
+    echo '{}'
+    ;;
+  *s3api*head-object*)
+    exit 1
+    ;;
+  *s3api*create-bucket*|*s3api*put-public-access-block*)
+    echo '{}'
+    ;;
+  *s3*cp*)
+    echo '{}'
+    ;;
+  *cloudformation*describe-stack-events*)
+    echo '{"StackEvents":[]}'
+    ;;
+  *cloudformation*describe-stacks*query*)
+    echo 'UPDATE_COMPLETE'
+    ;;
+  *cloudformation*describe-stacks*)
+    echo '{"Stacks":[{"StackStatus":"UPDATE_COMPLETE","Outputs":[]}]}'
+    ;;
+  *cloudformation*update-stack*|*cloudformation*create-stack*)
+    echo '{"StackId":"arn:aws:cloudformation:us-east-1:123456789012:stack/test-stack/fake"}'
+    ;;
+  *)
+    echo '{}'
+    ;;
+esac
+`;
+      writeFileSync(join(spaceDir, 'bin', 'aws'), fakeAws, { mode: 0o755 });
+
+      const fakeCurl = `#!/bin/sh
+echo "curl $@" >> "${spaceCallLog}"
+`;
+      writeFileSync(join(spaceDir, 'bin', 'curl'), fakeCurl, { mode: 0o755 });
+
+      const fakeNpx = `#!/bin/sh
+echo "npx $@" >> "${spaceCallLog}"
+`;
+      writeFileSync(join(spaceDir, 'bin', 'npx'), fakeNpx, { mode: 0o755 });
+
+      const fakeZip = `#!/bin/sh
+echo "zip $@" >> "${spaceCallLog}"
+for arg in "$@"; do
+  case "$arg" in
+    *.zip) touch "$arg" ;;
+  esac
+done
+`;
+      writeFileSync(join(spaceDir, 'bin', 'zip'), fakeZip, { mode: 0o755 });
+
+      process.env.PATH = join(spaceDir, 'bin') + ':' + process.env.PATH;
+      process.chdir(spaceDir);
+
+      const { default: deployFrontend } = await import('../commands/deploy-frontend.mjs');
+      await deployFrontend(['./web']);
+
+      const calls = readFileSync(spaceCallLog, 'utf8').split('\n').filter(Boolean);
+      const zipCall = calls.find((c) => c.startsWith('zip '));
+      assert.ok(zipCall, 'expected zip call in log');
+      assert.ok(
+        zipCall.includes('boa-deploy.zip'),
+        'zip call should contain the full zip filename (path was not split at space)'
+      );
+    } finally {
+      process.chdir(origCwd);
+      rmSync(spaceDir, { recursive: true, force: true });
+    }
   });
 });
