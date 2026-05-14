@@ -346,20 +346,30 @@ export const config = {
 };
 ```
 
-## Dashboard
+## BOA Studio
+
+BOA Studio is a web UI for managing your backend — browse tables, view logs, manage users, edit policies, and inspect S3 files. It deploys as a Next.js app on Amplify, connected to your BOA backend.
 
 ```bash
-if [[ ! -f .boa/dashboard/index.html ]]; then
-  mkdir -p .boa/dashboard/css .boa/dashboard/js
-  for f in index.html database.html auth.html functions.html api.html storage.html; do
-    curl -sL "https://raw.githubusercontent.com/yoshuacas/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
-  done
-  for f in css/dashboard.css js/aws-cli-bridge.js js/dashboard-core.js; do
-    curl -sL "https://raw.githubusercontent.com/yoshuacas/boa/main/dashboard/$f" -o ".boa/dashboard/$f"
-  done
-fi
-open .boa/dashboard/index.html
+# Deploy Studio for the first time
+boa studio deploy --repo https://github.com/org/repo
+
+# Trigger a rebuild (e.g. after backend config changes or a new push)
+boa studio update
+
+# Remove Studio (backend is unaffected)
+boa studio remove
 ```
+
+Studio deploys from a public GitHub repo. Builds are triggered manually via `boa studio update` — there is no auto-build webhook. Only the Amplify app ID and URL are saved to `.boa/config.json`.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--repo <url>` | required | GitHub repo URL |
+| `--branch <branch>` | main | Branch to deploy from |
+| `--auth-mode <token\|cognito>` | token | Studio login method |
+| `--session-secret` | auto-generated | Cookie signing secret |
+| `--access-token` | auto-generated | Password for token auth mode |
 
 ## Deep References
 

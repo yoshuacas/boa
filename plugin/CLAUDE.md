@@ -56,3 +56,6 @@ Custom Lambda code should read these flat keys.
 | `boa migrate` | Apply pending SQL migrations |
 | `boa verify` | Post-deploy verification |
 | `boa teardown` | Backend removal |
+| `boa studio deploy` | Deploy BOA Studio web UI |
+| `boa studio update` | Rebuild and redeploy Studio |
+| `boa studio remove` | Remove Studio (backend unaffected) |

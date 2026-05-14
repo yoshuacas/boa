@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "lib/utils.ts",
+    "lib/studio-mode.ts",
+    "lib/studio-auth.ts",
+    "types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "lambda"]
+}

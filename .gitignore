@@ -1,6 +1,12 @@
 # BOA local state
 .boa/
 
+# Studio (Next.js build artifacts)
+studio/node_modules/
+studio/.next/
+studio/.env*
+studio/tsconfig.tsbuildinfo
+
 # Dependencies
 node_modules/
 
