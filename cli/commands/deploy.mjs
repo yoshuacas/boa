@@ -153,13 +153,14 @@ export default async function deploy(_args, opts = {}) {
       title: 'Preparing REST API, authentication, and authorization runtime',
       run: async (_ctx, t) => {
         t.update('bundling the serverless runtime and uploading it to S3…');
-        const { lambdaKey, accountId } = await deployLib.packageArtifacts({
+        const { lambdaKey, functionsKey, accountId } = await deployLib.packageArtifacts({
           projectDir: process.cwd(),
           templatePath,
           region,
           stackName,
         });
         state.lambdaKey = lambdaKey;
+        state.functionsKey = functionsKey;
         state.accountId = accountId;
         state.templateUrl = deployLib.uploadTemplate({
           templatePath,
@@ -177,6 +178,9 @@ export default async function deploy(_args, opts = {}) {
           LambdaS3Bucket: deployLib.artifactsBucketName(state.accountId, region),
           LambdaS3Key: state.lambdaKey,
         };
+        if (state.functionsKey) {
+          parameters.FunctionsLambdaS3Key = state.functionsKey;
+        }
         if (Array.isArray(cfg.allowedOrigins) && cfg.allowedOrigins.length > 0) {
           parameters.AllowedOrigins = cfg.allowedOrigins.join(',');
         }

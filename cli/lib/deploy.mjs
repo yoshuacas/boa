@@ -588,6 +588,14 @@ export async function packageArtifacts({
     const { zipBuffer } = await packageFunctions(descriptors);
     const hash = createHash('sha256').update(zipBuffer).digest('hex');
     functionsKey = `functions/${hash}.zip`;
+    if (!isTestMode) {
+      const fnZipPath = join(dir, '.boa', 'build', 'functions.zip');
+      writeFileSync(fnZipPath, zipBuffer);
+      exec(
+        `aws s3 cp ${shellEscape(fnZipPath)} s3://${bucket}/${functionsKey} ` +
+        `--region ${shellEscape(region)} --quiet`
+      );
+    }
   }
 
   return { bucket, lambdaKey, functionsKey, templateUrl, accountId };

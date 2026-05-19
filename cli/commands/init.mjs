@@ -371,6 +371,15 @@ export default async function init(args) {
     `/${name}/better-auth-secret`, betterAuthSecret, region
   );
   ok(`better-auth secret stored at /${name}/better-auth-secret`);
+
+  // 8b. Generate anon + service-role keys and store in SSM. The CFN
+  // template references these via `{{resolve:ssm:...}}`, so they
+  // must exist before deployStack runs.
+  const { anonKey, serviceRoleKey } = generateKeys(jwtSecret);
+  aws.ssmPutParameter(`/${name}/anon-key`, anonKey, region);
+  ok(`Anon key stored at /${name}/anon-key`);
+  aws.ssmPutParameter(`/${name}/service-role-key`, serviceRoleKey, region);
+  ok(`Service role key stored at /${name}/service-role-key`);
   console.log('');
 
   // 9. Ensure lambda dependencies match the pinned pgrest-lambda version
@@ -378,7 +387,7 @@ export default async function init(args) {
 
   // 10. Package Lambda and upload artifacts
   console.log('Packaging Lambda...');
-  const { lambdaKey, templateUrl } = deployLib.packageArtifacts({
+  const { lambdaKey, functionsKey, templateUrl } = await deployLib.packageArtifacts({
     projectDir: process.cwd(),
     templatePath: TEMPLATE_PATH,
     region,
@@ -390,6 +399,9 @@ export default async function init(args) {
   // 11. Deploy CloudFormation stack
   console.log(`Deploying stack '${name}' to ${region}...`);
   const parameters = { ProjectName: name, LambdaS3Key: lambdaKey };
+  if (functionsKey) {
+    parameters.FunctionsLambdaS3Key = functionsKey;
+  }
   const accountIdForBucket = accountId;
   parameters.LambdaS3Bucket =
     deployLib.artifactsBucketName(accountIdForBucket, region);
@@ -414,10 +426,7 @@ export default async function init(args) {
   bootstrapBetterAuthSchema(dsqlEndpoint, region);
   ok('better-auth schema ready');
 
-  // 13. Generate keys
-  console.log('Generating BOA keys...');
-  const { anonKey, serviceRoleKey } = generateKeys(jwtSecret);
-  ok('Anon key and service role key generated');
+  // 13. Keys already generated and stored in SSM at step 8b.
   const pgrestLambdaVersion = getPinnedPgrestLambdaVersion();
 
   // 14. Write config
