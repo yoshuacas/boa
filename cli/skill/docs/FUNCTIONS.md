@@ -1,82 +1,216 @@
 # Custom Functions
 
-The default BOA stack has a single Lambda function. `pgrest-lambda`
-handles every `/rest/v1/*` and `/auth/v1/*` route, so agents do not
-add custom Lambda functions for CRUD, auth, or presigned URL flows.
+Drop a file at `functions/<name>/index.mjs`, run `boa deploy`,
+and your function is live at `/functions/v1/<name>`. All
+functions share a single Lambda (`FunctionsLambda`), one log
+group, and one IAM role.
 
-Use a custom function only when the developer explicitly needs logic
-that pgrest-lambda cannot express: a third-party webhook signature
-check, an outbound integration with a service that requires server
-credentials (Stripe, Twilio, SES), or a scheduled job that must not
-be triggered from the client.
+## Handler Signature
 
-## Current Scope
+```javascript
+export default async function handler(req, ctx) {
+  // req.method    HTTP method (GET, POST, etc.)
+  // req.path      Full request path
+  // req.query     Parsed query parameters
+  // req.headers   Request headers
+  // req.body      Parsed body (JSON)
 
-BOA today does not ship a `functions/<name>/` scaffold or a built-in
-extension that adds arbitrary Lambda functions. The default template
-(`cli/templates/backend.yaml`) declares one `AWS::Lambda::Function`
-resource named `ApiFunction` plus its integration, role, and
-permissions.
-
-To add a custom function, add a new `AWS::Lambda::Function` resource
-to the template in place (or via `.boa/template.yaml` override),
-along with its IAM role, environment variables, and event source
-(API Gateway method, EventBridge rule, S3 notification). Run
-`boa deploy` to package the Lambda source and update the stack.
-
-## Conventions for a Custom Function
-
-If the developer needs one:
-
-- Put the source in `cli/templates/lambda/` alongside the default
-  handler, or in a separate directory that `boa deploy` packages
-  explicitly.
-- Read the same flat authorizer keys pgrest-lambda uses so the
-  function integrates with the rest of the stack:
-  ```javascript
-  event.requestContext.authorizer.role     // 'anon' | 'authenticated' | 'service_role'
-  event.requestContext.authorizer.userId   // user UUID or '' for anon
-  event.requestContext.authorizer.email    // user email or ''
-  ```
-- Use `REGION_NAME`, never `AWS_REGION`.
-- Store secrets in SSM Parameter Store with `--type String`
-  (CloudFormation's `{{resolve:ssm:/...}}` does not resolve
-  `SecureString` for Lambda env vars) and reference them with
-  `!Sub '{{resolve:ssm:/${ProjectName}/my-secret}}'`.
-
-## Function Defaults
-
-| Setting | Value | Why |
-|---------|-------|-----|
-| Runtime | Node.js 20.x | Never Python (binary dependency failures on Lambda) |
-| Timeout | 30 seconds | Sufficient for API calls; increase for batch processing |
-| Memory | 256 MB | Balance of cost vs. performance |
-| Architecture | arm64 | 20% cheaper, same performance |
-| Region | Same as the stack | Co-located with database and storage |
-
-## Common Mistakes
-
-### SSM `SecureString` does not work with Lambda env vars
-
-CloudFormation's `{{resolve:ssm:...}}` only resolves `String` type
-parameters. The `{{resolve:ssm-secure:...}}` prefix is not supported
-for Lambda environment variables.
-
-Store secrets as `--type String`:
-
-```bash
-aws ssm put-parameter --name "/<stack-name>/my-secret" --value "..." --type String
+  return { status: 200, body: { message: 'ok' } };
+}
 ```
 
-If the value must be encrypted at rest with a non-AWS-owned key, read
-it at runtime from SSM using the AWS SDK and decrypt in the handler,
-rather than injecting it as an env var.
+The handler must be the default export of `index.mjs`. Return
+an object with `status` (number) and `body` (serializable).
 
-### Referencing the RestApi in function env vars
+## boa.json Configuration
 
-A Lambda that declares an API Gateway event on `!Ref Api` and also
-references `${Api}` in its environment variables closes a
-CloudFormation dependency cycle. Derive the public base URL from the
-request at runtime (`event.headers.host` plus
-`event.headers['x-forwarded-proto']` and
-`event.requestContext.stage`) instead of passing it as an env var.
+Each function may include a `boa.json` alongside `index.mjs`.
+All fields are optional:
+
+```json
+{
+  "visibility": "public",
+  "timeout": 30,
+  "memory": 256,
+  "env": { "STRIPE_API_BASE": "https://api.stripe.com" },
+  "secrets": ["STRIPE_SECRET_KEY"]
+}
+```
+
+| Field | Type | Default | Meaning |
+|-------|------|---------|---------|
+| `visibility` | `"public"` or `"private"` | `"public"` | Public functions are exposed at `/functions/v1/<name>`. Private functions are only invocable via direct Lambda invoke or `ctx.boa.functions.invoke()`. |
+| `timeout` | seconds, 1-30 | 30 | Per-function override. The shared Lambda runs at the max of all deployed functions. |
+| `memory` | MB, 128-1024 | 256 | Same max-of-all rule. |
+| `env` | object | `{}` | Plain env vars (non-secret). Merged into `ctx.env`. |
+| `secrets` | string[] | `[]` | Names that must exist in SSM at `/<stack-name>/functions/<name>/<SECRET>`. Surfaced via `ctx.env`. |
+
+## Naming Rules
+
+Function names must match `[a-z][a-z0-9-]{0,62}`.
+
+Reserved names are rejected: `v1`, `health`, `_internal`.
+
+```
+Error: Invalid function name 'My_Func'.
+  Function names must match [a-z][a-z0-9-]{0,62}.
+```
+
+```
+Error: Reserved function name 'v1'. Choose a different name.
+```
+
+## Routing and Visibility
+
+```
+Public:
+  client -> API Gateway -> /functions/v1/<name>
+         -> FunctionsLambda -> handler
+
+Private:
+  another function -> ctx.boa.functions.invoke('<name>', payload)
+                   -> FunctionsLambda direct invoke (_boaInternal)
+                   -> handler
+```
+
+| Visibility | API Gateway route | Who can call |
+|------------|-------------------|--------------|
+| `public` | `ANY /functions/v1/{name+}` | Anon key, service key, or user JWT |
+| `private` | None | Service key only via `ctx.boa.functions.invoke()` or direct Lambda invoke |
+
+A `private` function called through API Gateway returns 404.
+The route does not exist for that function name.
+
+## Token Model
+
+| Caller header | `ctx.role` | `ctx.userId` | `ctx.db` bound to |
+|---------------|------------|--------------|-------------------|
+| No auth | `'anon'` | `''` | DSQL role `anon` |
+| `Authorization: Bearer <user JWT>` | `'authenticated'` | user UUID | DSQL role `authenticated` |
+| `apikey: <anon key>` | `'anon'` | `''` | DSQL role `anon` |
+| `apikey: <service role key>` | `'service_role'` | `''` | DSQL role `service_role` |
+
+Rules:
+- Both `Authorization` and `apikey` present: JWT wins for
+  `userId`; service key still elevates role.
+- Malformed JWT: falls back to anon, no throw.
+- JWT with `role: service_role` but wrong signing key: rejected.
+
+## Context Object (ctx)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `ctx.role` | string | `'anon'`, `'authenticated'`, or `'service_role'` |
+| `ctx.userId` | string | User UUID or `''` for anon |
+| `ctx.email` | string | User email or `''` |
+| `ctx.jwt` | string | Raw caller JWT or `''` |
+| `ctx.db` | object | Lazy-built Postgres pool bound to the caller's role |
+| `ctx.boa` | object | Service-role client for trusted operations |
+| `ctx.logger` | object | Structured logger (CloudWatch) |
+| `ctx.env` | object | Function-specific env vars from `boa.json` |
+
+### Context Helpers
+
+```javascript
+// Default: caller's role (least privilege)
+const { rows } = await ctx.db.query('SELECT * FROM todos');
+
+// Explicit elevation: service role pool
+const adminPool = await ctx.boa.db();
+await adminPool.query('UPDATE billing SET ...');
+
+// Call another function as the same user
+const out = await ctx.boa.functions.invoke('send-report', { id: 1 });
+
+// Call another function with full powers
+const out = await ctx.boa.asService().functions.invoke('cleanup', {});
+
+// Hit the REST API as the same user
+const todos = await ctx.boa.rest.from('todos').select('*');
+```
+
+**Key guidance:** Use `ctx.db` for caller-scoped access. Use
+`ctx.boa.db()` only when elevation is explicitly needed.
+
+`ctx.db` is lazy-built on first access (cold-start friendly).
+
+## Secrets via SSM
+
+Secrets listed in `boa.json` must exist in SSM before deploy:
+
+```
+/<stack-name>/functions/<name>/<SECRET>
+```
+
+`boa deploy` validates this and fails with a clear error:
+
+```
+Error: Missing SSM parameter for function 'stripe-webhook':
+  /<stack>/functions/stripe-webhook/STRIPE_SECRET_KEY
+
+  Store it with:
+  aws ssm put-parameter \
+    --name "/<stack>/functions/stripe-webhook/STRIPE_SECRET_KEY" \
+    --value "sk_live_..." \
+    --type String
+```
+
+Secrets are stored as `--type String` because CloudFormation
+does not resolve `SecureString` for Lambda env vars.
+
+## Error Response Shape
+
+Functions return a PostgREST-shaped error body for consistency
+with the rest of the BOA API:
+
+```json
+{
+  "message": "Function 'nonexistent' not found",
+  "code": "PGRST116",
+  "hint": null,
+  "details": null
+}
+```
+
+Status codes:
+- 404: unknown function name, or private function via API GW
+- 500: unhandled throw in user code (stack trace goes to
+  CloudWatch only, never leaked to response)
+- User-defined: whatever the handler returns in `status`
+
+## CLI Commands
+
+| Command | Behavior |
+|---------|----------|
+| `boa functions list` | Lists discovered functions, visibility, deployed status |
+| `boa functions invoke <name> [--service] [--data <json>]` | Invokes the deployed function. Anon by default, `--service` uses service key. |
+| `boa functions logs <name> [--tail]` | Tails the log group filtered to the named function |
+| `boa functions remove <name>` | Deletes the directory, prints reminder to redeploy |
+
+## Troubleshooting
+
+**"Function not found" on a function I just created:**
+Run `boa deploy` first. Local functions are not live until
+deployed.
+
+**Private function returns 404:**
+This is correct behavior. Private functions have no API
+Gateway route. Invoke them with
+`ctx.boa.functions.invoke()` or `boa functions invoke --service`.
+
+**Missing SSM parameter blocks deploy:**
+Store the secret before deploying:
+```bash
+aws ssm put-parameter \
+  --name "/<stack>/functions/<name>/<SECRET>" \
+  --value "..." --type String
+```
+
+**Pool error on first query:**
+`ctx.db` is lazy -- pool errors surface on first query, not
+on function invocation. Check DSQL endpoint and IAM
+permissions.
+
+**Large zip fails to upload:**
+With 50+ functions the Lambda zip may exceed size limits.
+Split into multiple projects or reduce function count.

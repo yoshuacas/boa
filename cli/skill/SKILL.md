@@ -72,6 +72,7 @@ All operations go through the `boa` CLI. The developer can also run these comman
 | `boa extend <name>` | Add an optional extension (e.g., alb) |
 | `boa remove <name>` | Remove an extension |
 | `boa extensions` | List available and enabled extensions |
+| `boa functions <action>` | Manage custom functions (list, invoke, logs, remove) |
 | `boa feedback` | Submit feedback to improve BOA |
 
 ## Quick Start
@@ -345,6 +346,72 @@ export const config = {
   anonKey: '<anonKey from .boa/config.json>',
 };
 ```
+
+## Custom Functions
+
+Drop a file at `functions/<name>/index.mjs` and run `boa deploy`. Your function is live at `/functions/v1/<name>`.
+
+### File Structure
+
+```
+functions/
+├── hello/
+│   ├── index.mjs        # default export = handler
+│   └── boa.json         # optional config
+└── stripe-webhook/
+    ├── index.mjs
+    └── boa.json
+```
+
+### boa.json Options
+
+```json
+{
+  "visibility": "public",
+  "timeout": 30,
+  "memory": 256,
+  "env": { "STRIPE_API_BASE": "https://api.stripe.com" },
+  "secrets": ["STRIPE_SECRET_KEY"]
+}
+```
+
+All fields are optional. `visibility` is `"public"` (exposed at `/functions/v1/<name>`) or `"private"` (only callable via direct invoke). Secrets must exist in SSM at `/<stack-name>/functions/<name>/<SECRET>` before deploy.
+
+### The ctx Object
+
+```javascript
+export default async function handler(req, ctx) {
+  // ctx.role     'anon' | 'authenticated' | 'service_role'
+  // ctx.userId   user UUID or '' for anon
+  // ctx.db       Postgres pool bound to caller's role (lazy)
+  // ctx.boa      service-role client for trusted ops
+  // ctx.logger   structured logger (CloudWatch)
+  // ctx.env      function-specific env vars from boa.json
+
+  const { rows } = await ctx.db.query(
+    'SELECT * FROM todos WHERE owner = $1', [ctx.userId]
+  );
+  return { status: 200, body: rows };
+}
+```
+
+**Key guidance:** Use `ctx.db` for caller-scoped database access. Use `ctx.boa.db()` only when elevation to service role is explicitly needed.
+
+### Visibility
+
+- **Public:** Exposed at `/functions/v1/<name>`. Anyone with an anon key, service key, or user JWT can call it.
+- **Private:** No API Gateway route. Only callable via `ctx.boa.functions.invoke('<name>', payload)` from another function or `boa functions invoke --service` from the CLI.
+
+### CLI Commands
+
+| Command | What it does |
+|---------|-------------|
+| `boa functions list` | Show functions, visibility, and deployed status |
+| `boa functions invoke <name> [--service] [--data <json>]` | Invoke a deployed function |
+| `boa functions logs <name> [--tail]` | Tail CloudWatch logs for a function |
+| `boa functions remove <name>` | Delete the function directory |
+
+For the full reference (token model, error shapes, secrets workflow), see [FUNCTIONS.md](docs/FUNCTIONS.md).
 
 ## Dashboard
 

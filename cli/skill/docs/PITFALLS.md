@@ -29,6 +29,10 @@ Every pitfall below was observed in real AI agent builds. Each one cost hours to
 | **Functions** | | | |
 | 13 | Lambda env var referencing `${Api}` creates a CloudFormation dependency cycle | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
 | 14 | SSM `SecureString` not supported for Lambda env vars | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
+| 15a | Missing SSM secret blocks deploy -- store secrets before running `boa deploy` | HIGH | [FUNCTIONS.md](FUNCTIONS.md) |
+| 15b | Private function returns 404 via API Gateway -- this is correct, not an error | LOW | [FUNCTIONS.md](FUNCTIONS.md) |
+| 15c | Large zip (50+ functions) may hit Lambda size limit | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
+| 15d | `ctx.db` is lazy -- pool errors surface on first query, not on invocation | MEDIUM | [FUNCTIONS.md](FUNCTIONS.md) |
 | **Frontend** | | | |
 | 15 | Amplify SPA redirect `/<*>` breaks static assets | HIGH | [SKILL.md](../SKILL.md) |
 | 16 | CORS errors — origin not in the `ALLOWED_ORIGINS` allowlist | HIGH | [API-PATTERNS.md](API-PATTERNS.md) |
