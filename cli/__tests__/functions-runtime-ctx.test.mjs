@@ -54,7 +54,7 @@ describe('functions runtime ctx - token table', () => {
       sub: 'user-uuid-123',
       email: 'user@example.com',
       role: 'authenticated',
-    });
+    }, JWT_SECRET);
     const event = {
       headers: { authorization: `Bearer ${token}` },
     };
@@ -90,7 +90,7 @@ describe('functions runtime ctx - token table', () => {
       sub: 'user-uuid-456',
       email: 'admin@example.com',
       role: 'authenticated',
-    });
+    }, JWT_SECRET);
     const event = {
       headers: {
         authorization: `Bearer ${token}`,
@@ -130,7 +130,7 @@ describe('functions runtime ctx - lazy pool', () => {
       sub: 'user-uuid-789',
       email: 'test@test.com',
       role: 'authenticated',
-    });
+    }, JWT_SECRET);
     const event = {
       headers: { authorization: `Bearer ${token}` },
     };
