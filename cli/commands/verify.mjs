@@ -3,6 +3,65 @@ import * as config from '../lib/config.mjs';
 import { pass, fail, header } from '../lib/output.mjs';
 import { hasBetterAuthSchema } from '../lib/auth-schema.mjs';
 
+export async function verifyFunctions(opts) {
+  const {
+    localDescriptors,
+    deployedRegistry,
+    stackName,
+    ssmGetParameter,
+    probeRoute,
+  } = opts;
+
+  const issues = [];
+
+  const localNames = new Set(localDescriptors.map((f) => f.name));
+  const deployedNames = new Set(Object.keys(deployedRegistry));
+
+  for (const name of localNames) {
+    if (!deployedNames.has(name)) {
+      issues.push(`Function '${name}' is not deployed (run 'boa deploy')`);
+    }
+  }
+
+  for (const name of deployedNames) {
+    if (!localNames.has(name)) {
+      issues.push(`Function '${name}' is deployed but missing locally`);
+    }
+  }
+
+  for (const fn of localDescriptors) {
+    if (!fn.secrets || fn.secrets.length === 0) continue;
+    for (const secret of fn.secrets) {
+      const paramPath = `/${stackName}/functions/${fn.name}/${secret}`;
+      try {
+        await ssmGetParameter(paramPath);
+      } catch {
+        issues.push(
+          `Missing SSM parameter: ${paramPath}\n`
+            + `  Store it with: aws ssm put-parameter `
+            + `--name "${paramPath}" --value "..." --type String`,
+        );
+      }
+    }
+  }
+
+  const publicFns = localDescriptors.filter(
+    (f) => f.visibility === 'public',
+  );
+  for (const fn of publicFns) {
+    try {
+      const res = await probeRoute(fn.name);
+      if (res.status >= 500) {
+        issues.push(`Function '${fn.name}' is unreachable (HTTP ${res.status})`);
+      }
+    } catch {
+      issues.push(`Function '${fn.name}' is unreachable (timeout or network error)`);
+    }
+  }
+
+  return { passed: issues.length === 0, issues };
+}
+
 export default async function verify(_args) {
   const cfg = config.requireConfig();
   const {
