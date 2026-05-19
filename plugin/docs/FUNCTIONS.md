@@ -81,6 +81,26 @@ Private:
 A `private` function called through API Gateway returns 404.
 The route does not exist for that function name.
 
+### Direct-invoke envelope
+
+`ctx.boa.functions.invoke()` and `boa functions invoke
+--service` send a Lambda payload that bypasses the API Gateway
+path. The runtime detects the `_boaInternal` field and
+dispatches by name:
+
+```json
+{
+  "_boaInternal": { "name": "cleanup", "method": "POST" },
+  "payload": { "userId": "u_123" },
+  "headers": { "apikey": "<service-role-key>" }
+}
+```
+
+The visibility gate is bypassed for direct invokes, so this is
+the only way to reach `private` functions. Headers in the
+envelope drive `ctx.role` and `ctx.userId` exactly as they
+would for an HTTP request.
+
 ## Token Model
 
 | Caller header | `ctx.role` | `ctx.userId` | `ctx.db` bound to |
@@ -94,7 +114,9 @@ Rules:
 - Both `Authorization` and `apikey` present: JWT wins for
   `userId`; service key still elevates role.
 - Malformed JWT: falls back to anon, no throw.
+- Expired JWT (`exp` in the past): rejected, falls back to anon.
 - JWT with `role: service_role` but wrong signing key: rejected.
+- Signature compare uses constant-time `timingSafeEqual`.
 
 ## Context Object (ctx)
 
@@ -127,7 +149,16 @@ const out = await ctx.boa.asService().functions.invoke('cleanup', {});
 
 // Hit the REST API as the same user
 const todos = await ctx.boa.rest.from('todos').select('*');
+
+// Structured logs land in CloudWatch as JSON
+ctx.logger.info('processing report', { reportId: 1 });
+ctx.logger.error('send failed', { reportId: 1, code: 'TIMEOUT' });
 ```
+
+The logger emits one JSON line per call (`level`, `function`,
+`msg`, plus your data and `ts`). CloudWatch Insights can query
+these fields directly. `console.log` still works but is not
+structured; prefer `ctx.logger`.
 
 **Key guidance:** Use `ctx.db` for caller-scoped access. Use
 `ctx.boa.db()` only when elevation is explicitly needed.

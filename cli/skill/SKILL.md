@@ -347,23 +347,55 @@ export const config = {
 };
 ```
 
-## Custom Functions
+## Custom Functions (Backend Business Logic)
 
-Drop a file at `functions/<name>/index.mjs` and run `boa deploy`. Your function is live at `/functions/v1/<name>`.
+Functions are how the developer adds server-side logic that
+doesn't belong in SQL or in the client. Drop a file at
+`functions/<name>/index.mjs`, run `boa deploy`, and it's live.
 
-### File Structure
+### When to add a function (decision rule)
+
+Default to the REST API. Only add a function when one of these
+is true. If none apply, write SQL plus an access policy
+instead.
+
+| Use the REST API when... | Use a function when... |
+|--------------------------|------------------------|
+| The operation is plain CRUD on a table | The operation calls an external service (Stripe, OpenAI, SendGrid, an internal API) |
+| Access can be expressed as an access policy | The logic is multi-step and must run atomically, e.g. webhook signature verification then DB write |
+| The client can compose multiple requests itself | A secret must never reach the client (Stripe key, signing secret) |
+| | The client should not be trusted to send the right shape (server-side validation, normalization) |
+| | You need to call other functions or fan out to multiple services |
+
+Anti-pattern: writing a function that does `SELECT * FROM todos
+WHERE owner = ctx.userId`. That is a REST endpoint plus an
+access policy, no function needed.
+
+### Public vs private (security boundary)
+
+Decide visibility deliberately. The default is `public`.
+
+| Use `public` when... | Use `private` when... |
+|----------------------|-----------------------|
+| The frontend will call this directly | Only other functions or backend jobs should call it |
+| Anon users may legitimately call it (e.g. contact form, signup hook) | The function uses the service-role pool to bypass access policies |
+| Auth is handled inside the function (JWT or service key check) | The function performs admin operations (cleanup, billing, cross-tenant reads) |
+
+A `private` function has no API Gateway route at all. Calling
+it via HTTP returns 404 even with the service-role key. The
+only way in is `ctx.boa.functions.invoke('<name>', payload)`
+from another function, or `boa functions invoke <name>
+--service` from the CLI.
+
+### File shape
 
 ```
-functions/
-├── hello/
-│   ├── index.mjs        # default export = handler
-│   └── boa.json         # optional config
-└── stripe-webhook/
-    ├── index.mjs
-    └── boa.json
+functions/<name>/
+├── index.mjs        # default export = async (req, ctx) => ({ status, body })
+└── boa.json         # optional config
 ```
 
-### boa.json Options
+`boa.json`:
 
 ```json
 {
@@ -375,43 +407,165 @@ functions/
 }
 ```
 
-All fields are optional. `visibility` is `"public"` (exposed at `/functions/v1/<name>`) or `"private"` (only callable via direct invoke). Secrets must exist in SSM at `/<stack-name>/functions/<name>/<SECRET>` before deploy.
+All fields optional. Names must match `[a-z][a-z0-9-]{0,62}`
+and cannot be `v1`, `health`, or `_internal`.
 
-### The ctx Object
+### Token model (caller identity)
+
+The runtime sets `ctx.role` and `ctx.userId` from the caller's
+headers. The handler does not need to parse JWTs:
+
+| Caller header | `ctx.role` | `ctx.userId` |
+|---------------|------------|--------------|
+| No auth | `'anon'` | `''` |
+| `Authorization: Bearer <user JWT>` | `'authenticated'` | user UUID |
+| `apikey: <anon key>` | `'anon'` | `''` |
+| `apikey: <service role key>` | `'service_role'` | `''` |
+
+Expired or malformed JWTs fall back to anon. The service-role
+key always elevates `ctx.role`, even if a JWT is also present.
+Use `ctx.role` to gate behavior. Never trust the caller's
+request body for identity.
+
+### Database access (least privilege)
+
+`ctx.db` is a connection pool **bound to the caller's role**.
+Access policies still apply. This is what you want by default.
 
 ```javascript
-export default async function handler(req, ctx) {
-  // ctx.role     'anon' | 'authenticated' | 'service_role'
-  // ctx.userId   user UUID or '' for anon
-  // ctx.db       Postgres pool bound to caller's role (lazy)
-  // ctx.boa      service-role client for trusted ops
-  // ctx.logger   structured logger (CloudWatch)
-  // ctx.env      function-specific env vars from boa.json
+// Caller-scoped: returns only rows the caller can see
+const { rows } = await ctx.db.query(
+  'SELECT id, title FROM todos WHERE owner = $1',
+  [ctx.userId],
+);
+```
 
-  const { rows } = await ctx.db.query(
-    'SELECT * FROM todos WHERE owner = $1', [ctx.userId]
+`ctx.boa.db()` is the **service-role pool**. It bypasses access
+policies. Reach for it only when elevation is justified
+(webhook ingestion, scheduled jobs, admin endpoints):
+
+```javascript
+const adminPool = await ctx.boa.db();
+await adminPool.query(
+  'INSERT INTO webhook_events (id, type) VALUES ($1, $2)',
+  [event.id, event.type],
+);
+```
+
+If you write `ctx.boa.db()` without a clear reason, change it
+to `ctx.db`. Service-role access is a privilege, not a default.
+
+### Worked example: Stripe webhook (public function with secrets)
+
+This is the canonical pattern: external service calls a public
+endpoint, the function verifies the signature, then writes with
+elevated privileges because the customer's row may not be
+visible to the anon role.
+
+```javascript
+// functions/stripe-webhook/index.mjs
+import Stripe from 'stripe';
+
+export default async function handler(req, ctx) {
+  const stripe = new Stripe(ctx.env.STRIPE_SECRET_KEY);
+  const sig = req.headers['stripe-signature'];
+
+  let evt;
+  try {
+    evt = stripe.webhooks.constructEvent(
+      JSON.stringify(req.body), sig, ctx.env.STRIPE_WEBHOOK_SECRET,
+    );
+  } catch {
+    ctx.logger.warn('invalid stripe signature');
+    return { status: 400, body: { error: 'invalid signature' } };
+  }
+
+  ctx.logger.info('stripe event', { type: evt.type, id: evt.id });
+
+  const adminPool = await ctx.boa.db();
+  await adminPool.query(
+    'INSERT INTO webhook_events (id, type, data) VALUES ($1, $2, $3)',
+    [evt.id, evt.type, JSON.stringify(evt.data)],
   );
-  return { status: 200, body: rows };
+
+  return { status: 200, body: { received: true } };
 }
 ```
 
-**Key guidance:** Use `ctx.db` for caller-scoped database access. Use `ctx.boa.db()` only when elevation to service role is explicitly needed.
+```json
+{
+  "visibility": "public",
+  "secrets": ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+}
+```
 
-### Visibility
+Before `boa deploy`, store each secret:
 
-- **Public:** Exposed at `/functions/v1/<name>`. Anyone with an anon key, service key, or user JWT can call it.
-- **Private:** No API Gateway route. Only callable via `ctx.boa.functions.invoke('<name>', payload)` from another function or `boa functions invoke --service` from the CLI.
+```bash
+aws ssm put-parameter \
+  --name "/<stack>/functions/stripe-webhook/STRIPE_SECRET_KEY" \
+  --value "sk_live_..." --type String
+```
 
-### CLI Commands
+Use `--type String`, never `SecureString`. CloudFormation does
+not resolve `SecureString` for Lambda env vars.
 
-| Command | What it does |
-|---------|-------------|
-| `boa functions list` | Show functions, visibility, and deployed status |
-| `boa functions invoke <name> [--service] [--data <json>]` | Invoke a deployed function |
-| `boa functions logs <name> [--tail]` | Tail CloudWatch logs for a function |
-| `boa functions remove <name>` | Delete the function directory |
+### Worked example: private admin function
 
-For the full reference (token model, error shapes, secrets workflow), see [FUNCTIONS.md](docs/FUNCTIONS.md).
+Private functions are the home for service-role logic. Keep
+them off the public surface so a misconfigured access policy
+can't expose them.
+
+```javascript
+// functions/cleanup-orphans/index.mjs
+export default async function handler(req, ctx) {
+  // No need to check ctx.role; there is no public route.
+  const adminPool = await ctx.boa.db();
+  const { rowCount } = await adminPool.query(
+    `DELETE FROM uploads WHERE owner_id NOT IN (SELECT id FROM users)`,
+  );
+  ctx.logger.info('cleanup', { deleted: rowCount });
+  return { status: 200, body: { deleted: rowCount } };
+}
+```
+
+```json
+{ "visibility": "private" }
+```
+
+Call it from another function:
+
+```javascript
+await ctx.boa.functions.invoke('cleanup-orphans', {});
+```
+
+### Verification checklist
+
+After adding a function, before declaring it done:
+
+1. `boa deploy` succeeds (no missing SSM secrets).
+2. `boa functions list` shows the function as `deployed`.
+3. **Public functions:** `boa functions invoke <name>` works
+   with the anon key.
+4. **Private functions:** `boa functions invoke <name>
+   --service` works AND a direct GET on
+   `<apiUrl>/functions/v1/<name>` returns 404.
+5. The handler uses `ctx.db` unless elevation is required.
+6. Secrets come from `ctx.env`, never from request body or
+   hardcoded strings.
+
+### CLI
+
+| Command | Use |
+|---------|-----|
+| `boa functions list` | See visibility + deployed status |
+| `boa functions invoke <name> [--service] [--data <json>]` | Test a deployed function |
+| `boa functions logs <name> [--tail]` | Watch CloudWatch JSON logs from `ctx.logger` |
+| `boa functions remove <name>` | Delete the directory; run `boa deploy` to apply |
+
+For the full reference (every `ctx` field, error shape,
+direct-invoke envelope, edge cases), see
+[FUNCTIONS.md](docs/FUNCTIONS.md).
 
 ## Dashboard
 
