@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { buildLogger } from './logger.mjs';
 import { buildBoaClient } from './boa-client.mjs';
 
@@ -10,7 +10,10 @@ function verifyHs256(token, secret) {
     const expected = createHmac('sha256', secret)
       .update(`${headerB64}.${payloadB64}`)
       .digest('base64url');
-    if (expected !== sigB64) return null;
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const actualBuf = Buffer.from(sigB64, 'utf8');
+    if (expectedBuf.length !== actualBuf.length) return null;
+    if (!timingSafeEqual(expectedBuf, actualBuf)) return null;
     return JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
   } catch {
     return null;
@@ -33,10 +36,15 @@ function extractAuth(event, opts) {
     const token = authHeader.slice(7);
     const claims = jwtSecret ? verifyHs256(token, jwtSecret) : null;
     if (claims) {
-      role = claims.role || 'authenticated';
-      userId = claims.sub || '';
-      email = claims.email || '';
-      jwt = token;
+      const now = Math.floor(Date.now() / 1000);
+      if (claims.exp && claims.exp < now) {
+        // expired token, leave as anon
+      } else {
+        role = claims.role || 'authenticated';
+        userId = claims.sub || '';
+        email = claims.email || '';
+        jwt = token;
+      }
     }
   }
 

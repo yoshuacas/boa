@@ -584,28 +584,7 @@ export async function packageArtifacts({
   const functionsDir = join(dir, 'functions');
   let functionsKey = '';
   if (existsSync(functionsDir)) {
-    const descriptors = [];
-    const fnDirEntries = readdirSync(functionsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory());
-    for (const entry of fnDirEntries) {
-      const fnDir = join(functionsDir, entry.name);
-      if (existsSync(join(fnDir, 'index.mjs'))) {
-        let config = {};
-        const configPath = join(fnDir, 'boa.json');
-        if (existsSync(configPath)) {
-          config = JSON.parse(readFileSync(configPath, 'utf8'));
-        }
-        descriptors.push({
-          name: entry.name,
-          visibility: config.visibility || 'public',
-          timeout: config.timeout ?? 30,
-          memory: config.memory ?? 256,
-          env: config.env || {},
-          secrets: config.secrets || [],
-          path: fnDir,
-        });
-      }
-    }
+    const descriptors = await discover(functionsDir);
     const { zipBuffer } = await packageFunctions(descriptors);
     const hash = createHash('sha256').update(zipBuffer).digest('hex');
     functionsKey = `functions/${hash}.zip`;

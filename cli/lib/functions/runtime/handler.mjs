@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildCtx } from './ctx.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,28 +35,10 @@ function parseBody(event) {
   return event.body;
 }
 
-function buildStubCtx(functionName) {
-  return {
-    role: 'anon',
-    userId: '',
-    email: '',
-    jwt: '',
-    logger: {
-      info() {},
-      warn() {},
-      error(msg, data) {
-        console.error(JSON.stringify({
-          level: 'error', function: functionName, msg, ...data, ts: Date.now(),
-        }));
-      },
-    },
-    env: {},
-  };
-}
-
 export async function handler(event, deps) {
   const registry = deps?.registry || defaultRegistry;
   const handlers = deps?.handlers || null;
+  const ctxOpts = deps?.ctxOpts || {};
 
   let functionName;
   let isDirectInvoke = false;
@@ -86,7 +69,14 @@ export async function handler(event, deps) {
     body: parseBody(event),
   };
 
-  const ctx = buildStubCtx(functionName);
+  const ctx = buildCtx(event, {
+    jwtSecret: ctxOpts.jwtSecret || process.env.JWT_SECRET || '',
+    anonKey: ctxOpts.anonKey || process.env.ANON_KEY || '',
+    serviceRoleKey: ctxOpts.serviceRoleKey || process.env.SERVICE_ROLE_KEY || '',
+    registry,
+    functionName,
+    createPool: ctxOpts.createPool || undefined,
+  });
 
   let fn;
   if (handlers && handlers[functionName]) {

@@ -114,8 +114,12 @@ export async function packageFunctions(descriptors, opts = {}) {
 
   const zipBuffer = buildZip(fileEntries);
   const entries = fileEntries.map((e) => e.name);
-  const maxTimeout = Math.max(...descriptors.map((d) => d.timeout));
-  const maxMemory = Math.max(...descriptors.map((d) => d.memory));
+  const maxTimeout = descriptors.length > 0
+    ? Math.max(...descriptors.map((d) => d.timeout))
+    : 30;
+  const maxMemory = descriptors.length > 0
+    ? Math.max(...descriptors.map((d) => d.memory))
+    : 256;
 
   return { zipBuffer, entries, maxTimeout, maxMemory };
 }

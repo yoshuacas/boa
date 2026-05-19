@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import * as config from '../lib/config.mjs';
 import { discover } from '../lib/functions/discover.mjs';
 import * as aws from '../lib/aws.mjs';
+import { shellEscape } from '../lib/aws.mjs';
 
 export async function listFunctions({ deployedRegistry, localDescriptors, print }) {
   print('Functions:');
@@ -71,12 +72,23 @@ export async function invokeFn(name, opts) {
   const apikey = service ? serviceRoleKey : anonKey;
   const body = data !== undefined ? JSON.parse(data) : undefined;
 
-  const payload = {
-    httpMethod: 'POST',
-    path: `/functions/v1/${name}`,
-    headers: { apikey },
-    body,
-  };
+  const fnConfig = deployedRegistry[name];
+  let payload;
+
+  if (fnConfig.visibility === 'private') {
+    payload = {
+      _boaInternal: { name },
+      payload: body,
+      headers: { apikey },
+    };
+  } else {
+    payload = {
+      httpMethod: 'POST',
+      path: `/functions/v1/${name}`,
+      headers: { apikey },
+      body,
+    };
+  }
 
   const result = await lambdaInvoke({
     FunctionName: opts.functionName,
@@ -87,19 +99,21 @@ export async function invokeFn(name, opts) {
 }
 
 export async function logsFn(name, opts = {}) {
-  const { tail = false, stackName, region } = opts;
+  const { tail = false, stackName, region, _exec } = opts;
+  const execFn = _exec || aws.exec;
 
   const logGroup = `/aws/lambda/${stackName}-functions`;
-  const filterPattern = `{ $.function = "${name}" }`;
+  const escapedName = shellEscape(name);
+  const filterPattern = `{ $.function = ${escapedName} }`;
 
   if (tail) {
-    const cmd = `aws logs tail "${logGroup}" --filter-pattern '${filterPattern}' --follow --region ${region}`;
-    aws.execStream(cmd);
+    const cmd = `aws logs tail ${shellEscape(logGroup)} --filter-pattern '${filterPattern}' --follow --region ${shellEscape(region)}`;
+    aws.run(cmd);
   } else {
-    const output = aws.exec(
-      `aws logs filter-log-events --log-group-name "${logGroup}" `
+    const output = execFn(
+      `aws logs filter-log-events --log-group-name ${shellEscape(logGroup)} `
         + `--filter-pattern '${filterPattern}' `
-        + `--region ${region} --output text`,
+        + `--region ${shellEscape(region)} --output text`,
     );
     console.log(output || '(no logs)');
   }
@@ -119,22 +133,21 @@ export async function removeFn(name) {
   console.log("  Run 'boa deploy' to update the deployed stack.");
 }
 
-function parseArgs(args) {
+const VALUE_FLAGS = new Set(['data']);
+
+export function parseArgs(args) {
   const parsed = { positional: [], flags: {} };
   let i = 0;
   while (i < args.length) {
-    if (args[i] === '--service') {
-      parsed.flags.service = true;
-      i++;
-    } else if (args[i] === '--data') {
-      parsed.flags.data = args[i + 1];
-      i += 2;
-    } else if (args[i] === '--tail') {
-      parsed.flags.tail = true;
-      i++;
-    } else if (args[i].startsWith('--')) {
-      parsed.flags[args[i].slice(2)] = args[i + 1];
-      i += 2;
+    if (args[i].startsWith('--')) {
+      const name = args[i].slice(2);
+      if (VALUE_FLAGS.has(name)) {
+        parsed.flags[name] = args[i + 1];
+        i += 2;
+      } else {
+        parsed.flags[name] = true;
+        i++;
+      }
     } else {
       parsed.positional.push(args[i]);
       i++;

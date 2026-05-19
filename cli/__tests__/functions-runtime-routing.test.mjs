@@ -218,7 +218,11 @@ describe('functions runtime routing', () => {
     await handler(event, {
       registry,
       handlers: { hello: userHandler },
-      ctxOpts: { jwtSecret: JWT_SECRET },
+      ctxOpts: {
+        jwtSecret: JWT_SECRET,
+        anonKey: 'test-anon-key',
+        serviceRoleKey: 'test-service-role-key',
+      },
     });
 
     assert.equal(capturedCtx.role, 'authenticated');

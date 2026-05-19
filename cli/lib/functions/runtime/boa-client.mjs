@@ -26,7 +26,7 @@ export function buildBoaClient(jwt, role, deps = {}) {
     const functionName = process.env.AWS_LAMBDA_FUNCTION_NAME || '';
     const invokePayload = {
       _boaInternal: { name },
-      body: payload,
+      payload,
       headers: token
         ? { authorization: `Bearer ${token}` }
         : { apikey: serviceRoleKey },

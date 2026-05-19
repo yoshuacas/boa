@@ -43,6 +43,11 @@ export async function discover(functionsDir, opts = {}) {
     }
 
     const visibility = config.visibility || 'public';
+    if (visibility !== 'public' && visibility !== 'private') {
+      throw new Error(
+        `Function '${name}': visibility must be 'public' or 'private', got '${visibility}'.`,
+      );
+    }
     const timeout = config.timeout ?? 30;
     const memory = config.memory ?? 256;
     const env = config.env || {};
