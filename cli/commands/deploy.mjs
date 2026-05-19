@@ -153,7 +153,7 @@ export default async function deploy(_args, opts = {}) {
       title: 'Preparing REST API, authentication, and authorization runtime',
       run: async (_ctx, t) => {
         t.update('bundling the serverless runtime and uploading it to S3…');
-        const { lambdaKey, accountId } = deployLib.packageArtifacts({
+        const { lambdaKey, accountId } = await deployLib.packageArtifacts({
           projectDir: process.cwd(),
           templatePath,
           region,

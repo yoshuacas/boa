@@ -73,6 +73,11 @@ export function mergeTemplate(extensions) {
       'ApiFunctionProxyRootPermissionprod',
       'ApiFunctionProxyPlusPermissionprod',
       'WafApiGatewayAssociation',
+      'FunctionsApiResource',
+      'FunctionsApiV1Resource',
+      'FunctionsApiNameResource',
+      'FunctionsApiMethod',
+      'FunctionsLambdaPermission',
     ];
     for (const r of apiGatewayResources) baseResources.delete(r);
 

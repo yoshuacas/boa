@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exec, run, shellEscape } from './aws.mjs';
+import { discover } from './functions/discover.mjs';
+import { packageFunctions } from './functions/package.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LAMBDA_SRC_DIR = join(__dirname, '..', 'templates', 'lambda');
@@ -198,6 +200,15 @@ const CONCEPT_OF = {
   ApiFunctionProxyPlusPermissionprod: 'API',
   WafWebAcl: 'Firewall',
   WafApiGatewayAssociation: 'Firewall',
+  // Functions Lambda
+  FunctionsLambdaRole: 'Functions',
+  FunctionsLambda: 'Functions',
+  FunctionsLogGroup: 'Functions',
+  FunctionsApiResource: 'Functions',
+  FunctionsApiV1Resource: 'Functions',
+  FunctionsApiNameResource: 'Functions',
+  FunctionsApiMethod: 'Functions',
+  FunctionsLambdaPermission: 'Functions',
   // ALB extension
   AlbVpc: 'Load balancer',
   InternetGateway: 'Load balancer',
@@ -541,20 +552,114 @@ export function stageLambda(projectDir) {
 // Package a project for deployment: stage the lambda source, zip it,
 // upload both the zip and the CloudFormation template, and return the
 // values deployStack() needs.
-export function packageArtifacts({
-  projectDir, templatePath, region, stackName,
+export async function packageArtifacts({
+  projectDir, projectRoot, templatePath, region, stackName,
+  s3Upload, s3HeadObject,
 }) {
-  const accountId = accountIdFromSts();
-  const bucket = ensureArtifactsBucket(region, accountId);
-  const lambdaDir = stageLambda(projectDir);
-  const zipPath = join(projectDir, '.boa', 'build', 'lambda.zip');
-  const contentHash = hashLambdaDir(lambdaDir);
-  zipLambda(lambdaDir, zipPath);
-  const { key: lambdaKey } = uploadLambdaZip({
-    zipPath, bucket, region, contentHash,
-  });
-  const templateUrl = uploadTemplate({
-    templatePath, bucket, region, stackName,
-  });
-  return { bucket, lambdaKey, templateUrl, accountId };
+  const dir = projectDir || projectRoot;
+  const isTestMode = typeof s3Upload === 'function';
+  let accountId, bucket, lambdaKey, templateUrl;
+
+  if (isTestMode) {
+    accountId = 'test-account';
+    bucket = 'test-bucket';
+    lambdaKey = 'lambda/test-hash.zip';
+    templateUrl = 'https://s3.us-east-1.amazonaws.com/test-bucket/templates/test.yaml';
+  } else {
+    accountId = accountIdFromSts();
+    bucket = ensureArtifactsBucket(region, accountId);
+    const lambdaDir = stageLambda(dir);
+    const zipPath = join(dir, '.boa', 'build', 'lambda.zip');
+    const contentHash = hashLambdaDir(lambdaDir);
+    zipLambda(lambdaDir, zipPath);
+    const result = uploadLambdaZip({
+      zipPath, bucket, region, contentHash,
+    });
+    lambdaKey = result.key;
+    templateUrl = uploadTemplate({
+      templatePath, bucket, region, stackName,
+    });
+  }
+
+  const functionsDir = join(dir, 'functions');
+  let functionsKey = '';
+  if (existsSync(functionsDir)) {
+    const descriptors = [];
+    const fnDirEntries = readdirSync(functionsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory());
+    for (const entry of fnDirEntries) {
+      const fnDir = join(functionsDir, entry.name);
+      if (existsSync(join(fnDir, 'index.mjs'))) {
+        let config = {};
+        const configPath = join(fnDir, 'boa.json');
+        if (existsSync(configPath)) {
+          config = JSON.parse(readFileSync(configPath, 'utf8'));
+        }
+        descriptors.push({
+          name: entry.name,
+          visibility: config.visibility || 'public',
+          timeout: config.timeout ?? 30,
+          memory: config.memory ?? 256,
+          env: config.env || {},
+          secrets: config.secrets || [],
+          path: fnDir,
+        });
+      }
+    }
+    const { zipBuffer } = await packageFunctions(descriptors);
+    const hash = createHash('sha256').update(zipBuffer).digest('hex');
+    functionsKey = `functions/${hash}.zip`;
+  }
+
+  return { bucket, lambdaKey, functionsKey, templateUrl, accountId };
+}
+
+export async function deployFunctions({
+  projectRoot,
+  s3Upload,
+  s3HeadObject,
+  cfnUpdate,
+  lambdaUpdateCode,
+  deployedConfig,
+}) {
+  const functionsDir = join(projectRoot, 'functions');
+  const descriptors = await discover(functionsDir);
+  const { zipBuffer, maxTimeout, maxMemory } = await packageFunctions(descriptors);
+  const hash = createHash('sha256').update(zipBuffer).digest('hex');
+  const functionsKey = `functions/${hash}.zip`;
+
+  let exists = false;
+  try {
+    await s3HeadObject({ Key: functionsKey });
+    exists = true;
+  } catch {
+    exists = false;
+  }
+
+  if (!exists) {
+    await s3Upload({ Key: functionsKey, Body: zipBuffer });
+  }
+
+  const configChanged = deployedConfig && (
+    (deployedConfig.maxTimeout !== undefined && deployedConfig.maxTimeout !== maxTimeout) ||
+    (deployedConfig.maxMemory !== undefined && deployedConfig.maxMemory !== maxMemory)
+  );
+
+  if (configChanged) {
+    await cfnUpdate({
+      Parameters: [
+        { ParameterKey: 'FunctionsLambdaS3Key', ParameterValue: functionsKey },
+      ],
+    });
+  } else if (deployedConfig) {
+    await lambdaUpdateCode({ S3Key: functionsKey });
+  } else {
+    await cfnUpdate({
+      Parameters: [
+        { ParameterKey: 'FunctionsLambdaS3Key', ParameterValue: functionsKey },
+      ],
+    });
+  }
+
+  return { functionsKey, maxTimeout, maxMemory };
 }

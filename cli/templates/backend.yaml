@@ -14,6 +14,10 @@ Parameters:
   LambdaS3Key:
     Type: String
     Description: S3 key of the packaged Lambda zip
+  FunctionsLambdaS3Key:
+    Type: String
+    Description: S3 key of the packaged Functions Lambda zip
+    Default: ''
   AllowedOrigins:
     Type: CommaDelimitedList
     Description: >
@@ -190,6 +194,118 @@ Resources:
         IntegrationHttpMethod: POST
         Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations'
 
+  # -------------------------------------------------------
+  # Functions Lambda — single Lambda for all user functions
+  # -------------------------------------------------------
+  FunctionsLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DsqlConnect
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                  - dsql:DbConnectAdmin
+                Resource: !Sub 'arn:aws:dsql:${AWS::Region}:${AWS::AccountId}:cluster/${DsqlCluster}'
+        - PolicyName: SsmRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/functions/*'
+        - PolicyName: LambdaInvokeSelf
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-functions'
+
+  FunctionsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-functions'
+      Handler: handler.handler
+      Runtime: nodejs20.x
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt FunctionsLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaS3Bucket
+        S3Key: !Ref FunctionsLambdaS3Key
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt DsqlCluster.Endpoint
+          REGION_NAME: !Ref 'AWS::Region'
+          STACK_NAME: !Ref ProjectName
+          JWT_SECRET: !Sub '{{resolve:ssm:/${ProjectName}/jwt-secret}}'
+          API_URL: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+          ANON_KEY: !Sub '{{resolve:ssm:/${ProjectName}/anon-key}}'
+          SERVICE_ROLE_KEY: !Sub '{{resolve:ssm:/${ProjectName}/service-role-key}}'
+
+  FunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ProjectName}-functions'
+      RetentionInDays: 30
+
+  FunctionsApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !GetAtt Api.RootResourceId
+      PathPart: functions
+
+  FunctionsApiV1Resource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !Ref FunctionsApiResource
+      PathPart: v1
+
+  FunctionsApiNameResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref Api
+      ParentId: !Ref FunctionsApiV1Resource
+      PathPart: '{name+}'
+
+  FunctionsApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref Api
+      ResourceId: !Ref FunctionsApiNameResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionsLambda.Arn}/invocations'
+
+  FunctionsLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FunctionsLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Api}/*/*/*'
+
   # Deployment must depend on every Method the stage exposes so that
   # CloudFormation does not race the stage past a partial API.
   ApiDeployment:
@@ -197,6 +313,7 @@ Resources:
     DependsOn:
       - ApiRootMethod
       - ApiProxyPlusMethod
+      - FunctionsApiMethod
     Properties:
       RestApiId: !Ref Api
 
