@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { buildLogger } from './logger.mjs';
+import { buildBoaClient } from './boa-client.mjs';
 
 function verifyHs256(token, secret) {
   const parts = token.split('.');
@@ -77,6 +78,7 @@ export function buildCtx(event, opts) {
       }
       return _pool;
     },
+    boa: buildBoaClient(jwt, role),
     logger: buildLogger(functionName),
     env: buildEnv(registry[functionName]),
   };
