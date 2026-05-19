@@ -203,6 +203,59 @@ describe('functions runtime ctx - security', () => {
   });
 });
 
+describe('functions runtime ctx - JWT expiration', () => {
+  it('expired JWT falls back to anon', () => {
+    const expiredToken = makeJwtSync({
+      sub: 'user-expired',
+      email: 'expired@example.com',
+      role: 'authenticated',
+      exp: Math.floor(Date.now() / 1000) - 3600,
+    }, JWT_SECRET);
+
+    const event = {
+      headers: { authorization: `Bearer ${expiredToken}` },
+    };
+    const ctx = buildCtx(event, ctxOpts);
+
+    assert.equal(ctx.role, 'anon');
+    assert.equal(ctx.userId, '');
+  });
+});
+
+describe('functions runtime ctx - timing-safe signature comparison', () => {
+  it('JWT with signature differing at first byte is rejected', () => {
+    const token = makeJwtSync({
+      sub: 'user-1',
+      role: 'authenticated',
+    }, JWT_SECRET);
+    const parts = token.split('.');
+    const badSig = 'A' + parts[2].slice(1);
+    const tamperedToken = `${parts[0]}.${parts[1]}.${badSig}`;
+
+    const event = {
+      headers: { authorization: `Bearer ${tamperedToken}` },
+    };
+    const ctx = buildCtx(event, ctxOpts);
+    assert.equal(ctx.role, 'anon');
+  });
+
+  it('JWT with signature differing at last byte is rejected', () => {
+    const token = makeJwtSync({
+      sub: 'user-2',
+      role: 'authenticated',
+    }, JWT_SECRET);
+    const parts = token.split('.');
+    const badSig = parts[2].slice(0, -1) + 'Z';
+    const tamperedToken = `${parts[0]}.${parts[1]}.${badSig}`;
+
+    const event = {
+      headers: { authorization: `Bearer ${tamperedToken}` },
+    };
+    const ctx = buildCtx(event, ctxOpts);
+    assert.equal(ctx.role, 'anon');
+  });
+});
+
 describe('functions runtime ctx - env and logger', () => {
   it('ctx.env contains merged env vars from registry', () => {
     const event = { headers: {} };

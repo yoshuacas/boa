@@ -1,6 +1,7 @@
 import { describe, it, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { handler } from '../lib/functions/runtime/handler.mjs';
+import { makeJwt } from './helpers/jwt.mjs';
 
 function makeApiGwEvent(path, { headers = {}, body = null, method = 'GET' } = {}) {
   return {
@@ -192,5 +193,35 @@ describe('functions runtime routing', () => {
     await handler(event, { registry, handlers: { hello: userHandler } });
 
     assert.deepEqual(capturedReq.body, payload);
+  });
+
+  it('handler passes real ctx with JWT role and userId from Bearer token', async () => {
+    const JWT_SECRET = 'test-jwt-secret-for-routing';
+    const token = makeJwt(
+      { sub: 'user-123', role: 'authenticated', email: 'test@example.com' },
+      JWT_SECRET,
+    );
+
+    let capturedCtx;
+    const userHandler = mock.fn(async (req, ctx) => {
+      capturedCtx = ctx;
+      return { status: 200, body: {} };
+    });
+
+    const registry = {
+      hello: { visibility: 'public', timeout: 30, memory: 256 },
+    };
+
+    const event = makeApiGwEvent('/functions/v1/hello', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    await handler(event, {
+      registry,
+      handlers: { hello: userHandler },
+      ctxOpts: { jwtSecret: JWT_SECRET },
+    });
+
+    assert.equal(capturedCtx.role, 'authenticated');
+    assert.equal(capturedCtx.userId, 'user-123');
   });
 });

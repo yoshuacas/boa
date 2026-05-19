@@ -1,6 +1,6 @@
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { invokeFn } from '../commands/functions.mjs';
+import { invokeFn, parseArgs } from '../commands/functions.mjs';
 
 describe('functions CLI invoke subcommand', () => {
   const deployedRegistry = {
@@ -124,5 +124,61 @@ describe('functions CLI invoke subcommand', () => {
         return true;
       }
     );
+  });
+
+  it('--service on a private function sends direct-invoke shape with _boaInternal', async () => {
+    const invokeCalls = [];
+    const mockLambdaInvoke = async (params) => {
+      invokeCalls.push(params);
+      return { Payload: JSON.stringify({ statusCode: 200, body: '{"ok":true}' }) };
+    };
+
+    await invokeFn('cleanup', {
+      deployedRegistry,
+      lambdaInvoke: mockLambdaInvoke,
+      anonKey: 'anon-key-value',
+      serviceRoleKey: 'service-role-key-value',
+      service: true,
+      functionName: 'test-stack-functions',
+    });
+
+    assert.equal(invokeCalls.length, 1);
+    const payload = JSON.parse(invokeCalls[0].Payload);
+    assert.deepEqual(payload._boaInternal, { name: 'cleanup' });
+    assert.equal(payload.headers.apikey, 'service-role-key-value');
+  });
+});
+
+describe('functions CLI logs command', () => {
+  it('logsFn shell-escapes the function name in filter-pattern', async () => {
+    const { logsFn } = await import('../commands/functions.mjs');
+    const commands = [];
+
+    await logsFn('hello-world', {
+      stackName: 'my-stack',
+      region: 'us-east-1',
+      _exec: (cmd) => { commands.push(cmd); return ''; },
+    });
+
+    assert.equal(commands.length, 1);
+    const cmd = commands[0];
+    assert.ok(
+      cmd.includes("'hello-world'") || cmd.includes("'\\''"),
+      `function name should be shell-escaped in command: ${cmd}`
+    );
+  });
+});
+
+describe('functions CLI parseArgs', () => {
+  it('boolean flag --service does not consume next positional', () => {
+    const result = parseArgs(['--service', 'hello']);
+    assert.equal(result.flags.service, true);
+    assert.deepEqual(result.positional, ['hello']);
+  });
+
+  it('unknown flag without value does not consume next positional', () => {
+    const result = parseArgs(['--verbose', 'hello']);
+    assert.equal(result.flags.verbose, true);
+    assert.deepEqual(result.positional, ['hello']);
   });
 });

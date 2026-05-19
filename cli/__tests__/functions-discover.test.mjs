@@ -123,7 +123,7 @@ describe('functions discover', () => {
     );
   });
 
-  it('rejects reserved name _internal', async () => {
+  it('rejects _internal by reserved name check (not pattern check)', async () => {
     const root = setupProject();
     mkdirSync(join(root, 'functions', '_internal'));
     writeFileSync(
@@ -135,8 +135,8 @@ describe('functions discover', () => {
       () => discover(join(root, 'functions')),
       (err) => {
         assert.ok(
-          err.message.includes('_internal'),
-          `Expected _internal in error, got: ${err.message}`
+          err.message.includes("Reserved function name '_internal'"),
+          `Expected reserved name error, got: ${err.message}`
         );
         return true;
       }
@@ -202,6 +202,31 @@ describe('functions discover', () => {
     const result = await discover(join(root, 'functions'));
 
     assert.deepEqual(result, []);
+  });
+
+  it('rejects invalid visibility value', async () => {
+    const root = setupProject();
+    mkdirSync(join(root, 'functions', 'hello'));
+    writeFileSync(
+      join(root, 'functions', 'hello', 'index.mjs'),
+      'export default async function handler() { return { status: 200, body: {} }; }'
+    );
+    writeFileSync(
+      join(root, 'functions', 'hello', 'boa.json'),
+      JSON.stringify({ visibility: 'internal' })
+    );
+
+    await assert.rejects(
+      () => discover(join(root, 'functions')),
+      (err) => {
+        assert.ok(
+          err.message.includes('visibility')
+            && (err.message.includes('public') || err.message.includes('private')),
+          `Expected visibility validation error, got: ${err.message}`
+        );
+        return true;
+      }
+    );
   });
 
   it('rejects timeout below minimum (0)', async () => {

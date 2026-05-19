@@ -138,8 +138,27 @@ describe('deploy functions integration', () => {
     });
 
     assert.ok(
-      s3Uploads.length > 0 || true,
-      'should still deploy (even empty registry)'
+      s3Uploads.length > 0,
+      'should still upload zip with empty registry'
+    );
+  });
+
+  it('packageArtifacts rejects invalid function name via discover validation', async () => {
+    const root = setupProject([{ name: 'My_Func' }]);
+
+    await assert.rejects(
+      () => packageArtifacts({
+        projectRoot: root,
+        s3Upload: async () => {},
+        s3HeadObject: async () => { throw new Error('NotFound'); },
+      }),
+      (err) => {
+        assert.ok(
+          err.message.includes("Invalid function name 'My_Func'"),
+          `Expected invalid name error from discover(), got: ${err.message}`
+        );
+        return true;
+      }
     );
   });
 

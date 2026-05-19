@@ -164,4 +164,11 @@ describe('functions package', () => {
       'zip should contain sibling utils.mjs'
     );
   });
+
+  it('empty descriptors returns sane defaults not -Infinity', async () => {
+    const result = await packageFunctions([]);
+
+    assert.equal(result.maxTimeout, 30, 'default maxTimeout should be 30');
+    assert.equal(result.maxMemory, 256, 'default maxMemory should be 256');
+  });
 });

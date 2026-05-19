@@ -106,4 +106,31 @@ describe('functions runtime boa-client', () => {
     const pool2 = await client.db();
     assert.strictEqual(pool1, pool2);
   });
+
+  it('directInvoke payload arrives intact through handler parseBody', async () => {
+    const { handler } = await import('../lib/functions/runtime/handler.mjs');
+
+    const invokeCalls = [];
+    const mockLambdaInvoke = async (params) => {
+      invokeCalls.push(params);
+      const invokeEvent = JSON.parse(params.Payload);
+      const result = await handler(invokeEvent, {
+        registry: { target: { visibility: 'private', timeout: 30, memory: 256 } },
+        handlers: {
+          target: async (req) => ({ status: 200, body: req.body }),
+        },
+      });
+      return { Payload: JSON.stringify(result) };
+    };
+
+    const client = buildBoaClient(callerJwt, 'authenticated', {
+      apiUrl,
+      lambdaInvoke: mockLambdaInvoke,
+    });
+
+    const result = await client.functions.invoke('target', { id: 42 });
+    const parsed = JSON.parse(result.Payload);
+    const body = JSON.parse(parsed.body);
+    assert.deepEqual(body, { id: 42 });
+  });
 });
