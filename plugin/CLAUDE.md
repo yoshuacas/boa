@@ -10,6 +10,7 @@ The BOA skill teaches your agent to build serverless backends on AWS.
 | Authorization | Access policies (Cedar) |
 | Engine     | pgrest-lambda (npm)      |
 | Compute    | Lambda (Node.js 20)      |
+| Compute (Custom) | FunctionsLambda (shared) |
 | API        | API Gateway REST + WAF (default) |
 | Storage    | Amazon S3                |
 | Hosting    | AWS Amplify              |
@@ -47,6 +48,9 @@ Custom Lambda code should read these flat keys.
 | `docs/ARCHITECTURE.md` | Schema patterns per app type |
 | `docs/DSQL-PATTERNS.md` | SQL, migrations, access policies |
 | `docs/MIGRATIONS.md` | Migration file format, runner, patterns |
+| `docs/FUNCTIONS.md` | Custom functions reference (handler, ctx, routing, secrets) |
+| `cli/lib/functions/` | Functions runtime, discovery, packaging, and registry |
+| `cli/commands/functions.mjs` | CLI subcommands: list, invoke, logs, remove |
 
 ## BOA CLI
 | Command | What it does |
@@ -55,4 +59,5 @@ Custom Lambda code should read these flat keys.
 | `boa deploy` | Rebuild + redeploy |
 | `boa migrate` | Apply pending SQL migrations |
 | `boa verify` | Post-deploy verification |
+| `boa functions` | Manage custom functions (list, invoke, logs, remove) |
 | `boa teardown` | Backend removal |

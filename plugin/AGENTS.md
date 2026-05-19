@@ -22,6 +22,7 @@ When building a backend, deploying to AWS, setting up auth, creating APIs, or ad
 - Authorization: Cedar policies (deny by default)
 - Engine: pgrest-lambda (PostgREST-compatible REST API, auto-generates endpoints from schema)
 - Compute: Lambda (Node.js 20.x)
+- Compute (Custom): FunctionsLambda (shared Lambda for user functions)
 - API: API Gateway REST + WAF
 - Storage: S3 (presigned URLs only)
 - Hosting: Amplify
@@ -35,3 +36,6 @@ ALB is available as an extension (`boa extend alb`) for long-running requests, s
 - Pitfalls: `docs/PITFALLS.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Lambda handlers: `lambda-templates/index.mjs` (pgrest-lambda engine), `lambda-templates/presigned-upload.mjs`
+- Custom functions: `docs/FUNCTIONS.md` (handler, ctx, routing, secrets)
+- Functions runtime: `cli/lib/functions/` (discovery, packaging, registry)
+- Functions CLI: `cli/commands/functions.mjs` (list, invoke, logs, remove)

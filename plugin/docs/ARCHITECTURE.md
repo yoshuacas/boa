@@ -340,4 +340,5 @@ const tasks = await pool.query(
 | Compute | Lambda (Node.js) | Fargate, EC2, Python Lambda | Scales to zero, no provisioning, Node.js avoids native dependency issues |
 | API | REST API Gateway + WAF | HTTP API, AppSync | HTTPS by default, WAF rate limiting, request validation, usage plans |
 | Storage | S3 + presigned URLs | Public buckets, EFS | Secure by default, no server-side proxy needed, unlimited scale |
+| Compute (Custom) | Lambda (FunctionsLambda) | Per-function Lambdas, ECS, Fargate | Shared Lambda for user functions, single log group, no CloudFormation per function |
 | IaC | CloudFormation | CDK, Terraform | The `boa` CLI wraps CloudFormation so one command deploys, updates, and tears down the stack |

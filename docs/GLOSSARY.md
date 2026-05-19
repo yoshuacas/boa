@@ -87,6 +87,15 @@ Use these terms consistently across all BOA materials: website, CLI output, skil
 | **`boa remove <name>`** | Remove an extension | "run `boa remove alb`" |
 | **`boa extensions`** | List available and enabled extensions | |
 
+## Functions
+
+| Term | Usage | Notes |
+|------|-------|-------|
+| **function** | Custom server-side code at `functions/<name>/index.mjs` | "add a function", "deploy your functions" |
+| **FunctionsLambda** | Shared Lambda running all user functions | Technical docs only, never developer-facing |
+| **ctx** | Context object passed to function handlers | Contains role, userId, db, boa, logger, env |
+| **private function** | Function only callable via direct Lambda invoke or `ctx.boa.functions.invoke()` | No API Gateway route; returns 404 if called via HTTP |
+
 ## Technical (internal docs only)
 
 | Term | Usage | Notes |

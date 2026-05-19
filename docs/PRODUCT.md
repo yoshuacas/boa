@@ -34,6 +34,7 @@ BOA is for developers who want AWS but find it too complex. It removes the need 
 - **Free and open source** — BOA itself has no cost. Developers pay only for AWS services, which include generous free tiers. A productivity app with 1,000 customers costs $0/month on AWS.
 - **Grows without limits** — the same architecture that runs your prototype handles millions of customers. No re-architecture, no plan upgrades, no migration.
 - **Safe by default** — opinionated guardrails prevent the mistakes that kill projects. Data protected, schema changes tracked, your backend can't be accidentally destroyed.
+- **Custom functions** — drop server-side logic at `functions/<name>/index.mjs` and deploy. No CloudFormation expertise needed.
 
 ## Core Problem
 
@@ -57,6 +58,7 @@ BOA fixes that with battle-tested patterns from hundreds of real agent builds, a
 | Authorization | Cedar policies | "access policies" |
 | Engine | pgrest-lambda (npm) | "the REST API" |
 | Compute | AWS Lambda (Node.js 20.x) | "functions" |
+| Compute (Custom) | FunctionsLambda | "custom functions" |
 | API | API Gateway REST + WAF (default) | "your API" |
 | Storage | Amazon S3 | "file storage" |
 | Hosting | AWS Amplify | "frontend hosting" |
