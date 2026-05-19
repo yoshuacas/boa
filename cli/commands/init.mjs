@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import {
-  existsSync, mkdirSync, readdirSync, writeFileSync,
+  copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync,
 } from 'node:fs';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +20,9 @@ import { copySkill } from '../lib/skill.mjs';
 import { bootstrapBetterAuthSchema } from '../lib/auth-schema.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const templatesDir = join(__dirname, '..', 'templates');
 const TEMPLATE_PATH = process.env.BOA_TEMPLATE_OVERRIDE
-  || join(__dirname, '..', 'templates', 'backend.yaml');
+  || join(templatesDir, 'backend.yaml');
 
 export function validateStackName(name) {
   if (name.length === 1) return /^[a-z0-9]$/.test(name);
@@ -254,6 +255,24 @@ BOA source, templates, and docs: ${REPO_URL}
 `;
 }
 
+export async function scaffoldFunctions(projectRoot) {
+  const functionsDir = join(projectRoot, 'functions');
+  const helloDir = join(functionsDir, 'hello');
+
+  if (!existsSync(functionsDir)) {
+    mkdirSync(functionsDir, { recursive: true });
+    mkdirSync(helloDir);
+    copyFileSync(
+      join(templatesDir, 'functions/hello/index.mjs'),
+      join(helloDir, 'index.mjs'),
+    );
+    copyFileSync(
+      join(templatesDir, 'functions/hello/boa.json'),
+      join(helloDir, 'boa.json'),
+    );
+  }
+}
+
 export default async function init(args) {
   const parsed = parseArgs(args);
   let name = parsed.name || basename(process.cwd());
@@ -336,6 +355,9 @@ export default async function init(args) {
   if (!existsSync('.gitignore')) {
     writeFileSync('.gitignore', '.boa/\nnode_modules/\n');
   }
+
+  // 6b. Scaffold functions/hello/ example
+  await scaffoldFunctions(process.cwd());
 
   // 7. Generate JWT secret
   console.log('Generating secrets...');
